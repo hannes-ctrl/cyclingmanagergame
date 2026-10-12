@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'dart:math';
 
 import 'model.dart';
@@ -113,7 +114,8 @@ double _gauss(Random r) {
 String _names(Iterable<_State> riders, [int limit = 6]) {
   final list = riders.map((s) => s.rider.name).toList();
   if (list.length <= limit) return list.join(', ');
-  return '${list.take(limit).join(', ')} und ${list.length - limit} weitere';
+  return tr('{0} und {1} weitere',
+      [list.take(limit).join(', '), list.length - limit]);
 }
 
 /// Simulates a stage or one-day race.
@@ -241,10 +243,10 @@ class _RoadRace {
   }
 
   String _reserveText(_State m) => m.reserve > 0.7 && m.energy > 0.55
-      ? 'wirkt frisch'
+      ? tr('wirkt frisch')
       : m.reserve > 0.4 && m.energy > 0.35
-          ? 'hat noch etwas im Tank'
-          : 'ist am Limit';
+          ? tr('hat noch etwas im Tank')
+          : tr('ist am Limit');
 
   /// Decision point: the break of the day has formed.
   ///
@@ -262,14 +264,19 @@ class _RoadRace {
             .where((m) => m.gcGap != null && m.gcGap! < 300)
             .toList()
         : const <_State>[];
-    final head = 'Km ${km.round()}: ${escape.members.length} Fahrer sind weg – '
-        '${_names(escape.members, 5)}.'
-        '${danger.isEmpty ? '' : ' Gefährlich für die Gesamtwertung: ${_names(danger, 3)}.'}';
+    final head = tr('Km {0}: {1} Fahrer sind weg – {2}.{3}', [
+      km.round(),
+      escape.members.length,
+      _names(escape.members, 5),
+      danger.isEmpty
+          ? ''
+          : tr(' Gefährlich für die Gesamtwertung: {0}.', [_names(danger, 3)])
+    ]);
     if (mine.isNotEmpty) {
       final a = _ask(RadioKind.breakGone, km,
-          '$head Von uns dabei: ${_names(mine)}.', const [
-        'Mitarbeiten, die Gruppe soll durchkommen',
-        'Nicht mitführen, Kräfte sparen',
+          tr('{0} Von uns dabei: {1}.', [head, _names(mine)]), [
+        tr('Mitarbeiten, die Gruppe soll durchkommen'),
+        tr('Nicht mitführen, Kräfte sparen'),
       ]);
       if (a == 1) {
         for (final m in mine) {
@@ -289,11 +296,11 @@ class _RoadRace {
             .toList()
           ..sort((a, b) => chaseScore(b).compareTo(chaseScore(a))))
         .firstOrNull;
-    final a =
-        _ask(RadioKind.breakGone, km, '$head Von uns ist niemand dabei.', [
-      'Beim Plan bleiben',
-      'Nachführen lassen: unsere Helfer an die Spitze des Feldes',
-      if (chaser != null) '${chaser.rider.name} soll nachsetzen',
+    final a = _ask(
+        RadioKind.breakGone, km, tr('{0} Von uns ist niemand dabei.', [head]), [
+      tr('Beim Plan bleiben'),
+      tr('Nachführen lassen: unsere Helfer an die Spitze des Feldes'),
+      if (chaser != null) tr('{0} soll nachsetzen', [chaser.rider.name]),
     ]);
     if (a == 1) {
       _setOwnPlan((p) => p.copyWith(
@@ -308,8 +315,11 @@ class _RoadRace {
         ..energy -= 0.04
         ..reserve = 0.4;
       escape.members.add(chaser);
-      events.add(RaceEvent(km, EventType.breakaway,
-          '${chaser.rider.name} setzt nach und schließt zur Gruppe auf'));
+      events.add(RaceEvent(
+          km,
+          EventType.breakaway,
+          tr('{0} setzt nach und schließt zur Gruppe auf',
+              [chaser.rider.name])));
     }
   }
 
@@ -327,23 +337,26 @@ class _RoadRace {
     final helpers = mine.where((m) => m.role.works).length;
     final gap = main.clock - groups.first.clock;
     final ahead = gap > 1
-        ? 'Vorn ${groups.first.members.length} Fahrer mit ${_clock(gap)} Vorsprung, '
-            'dahinter das Feld mit ${main.members.length} Fahrern.'
-        : 'Das Feld ist mit ${main.members.length} Fahrern zusammen.';
+        ? tr(
+            'Vorn {0} Fahrer mit {1} Vorsprung, dahinter das Feld mit {2} Fahrern.',
+            [groups.first.members.length, _clock(gap), main.members.length])
+        : tr('Das Feld ist mit {0} Fahrern zusammen.', [main.members.length]);
     final own = leaders.isEmpty
-        ? 'Von uns sind ${mine.length} Fahrer dabei, kein Kapitän.'
-        : '${leaders.first.rider.name} ${_reserveText(leaders.first)}, '
-            '$helpers Helfer sind noch bei ihm.';
+        ? tr('Von uns sind {0} Fahrer dabei, kein Kapitän.', [mine.length])
+        : tr('{0} {1}, {2} Helfer sind noch bei ihm.',
+            [leaders.first.rider.name, _reserveText(leaders.first), helpers]);
     final a = _ask(
         RadioKind.finale,
         s.km,
-        'Noch ${(route.raceKm - s.km).round()} km, das Finale beginnt. $ahead $own',
+        tr('Noch {0} km, das Finale beginnt. {1} {2}',
+            [(route.raceKm - s.km).round(), ahead, own]),
         [
-          'Beim Plan bleiben',
-          if (helpers > 0) 'Helfer opfern: volles Tempo, bis sie platzen',
+          tr('Beim Plan bleiben'),
+          if (helpers > 0) tr('Helfer opfern: volles Tempo, bis sie platzen'),
           if (!sprintStage && leaders.isNotEmpty) ...[
-            '${leaders.first.rider.name} greift am nächsten schweren Stück an',
-            'Nur folgen, nicht selbst angreifen',
+            tr('{0} greift am nächsten schweren Stück an',
+                [leaders.first.rider.name]),
+            tr('Nur folgen, nicht selbst angreifen'),
           ],
         ]);
     final drive = helpers > 0 ? 1 : 0;
@@ -420,9 +433,12 @@ class _RoadRace {
 
       if (!breakFormed && s.km >= breakKm && s.km < finaleKm) {
         breakFormed = true;
-        final escape = _formBreak(groups.first);
+        // The break goes from the field, which is not always the group at
+        // the head of the race: stragglers of an early split may lead.
+        final field = _mainGroup(groups);
+        final escape = _formBreak(field);
         if (escape != null) {
-          _radioBreak(escape, groups.first, s.km);
+          _radioBreak(escape, field, s.km);
           groups.insert(0, escape);
         }
       }
@@ -468,7 +484,7 @@ class _RoadRace {
 
     if (maxGap > 45) {
       events.add(RaceEvent(maxGapKm, EventType.maxGap,
-          'Größter Vorsprung der Spitze: ${_clock(maxGap)}'));
+          tr('Größter Vorsprung der Spitze: {0}', [_clock(maxGap)])));
     }
     return _finish(groups);
   }
@@ -623,7 +639,10 @@ class _RoadRace {
       teams[c.rider.teamId] = (teams[c.rider.teamId] ?? 0) + 1;
       picked.add(c);
     }
-    if (picked.length < 2) return null;
+    // Never the whole group: somebody has to be left to chase.
+    if (picked.length < 2 || picked.length >= peloton.members.length) {
+      return null;
+    }
     for (final p in picked) {
       p
         ..inBreak = true
@@ -631,7 +650,7 @@ class _RoadRace {
     }
     peloton.members.removeWhere(picked.contains);
     events.add(RaceEvent(route.segments[seg].km, EventType.breakaway,
-        '${picked.length} Fahrer setzen sich ab: ${_names(picked)}'));
+        tr('{0} Fahrer setzen sich ab: {1}', [picked.length, _names(picked)])));
     // The group starts with a small cushion; the rest follows from the pace.
     return _Group(picked, peloton.clock - 20);
   }
@@ -698,13 +717,19 @@ class _RoadRace {
         final a = _ask(
             RadioKind.rivalAttack,
             s.km,
-            '${best.rider.name} (${best.rider.team}) greift '
-            '${(route.raceKm - s.km).toStringAsFixed(1)} km vor dem Ziel an'
-            '${followers.isEmpty ? ', niemand folgt' : ', es folgen ${_names(followers, 4)}'}. '
-            '${mine.rider.name} ${_reserveText(mine)}.',
+            tr('{0} ({1}) greift {2} km vor dem Ziel an{3}. {4} {5}.', [
+              best.rider.name,
+              best.rider.team,
+              (route.raceKm - s.km).toStringAsFixed(1),
+              followers.isEmpty
+                  ? tr(', niemand folgt')
+                  : tr(', es folgen {0}', [_names(followers, 4)]),
+              mine.rider.name,
+              _reserveText(mine)
+            ]),
             [
-              'Eigenes Tempo fahren',
-              '${mine.rider.name} soll mitgehen',
+              tr('Eigenes Tempo fahren'),
+              tr('{0} soll mitgehen', [mine.rider.name]),
             ]);
         if (a == 1) followers.add(mine);
       }
@@ -725,8 +750,13 @@ class _RoadRace {
         s.km,
         EventType.attack,
         followers.isEmpty
-            ? '${best.rider.name} greift ${rest.toStringAsFixed(1)} km vor dem Ziel an, niemand folgt'
-            : '${best.rider.name} greift ${rest.toStringAsFixed(1)} km vor dem Ziel an, es folgen: ${_names(followers)}'));
+            ? tr('{0} greift {1} km vor dem Ziel an, niemand folgt',
+                [best.rider.name, rest.toStringAsFixed(1)])
+            : tr('{0} greift {1} km vor dem Ziel an, es folgen: {2}', [
+                best.rider.name,
+                rest.toStringAsFixed(1),
+                _names(followers)
+              ])));
   }
 
   /// Advances a group by one segment.
@@ -788,8 +818,10 @@ class _RoadRace {
       final hard = s.grade > 0.02 || s.cobble > 0 || remainingKm < 5;
       // Between the hard parts the front keeps going; larger chase groups watch
       // each other and work less well.
+      // On the sectors the front rides above threshold: that is where the
+      // cobbled classics are decided.
       effort = hard
-          ? 1.0
+          ? (s.cobble >= 2 ? t.cobbleEffort : 1.0)
           : isFront
               ? t.finaleEaseEffort
               : n > 8
@@ -902,8 +934,11 @@ class _RoadRace {
       workers = order.take(12).toSet();
       if (n >= 20 && !_gruppettoReported) {
         _gruppettoReported = true;
-        events.add(RaceEvent(s.km, EventType.gruppetto,
-            'Hinten bildet sich das Gruppetto: $n Fahrer, ${_clock(gapToMain)} hinter den Favoriten'));
+        events.add(RaceEvent(
+            s.km,
+            EventType.gruppetto,
+            tr('Hinten bildet sich das Gruppetto: {0} Fahrer, {1} hinter den Favoriten',
+                [n, _clock(gapToMain)])));
       }
     } else {
       // Dropped riders: chase at first, far behind just get to the finish.
@@ -931,8 +966,14 @@ class _RoadRace {
       // On hard cobbles only the front gets through: whoever enters the sector
       // further back loses contact regardless of his legs.
       final squeezed = s.cobble >= 3 && i >= t.cobbleSqueeze;
+      // A puncture or a crash on hard cobbles: the rider loses the wheel.
+      // No random number is drawn while the value is zero, so races without
+      // mishaps run exactly as before.
+      final mishap = t.cobbleMishap > 0 &&
+          s.cobble >= 3 &&
+          rng.nextDouble() < t.cobbleMishap * s.lengthM / 1000;
       if (!identical(m, ref) &&
-          (squeezed || e > burst || e > 1.0 && m.reserve <= 0.03)) {
+          (squeezed || mishap || e > burst || e > 1.0 && m.reserve <= 0.03)) {
         dropped.add(m);
         continue;
       }
@@ -950,8 +991,11 @@ class _RoadRace {
         m.droppedReported = true;
       }
       if (lost.isNotEmpty) {
-        events.add(RaceEvent(s.km, EventType.dropped,
-            '${_names(lost)} ${lost.length == 1 ? 'muss' : 'müssen'} abreißen lassen'));
+        events.add(RaceEvent(
+            s.km,
+            EventType.dropped,
+            tr('{0} {1} abreißen lassen',
+                [_names(lost), lost.length == 1 ? tr('muss') : tr('müssen')])));
       }
     }
     // The dropped riders ride this segment together at their own pace.
@@ -1046,8 +1090,11 @@ class _RoadRace {
         if (caught > 0 &&
             catching >= 6 &&
             ahead.members.every((m) => m.inBreak)) {
-          events.add(RaceEvent(s.km, EventType.caught,
-              'Die Ausreißer werden ${(route.raceKm - s.km).toStringAsFixed(1)} km vor dem Ziel gestellt'));
+          events.add(RaceEvent(
+              s.km,
+              EventType.caught,
+              tr('Die Ausreißer werden {0} km vor dem Ziel gestellt',
+                  [(route.raceKm - s.km).toStringAsFixed(1)])));
           for (final m in ahead.members) {
             m.inBreak = false;
           }
@@ -1084,14 +1131,17 @@ class _RoadRace {
     final top = order.take(15).toList();
     awards.add(PointAward(p, [for (final m in top) m.rider]));
     final label = climb
-        ? 'Bergwertung ${const [
-            '',
-            'HC',
-            '1. Kat.',
-            '2. Kat.',
-            '3. Kat.',
-            '4. Kat.'
-          ][p.category.clamp(0, 5)]} ${p.name}'
+        ? tr('Bergwertung {0} {1}', [
+            [
+              '',
+              'HC',
+              tr('1. Kat.'),
+              tr('2. Kat.'),
+              tr('3. Kat.'),
+              tr('4. Kat.')
+            ][p.category.clamp(0, 5)],
+            p.name
+          ])
         : 'Sprint ${p.name}';
     events.add(
         RaceEvent(p.km, EventType.points, '$label: ${_names(top.take(3))}'));
@@ -1167,8 +1217,9 @@ class _RoadRace {
         route.raceKm,
         EventType.finish,
         firstGroup == 1
-            ? '${winner.rider.name} gewinnt als Solist'
-            : '${winner.rider.name} gewinnt aus einer Gruppe von $firstGroup Fahrern'));
+            ? tr('{0} gewinnt als Solist', [winner.rider.name])
+            : tr('{0} gewinnt aus einer Gruppe von {1} Fahrern',
+                [winner.rider.name, firstGroup])));
     events.sort((a, b) => a.km.compareTo(b.km));
     final inGruppetto = {
       for (final g in groups)
@@ -1247,7 +1298,7 @@ StageResult _timeTrial(
       placings,
       [
         RaceEvent(route.raceKm, EventType.finish,
-            '${placings.first.rider.name} gewinnt das Zeitfahren'),
+            tr('{0} gewinnt das Zeitfahren', [placings.first.rider.name])),
       ],
       false);
 }

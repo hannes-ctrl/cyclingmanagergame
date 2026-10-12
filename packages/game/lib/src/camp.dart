@@ -1,3 +1,4 @@
+import 'package:sim/sim.dart';
 import 'dart:math';
 
 import 'career.dart';
@@ -10,8 +11,11 @@ enum CampType {
   sprint('Sprint-Lager', TrainingFocus.sprint, 170, 0.006),
   base('Grundlagen-Lager', TrainingFocus.stamina, 140, 0.006);
 
-  const CampType(this.label, this.focus, this.costPerDay, this.peak);
-  final String label;
+  const CampType(this._label, this.focus, this.costPerDay, this.peak);
+  final String _label;
+
+  /// The label in the current language.
+  String get label => tr(_label);
 
   /// Which attributes the camp improves.
   final TrainingFocus focus;
@@ -100,30 +104,32 @@ class Camps {
   String? book(CampType type, DateTime start, int days, List<int> riderIds) {
     final riders = riderIds.toSet();
     if (start.isBefore(c.today))
-      return 'Der Beginn liegt in der Vergangenheit.';
+      return tr('Der Beginn liegt in der Vergangenheit.');
     if (start.year != c.year)
-      return 'Lager gibt es nur in der laufenden Saison.';
+      return tr('Lager gibt es nur in der laufenden Saison.');
     if (days < minDays || days > maxDays) {
-      return 'Ein Lager dauert $minDays bis $maxDays Tage.';
+      return tr('Ein Lager dauert {0} bis {1} Tage.', [minDays, maxDays]);
     }
-    if (riders.isEmpty) return 'Kein Fahrer gewählt.';
+    if (riders.isEmpty) return tr('Kein Fahrer gewählt.');
     if (riders.length > maxRiders) {
-      return 'Mehr als $maxRiders Fahrer passen nicht in ein Lager.';
+      return tr('Mehr als {0} Fahrer passen nicht in ein Lager.', [maxRiders]);
     }
     final end = start.add(Duration(days: days - 1));
     for (final id in riders) {
       final r = c.riderById[id];
-      if (r == null || r.teamId != c.teamId) return 'Fahrer nicht im Team.';
+      if (r == null || r.teamId != c.teamId) return tr('Fahrer nicht im Team.');
       if (c.isBusy(id, start)) {
-        return '${r.name} ist zu Beginn des Lagers nicht verfügbar.';
+        return tr('{0} ist zu Beginn des Lagers nicht verfügbar.', [r.name]);
       }
       if (blocks(id, start, end)) {
-        return '${r.name} ist in dieser Zeit schon in einem anderen Lager.';
+        return tr(
+            '{0} ist in dieser Zeit schon in einem anderen Lager.', [r.name]);
       }
     }
     final camp = Camp(type, start, days, riders);
     if (camp.cost > c.economy.balance) {
-      return 'Das Lager kostet ${camp.cost ~/ 1000}.000 €, so viel ist nicht in der Kasse.';
+      return tr('Das Lager kostet {0}.000 €, so viel ist nicht in der Kasse.',
+          [camp.cost ~/ 1000]);
     }
     all.add(camp);
     c.economy.charge(camp.cost.toDouble());
@@ -151,15 +157,17 @@ class Camps {
                     : 0.1;
         final gain = 0.35 * k.days / 14 * (r.potential / 5) * byAge * coach;
         c.replaceRider(r.withAttributes(r.attributes.adjusted((name, v) =>
-            focus.contains(name) ? (v + gain).clamp(50.0, 86.0) : v)));
+            focus.contains(name)
+                ? (v + Career.capped(r, v, gain)).clamp(50.0, 86.0)
+                : v)));
         names.add(r.name);
       }
       c.inbox.add(Message(
         c.today,
-        'Trainer',
-        '${k.type.label} beendet',
-        'Zurück aus dem Lager: ${names.join(', ')}. Die beste Form ist in '
-            'ein bis vier Wochen zu erwarten.',
+        tr('Trainer'),
+        tr('{0} beendet', [k.type.label]),
+        tr('Zurück aus dem Lager: {0}. Die beste Form ist in ein bis vier Wochen zu erwarten.',
+            [names.join(', ')]),
       ));
     }
   }

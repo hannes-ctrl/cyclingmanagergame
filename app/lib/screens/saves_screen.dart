@@ -48,23 +48,23 @@ class _SavesScreenState extends State<SavesScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: c.panel,
-        title: Text('„${info.name}" löschen?'),
-        content: const Text('Die Datei wird endgültig entfernt.'),
+        title: Text(tr('„{0}" löschen?', [info.name])),
+        content: Text(tr('Die Datei wird endgültig entfernt.')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Abbrechen'),
+            child: Text(tr('Abbrechen')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Löschen'),
+            child: Text(tr('Löschen')),
           ),
         ],
       ),
     );
     if (yes ?? false) {
       widget.state.deleteSave(info);
-      setState(() => _message = '„${info.name}" wurde gelöscht.');
+      setState(() => _message = tr('„{0}" wurde gelöscht.', [info.name]));
     }
   }
 
@@ -78,26 +78,29 @@ class _SavesScreenState extends State<SavesScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: c.panel,
-        title: Text('Neue Karriere mit ${team.name}?'),
-        content: const Text(
-          'Die laufende Karriere wird ersetzt. Benannte Spielstände bleiben '
-          'erhalten.',
+        title: Text(tr('Neue Karriere mit {0}?', [team.name])),
+        content: Text(
+          tr(
+            'Die laufende Karriere wird ersetzt. Benannte Spielstände bleiben erhalten.',
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Abbrechen'),
+            child: Text(tr('Abbrechen')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Starten'),
+            child: Text(tr('Starten')),
           ),
         ],
       ),
     );
     if (yes ?? false) {
       widget.state.chooseTeam(team);
-      setState(() => _message = 'Neue Karriere mit ${team.name} gestartet.');
+      setState(
+        () => _message = tr('Neue Karriere mit {0} gestartet.', [team.name]),
+      );
     }
   }
 
@@ -121,7 +124,7 @@ class _SavesScreenState extends State<SavesScreen> {
 
     void save() => setState(() {
       final name = _name.text.trim();
-      _message = s.saveAs(name) ?? '„$name" ist gespeichert.';
+      _message = s.saveAs(name) ?? tr('„{0}" ist gespeichert.', [name]);
     });
 
     return Padding(
@@ -134,7 +137,7 @@ class _SavesScreenState extends State<SavesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Label('Neue Karriere'),
+                Label(tr('Neue Karriere')),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -143,7 +146,7 @@ class _SavesScreenState extends State<SavesScreen> {
                       child: DropdownButton<int>(
                         value: _newTeam,
                         isExpanded: true,
-                        hint: const Text('Team wählen'),
+                        hint: Text(tr('Team wählen')),
                         dropdownColor: c.panel2,
                         underline: Container(height: 1, color: c.line),
                         style: const TextStyle(
@@ -173,7 +176,7 @@ class _SavesScreenState extends State<SavesScreen> {
                           : () => _startCareer(
                               s.teams.firstWhere((t) => t.id == _newTeam),
                             ),
-                      child: const Text('Karriere starten'),
+                      child: Text(tr('Karriere starten')),
                     ),
                     const SizedBox(width: 12),
                     OutlinedButton(
@@ -184,14 +187,14 @@ class _SavesScreenState extends State<SavesScreen> {
                       onPressed: s.busy
                           ? null
                           : () => showFoundScreen(context, s),
-                      child: const Text('Eigenes Team gründen …'),
+                      child: Text(tr('Eigenes Team gründen …')),
                     ),
                     const SizedBox(width: 14),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Die laufende Karriere wird dabei ersetzt. Sichere '
-                        'sie vorher unter einem Namen, wenn du sie behalten '
-                        'willst.',
+                        tr(
+                          'Die laufende Karriere wird dabei ersetzt. Sichere sie vorher unter einem Namen, wenn du sie behalten willst.',
+                        ),
                         style: TextStyle(fontSize: 12, color: TeamColors.muted),
                       ),
                     ),
@@ -206,7 +209,7 @@ class _SavesScreenState extends State<SavesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Label('Aktuellen Stand speichern'),
+                Label(tr('Aktuellen Stand speichern')),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -216,7 +219,9 @@ class _SavesScreenState extends State<SavesScreen> {
                         controller: _name,
                         maxLength: 40,
                         decoration: InputDecoration(
-                          hintText: 'Name, z. B. „${s.team.abbr} vor der Tour"',
+                          hintText: tr('Name, z. B. „{0} vor der Tour"', [
+                            s.team.abbr,
+                          ]),
                           counterText: '',
                           isDense: true,
                           border: OutlineInputBorder(
@@ -237,16 +242,15 @@ class _SavesScreenState extends State<SavesScreen> {
                       onPressed: s.busy || _name.text.trim().isEmpty
                           ? null
                           : save,
-                      child: const Text('SPEICHERN'),
+                      child: Text(tr('SPEICHERN')),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Text(
                         _message ??
-                            'Der laufende Stand wird ohnehin nach jeder '
-                                'Aktion automatisch gesichert. Benannte Stände '
-                                'liegen als .rmsave-Dateien im Ordner '
-                                'data\\saves.',
+                            tr(
+                              'Der laufende Stand wird ohnehin nach jeder Aktion automatisch gesichert. Benannte Stände liegen als .rmsave-Dateien im Ordner data\\saves.',
+                            ),
                         style: TextStyle(
                           fontSize: 12,
                           color: _message == null
@@ -267,13 +271,13 @@ class _SavesScreenState extends State<SavesScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Label('Gespeicherte Stände · ${saves.length}'),
+                  Label(tr('Gespeicherte Stände · {0}', [saves.length])),
                   const SizedBox(height: 6),
                   Expanded(
                     child: saves.isEmpty
-                        ? const Center(
+                        ? Center(
                             child: Text(
-                              'Noch kein benannter Spielstand.',
+                              tr('Noch kein benannter Spielstand.'),
                               style: TextStyle(color: TeamColors.muted),
                             ),
                           )
@@ -294,13 +298,13 @@ class _SavesScreenState extends State<SavesScreen> {
                                 sortKey: (x) => x.team,
                               ),
                               Col(
-                                'Stand im Spiel',
+                                tr('Stand im Spiel'),
                                 130,
                                 (x, _) => cellText(_day(x.gameDate)),
                                 sortKey: (x) => x.gameDate,
                               ),
                               Col(
-                                'Gespeichert',
+                                tr('Gespeichert'),
                                 150,
                                 (x, _) => cellText(
                                   _stamp(x.savedAt),
@@ -312,20 +316,24 @@ class _SavesScreenState extends State<SavesScreen> {
                                 '',
                                 80,
                                 (x, _) => pill(
-                                  'Laden',
+                                  tr('Laden'),
                                   s.busy
                                       ? null
                                       : () async {
                                           setState(
-                                            () => _message =
-                                                '„${x.name}" wird geladen …',
+                                            () => _message = tr(
+                                              '„{0}" wird geladen …',
+                                              [x.name],
+                                            ),
                                           );
                                           final answer = await s.loadSave(x);
                                           if (mounted) {
                                             setState(
                                               () => _message =
                                                   answer ??
-                                                  '„${x.name}" ist geladen.',
+                                                  tr('„{0}" ist geladen.', [
+                                                    x.name,
+                                                  ]),
                                             );
                                           }
                                         },
@@ -335,16 +343,17 @@ class _SavesScreenState extends State<SavesScreen> {
                                 '',
                                 90,
                                 (x, _) => pill(
-                                  'Löschen',
+                                  tr('Löschen'),
                                   s.busy ? null : () => _confirmDelete(x),
                                 ),
                               ),
                             ],
                           ),
                   ),
-                  const Text(
-                    'Ein Spielstand ist eine Momentaufnahme der Karriere; Laden '
-                    'dauert wenige Sekunden.',
+                  Text(
+                    tr(
+                      'Ein Spielstand ist eine Momentaufnahme der Karriere; Laden dauert wenige Sekunden.',
+                    ),
                     style: TextStyle(fontSize: 12, color: TeamColors.muted),
                   ),
                 ],

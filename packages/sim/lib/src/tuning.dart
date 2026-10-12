@@ -111,6 +111,10 @@ class SimTuning {
         'Grundwahrscheinlichkeit, dass ein Fahrer einem Angriff folgt'),
     TuningParam('gruppettoEffort', 0.7, 0.5, 0.9,
         'Anstrengung des Gruppettos an Bergetappen'),
+    TuningParam('cobbleEffort', 1.0, 1.0, 1.2,
+        'Anstrengung der Spitze auf Pflastersektoren im Rennen'),
+    TuningParam('cobbleMishap', 0.0, 0.0, 0.02,
+        'Defekt oder Sturz je Fahrer und Kilometer schweren Pflasters'),
     TuningParam('gruppettoLimit', 0.1, 0.05, 0.2,
         'Rückstand als Anteil der Fahrzeit, ab dem das Gruppetto Tempo macht'),
   ];
@@ -219,5 +223,12 @@ class SimTuning {
 
   /// Gap, as a share of the riding time, from which the gruppetto rides hard
   /// to stay inside the time limit.
-  double get gruppettoLimit => _a[34];
+  double get gruppettoLimit => _a[36];
+
+  /// Effort of the front on cobbled sectors while the race is on.
+  double get cobbleEffort => _a[34];
+
+  /// Chance per rider and kilometre of hard cobbles of a puncture or crash
+  /// that costs him the wheel.
+  double get cobbleMishap => _a[35];
 }

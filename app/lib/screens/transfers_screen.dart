@@ -90,13 +90,13 @@ class _TransfersScreenState extends State<TransfersScreen> {
       final k = eco.contracts[r.id]!;
       if (k.nextTeam == s.team.id) {
         return r.teamId == s.team.id
-            ? 'verlängert bis ${k.nextEnd}'
-            : 'kommt ${year + 1}';
+            ? tr('verlängert bis {0}', [k.nextEnd])
+            : tr('kommt {0}', [year + 1]);
       }
       if (k.nextTeam != null) {
-        return 'geht zu ${career.teams[k.nextTeam]?.abbr ?? '?'}';
+        return tr('geht zu {0}', [career.teams[k.nextTeam]?.abbr ?? '?']);
       }
-      return k.endYear <= year ? 'läuft aus' : 'bis ${k.endYear}';
+      return k.endYear <= year ? tr('läuft aus') : tr('bis {0}', [k.endYear]);
     }
 
     Color statusColor(SimRider r) {
@@ -108,8 +108,10 @@ class _TransfersScreenState extends State<TransfersScreen> {
 
     // The team only knows riders of other teams roughly: a range is shown
     // instead of the value until a scout has watched the rider.
+    // The title is also the key of the scouting range, so it comes in
+    // German and is translated for display only.
     Col<SimRider> value(String title, double Function(SimRider) of) => Col(
-      title,
+      tr(title),
       _market ? 66 : (title.length > 4 ? 64 : 46),
       (r, _) {
         final v = of(r);
@@ -163,21 +165,21 @@ class _TransfersScreenState extends State<TransfersScreen> {
         children: [
           Row(
             children: [
-              tab('Eigene Verträge', false),
-              tab('Markt', true),
+              tab(tr('Eigene Verträge'), false),
+              tab(tr('Markt'), true),
               const SizedBox(width: 8),
               const Spacer(),
               Text(
                 eco.windowOpen
-                    ? 'Vertragsgespräche für ${year + 1} laufen'
-                    : 'Vertragsgespräche ab 1. August',
+                    ? tr('Vertragsgespräche für {0} laufen', [year + 1])
+                    : tr('Vertragsgespräche ab 1. August'),
                 style: TextStyle(
                   color: eco.windowOpen ? TeamColors.green : TeamColors.muted,
                 ),
               ),
               const SizedBox(width: 16),
-              const Text(
-                'Teamleitung verlängert selbst',
+              Text(
+                tr('Teamleitung verlängert selbst'),
                 style: TextStyle(fontSize: 13),
               ),
               Switch(
@@ -200,16 +202,16 @@ class _TransfersScreenState extends State<TransfersScreen> {
                       child: ListView(
                         children: [
                           SearchBox(
-                            hint: 'Name, Team oder Land',
+                            hint: tr('Name, Team oder Land'),
                             colors: c,
                             width: null,
                             onChanged: (v) => setState(() => _search = v),
                           ),
-                          const FilterHead('Vertrag'),
-                          for (final (i, label) in const [
-                            'Alle',
-                            'Vereinslos',
-                            'Vertrag läuft aus',
+                          FilterHead(tr('Vertrag')),
+                          for (final (i, label) in [
+                            tr('Alle'),
+                            tr('Vereinslos'),
+                            tr('Vertrag läuft aus'),
                           ].indexed)
                             FilterOption(
                               label: label,
@@ -218,7 +220,10 @@ class _TransfersScreenState extends State<TransfersScreen> {
                               onTap: () => setState(() => _contract = i),
                             ),
                           FilterHead(
-                            'Alter · ${_ages.start.round()} bis ${_ages.end.round()}',
+                            tr('Alter · {0} bis {1}', [
+                              _ages.start.round(),
+                              _ages.end.round(),
+                            ]),
                           ),
                           SliderTheme(
                             data: SliderThemeData(
@@ -245,7 +250,7 @@ class _TransfersScreenState extends State<TransfersScreen> {
                               ),
                             ),
                           ),
-                          const FilterHead('Fahrertyp'),
+                          FilterHead(tr('Fahrertyp')),
                           for (final t in const [
                             'Kletterer',
                             'Puncheur',
@@ -256,7 +261,7 @@ class _TransfersScreenState extends State<TransfersScreen> {
                             'Allrounder',
                           ])
                             FilterOption(
-                              label: t,
+                              label: tr(t),
                               selected: _types.contains(t),
                               onTap: () => setState(
                                 () => _types.contains(t)
@@ -266,7 +271,11 @@ class _TransfersScreenState extends State<TransfersScreen> {
                             ),
                           const SizedBox(height: 8),
                           Text(
-                            '${rows.length == 400 ? 'Die besten 400' : '${rows.length}'} Fahrer',
+                            tr('{0} Fahrer', [
+                              rows.length == 400
+                                  ? tr('Die besten 400')
+                                  : '${rows.length}',
+                            ]),
                             style: const TextStyle(
                               fontSize: 12,
                               color: TeamColors.muted,
@@ -290,7 +299,7 @@ class _TransfersScreenState extends State<TransfersScreen> {
                       onTap: _select,
                       columns: [
                         Col(
-                          'Fahrer',
+                          tr('Fahrer'),
                           190,
                           (r, _) => cellText(career.fullName(r.id)),
                           sortKey: (r) => r.lastName,
@@ -312,7 +321,7 @@ class _TransfersScreenState extends State<TransfersScreen> {
                           sortKey: (r) => r.country,
                         ),
                         Col(
-                          'Alter',
+                          tr('Alter'),
                           50,
                           (r, _) => cellText('${year - r.born ~/ 10000}'),
                           numeric: true,
@@ -336,7 +345,7 @@ class _TransfersScreenState extends State<TransfersScreen> {
                         value('SP', (r) => r.attributes.sprint),
                         value('KO', (r) => r.attributes.cobble),
                         Col(
-                          _market ? 'Marktwert' : 'Gehalt',
+                          _market ? tr('Marktwert') : tr('Gehalt'),
                           90,
                           (r, _) => cellText(
                             euro(
@@ -351,7 +360,7 @@ class _TransfersScreenState extends State<TransfersScreen> {
                               : eco.contracts[r.id]!.wage,
                         ),
                         Col(
-                          'Vertrag',
+                          tr('Vertrag'),
                           150,
                           (r, _) => cellText(status(r), color: statusColor(r)),
                           sortKey: (r) => eco.contracts[r.id]!.endYear,
@@ -371,16 +380,18 @@ class _TransfersScreenState extends State<TransfersScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Label('Planung ${year + 1}'),
+                            Label(tr('Planung {0}', [year + 1])),
                             const SizedBox(height: 6),
                             _line(
-                              'Fahrer unter Vertrag',
-                              '${eco.squadNextSeason(s.team.id)} von 30',
+                              tr('Fahrer unter Vertrag'),
+                              tr('{0} von 30', [
+                                eco.squadNextSeason(s.team.id),
+                              ]),
                             ),
-                            _line('Gehälter', euro(nextBill)),
-                            _line('Gehaltsrahmen', euro(frame)),
+                            _line(tr('Gehälter'), euro(nextBill)),
+                            _line(tr('Gehaltsrahmen'), euro(frame)),
                             _line(
-                              'Noch frei',
+                              tr('Noch frei'),
                               euro(frame - nextBill),
                               color: frame - nextBill < 0
                                   ? TeamColors.red
@@ -394,9 +405,9 @@ class _TransfersScreenState extends State<TransfersScreen> {
                         child: Panel(
                           colors: c,
                           child: selected == null
-                              ? const Center(
+                              ? Center(
                                   child: Text(
-                                    'Fahrer in der Liste wählen',
+                                    tr('Fahrer in der Liste wählen'),
                                     style: TextStyle(color: TeamColors.muted),
                                   ),
                                 )
@@ -452,36 +463,44 @@ class _TransfersScreenState extends State<TransfersScreen> {
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         Text(
-          '${own ? s.team.name : (career.teams[r.teamId]?.name ?? 'vereinslos')} · '
-          '${career.year - r.born ~/ 10000} Jahre · ${r.country}',
+          tr('{0} · {1} Jahre · {2}', [
+            own
+                ? s.team.name
+                : (career.teams[r.teamId]?.name ?? tr('vereinslos')),
+            career.year - r.born ~/ 10000,
+            r.country,
+          ]),
           style: const TextStyle(color: TeamColors.muted),
         ),
         const SizedBox(height: 10),
-        _line('Vertrag', status),
-        _line('Aktuelles Gehalt', euro(eco.contracts[r.id]!.wage)),
-        _line('Marktüblich', euro(eco.marketWage(r))),
+        _line(tr('Vertrag'), status),
+        _line(tr('Aktuelles Gehalt'), euro(eco.contracts[r.id]!.wage)),
+        _line(tr('Marktüblich'), euro(eco.marketWage(r))),
         () {
           final (low, high) = career.staff.range(
             r.id,
-            'Stärke',
+            tr('Stärke'),
             Economy.rating(r),
           );
-          return _line('Stärke', low == high ? '$low' : '$low bis $high');
+          return _line(
+            tr('Stärke'),
+            low == high ? '$low' : tr('{0} bis {1}', [low, high]),
+          );
         }(),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton(
             onPressed: () => showRiderDialog(context, s, r.id),
-            child: const Text('Profil öffnen'),
+            child: Text(tr('Profil öffnen')),
           ),
         ),
         if (career.staff.knowledge(r.id) < 1) ...[
           const SizedBox(height: 8),
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Die Werte sind geschätzt.',
+                  tr('Die Werte sind geschätzt.'),
                   style: TextStyle(fontSize: 12, color: TeamColors.muted),
                 ),
               ),
@@ -493,21 +512,25 @@ class _TransfersScreenState extends State<TransfersScreen> {
                 onPressed: s.busy
                     ? null
                     : () => setState(
-                        () => _answer = s.scout(r.id) ?? 'Ein Scout ist unterwegs. Der Bericht kommt ins Postfach.',
+                        () => _answer =
+                            s.scout(r.id) ??
+                            tr(
+                              'Ein Scout ist unterwegs. Der Bericht kommt ins Postfach.',
+                            ),
                       ),
-                child: const Text('Beobachten lassen'),
+                child: Text(tr('Beobachten lassen')),
               ),
             ],
           ),
         ],
         const SizedBox(height: 14),
         if (!open)
-          const Text(
-            'Für diesen Fahrer ist nichts zu verhandeln.',
+          Text(
+            tr('Für diesen Fahrer ist nichts zu verhandeln.'),
             style: TextStyle(color: TeamColors.muted),
           )
         else ...[
-          Label(own ? 'Verlängerung anbieten' : 'Vertrag anbieten'),
+          Label(own ? tr('Verlängerung anbieten') : tr('Vertrag anbieten')),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -530,7 +553,7 @@ class _TransfersScreenState extends State<TransfersScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-              const Text('im Jahr für', style: TextStyle(fontSize: 13)),
+              Text(tr('im Jahr für'), style: TextStyle(fontSize: 13)),
               const SizedBox(width: 8),
               for (var y = 1; y <= 4; y++)
                 Padding(
@@ -580,20 +603,21 @@ class _TransfersScreenState extends State<TransfersScreen> {
                     setState(
                       () => _answer =
                           answer ??
-                          'Unterschrieben. Der Vertrag gilt ab '
-                              '${career.year + 1}.',
+                          tr('Unterschrieben. Der Vertrag gilt ab {0}.', [
+                            career.year + 1,
+                          ]),
                     );
                   },
-            child: const Text(
-              'ANGEBOT ABGEBEN',
+            child: Text(
+              tr('ANGEBOT ABGEBEN'),
               style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.6),
             ),
           ),
           if (!eco.windowOpen)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text(
-                'Vertragsgespräche sind erst ab dem 1. August möglich.',
+                tr('Vertragsgespräche sind erst ab dem 1. August möglich.'),
                 style: TextStyle(fontSize: 12, color: TeamColors.muted),
               ),
             ),

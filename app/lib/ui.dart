@@ -179,7 +179,9 @@ class Pill extends StatelessWidget {
   });
   final String label;
   final bool selected;
-  final VoidCallback onTap;
+
+  /// Null disables the chip.
+  final VoidCallback? onTap;
   final TeamColors colors;
   final Color? dot;
 
@@ -210,7 +212,11 @@ class Pill extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: selected ? TeamColors.ground : TeamColors.text,
+                color: selected
+                    ? TeamColors.ground
+                    : onTap == null
+                    ? TeamColors.muted
+                    : TeamColors.text,
               ),
             ),
           ],
@@ -231,8 +237,11 @@ enum TierGroup {
   class2('Klasse 2 und U23', [RaceTier.class2, RaceTier.under23]),
   championship('Meisterschaften', [RaceTier.championship]);
 
-  const TierGroup(this.label, this.tiers);
-  final String label;
+  const TierGroup(this._label, this.tiers);
+  final String _label;
+
+  /// The label in the current language.
+  String get label => tr(_label);
   final List<RaceTier> tiers;
 
   /// @param tier A race tier.
@@ -264,7 +273,7 @@ class TierPills extends StatelessWidget {
     runSpacing: 6,
     children: [
       Pill(
-        label: 'Alle',
+        label: tr('Alle'),
         selected: selected.isEmpty,
         colors: colors,
         onTap: () => onChanged({}),
@@ -530,7 +539,7 @@ class SeasonTimeline extends StatelessWidget {
                           ),
                         ),
                         child: Text(
-                          _names[m - 1],
+                          tr(_names[m - 1]),
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: m == month
@@ -566,54 +575,22 @@ class SeasonTimeline extends StatelessWidget {
 /// Explanations of the figures the game shows, by the label or column
 /// heading they appear under.
 const statHelp = <String, String>{
-  'Form':
-      'Leistungsfaktor am Start eines Rennens. 0 % ist der Stand bei normalem '
-      'Training ohne Rennen. Renntage in den Beinen und Erholung heben ihn '
-      'bis etwa +4 %, Erschöpfung drückt ihn bis etwa −3 %.',
-  'Fitness':
-      'Langfristige Trainings- und Rennbelastung der letzten rund sechs '
-      'Wochen. Mehr Fitness bedeutet bessere Form, sobald die Ermüdung '
-      'abgeklungen ist.',
-  'Ermüdung':
-      'Belastung der letzten Woche. Sie steigt mit Rennen und hartem '
-      'Training schnell und fällt in wenigen Ruhetagen wieder.',
-  'Frische':
-      'Fitness minus Ermüdung. Unter −20 ist ein Fahrer müde, unter −40 '
-      'würde ein Sportlicher Leiter ihn nicht aufstellen.',
-  'Stärke':
-      'Gesamtwert aus den besten Fähigkeiten des Fahrers. Bestimmt '
-      'Marktwert und Gehaltsforderung.',
-  'Potenzial':
-      'Wie stark sich der Fahrer bis etwa 27 noch verbessern kann, von 1 '
-      'bis 6. Ab 4,5 lohnt sich Geduld.',
+  'Form': 'Leistungsfaktor am Start eines Rennens. 0 % ist der Stand bei normalem Training ohne Rennen. Renntage in den Beinen und Erholung heben ihn bis etwa +4 %, Erschöpfung drückt ihn bis etwa −3 %.',
+  'Fitness': 'Langfristige Trainings- und Rennbelastung der letzten rund sechs Wochen. Mehr Fitness bedeutet bessere Form, sobald die Ermüdung abgeklungen ist.',
+  'Ermüdung': 'Belastung der letzten Woche. Sie steigt mit Rennen und hartem Training schnell und fällt in wenigen Ruhetagen wieder.',
+  'Frische': 'Fitness minus Ermüdung. Unter −20 ist ein Fahrer müde, unter −40 würde ein Sportlicher Leiter ihn nicht aufstellen.',
+  'Stärke': 'Gesamtwert aus den besten Fähigkeiten des Fahrers. Bestimmt Marktwert und Gehaltsforderung.',
+  'Potenzial': 'Wie stark sich der Fahrer bis etwa 27 noch verbessern kann, von 1 bis 6. Ab 4,5 lohnt sich Geduld.',
   'Pot': 'Potenzial von 1 bis 6: wie stark sich der Fahrer noch verbessert.',
-  'Eignung':
-      'Wie gut die Fähigkeiten des Fahrers zu den Strecken dieses Rennens '
-      'passen, gemittelt über seine drei besten Etappen.',
-  'Renntage':
-      'Renntage in dieser Saison. Ab 80 schont ein Sportlicher Leiter den '
-      'Fahrer.',
-  'Belastung':
-      'Trainingsumfang: schonend erholt, hart baut schneller Fitness auf '
-      'und macht müde.',
-  'Schwerpunkt':
-      'Im Training: Diese Fähigkeiten entwickeln sich schneller, die '
-      'übrigen langsamer. Bei Sportlichen Leitern: die Rennart, die er am '
-      'besten führt.',
+  'Eignung': 'Wie gut die Fähigkeiten des Fahrers zu den Strecken dieses Rennens passen, gemittelt über seine drei besten Etappen.',
+  'Renntage': 'Renntage in dieser Saison. Ab 80 schont ein Sportlicher Leiter den Fahrer.',
+  'Belastung': 'Trainingsumfang: schonend erholt, hart baut schneller Fitness auf und macht müde.',
+  'Schwerpunkt': 'Im Training: Diese Fähigkeiten entwickeln sich schneller, die übrigen langsamer. Bei Sportlichen Leitern: die Rennart, die er am besten führt.',
   'Marktwert': 'Jahresgehalt, das der Fahrer auf dem Markt erzielen würde.',
-  'Aussicht für zwölf Monate':
-      'Erwartete Veränderung je Fähigkeit in einem Jahr bei normalem '
-      'Training und durchschnittlichem Trainer. Ab 32 geht es abwärts.',
-  'Können':
-      'Hauptwert der Person von 1 bis 20. Beim Sportlichen Leiter die '
-      'Taktik, beim Trainer die Entwicklung der Fahrer, beim Arzt die '
-      'Dauer von Ausfällen, beim Scout die Genauigkeit der Berichte.',
-  'Rennlesen':
-      'Wie gut der Sportliche Leiter auf Angriffe reagiert und Fahrer in '
-      'die Gruppe des Tages bringt, von 1 bis 20.',
-  'Motivation':
-      'Wie sehr der Sportliche Leiter die Form seiner Fahrer am Renntag '
-      'hebt, von 1 bis 20.',
+  'Aussicht für zwölf Monate': 'Erwartete Veränderung je Fähigkeit in einem Jahr bei normalem Training und durchschnittlichem Trainer. Ab 32 geht es abwärts.',
+  'Können': 'Hauptwert der Person von 1 bis 20. Beim Sportlichen Leiter die Taktik, beim Trainer die Entwicklung der Fahrer, beim Arzt die Dauer von Ausfällen, beim Scout die Genauigkeit der Berichte.',
+  'Rennlesen': 'Wie gut der Sportliche Leiter auf Angriffe reagiert und Fahrer in die Gruppe des Tages bringt, von 1 bis 20.',
+  'Motivation': 'Wie sehr der Sportliche Leiter die Form seiner Fahrer am Renntag hebt, von 1 bis 20.',
   'Flach': 'Tempo auf flachen Strecken und im Wind.',
   'Berg': 'Lange Anstiege über mehrere Kilometer.',
   'Mittelgebirge': 'Mittlere Anstiege und welliges Gelände.',
@@ -652,7 +629,11 @@ const statHelp = <String, String>{
 /// @param child The widget to explain.
 /// @returns The widget, with a tooltip if the label is known.
 Widget withHelp(String label, Widget child) {
-  final text = statHelp[label];
+  // The label arrives translated; the table is keyed by the German one.
+  final text = statHelp.entries
+      .where((e) => e.key == label || tr(e.key) == label)
+      .map((e) => tr(e.value))
+      .firstOrNull;
   if (text == null) return child;
   return Tooltip(
     message: text,

@@ -1,6 +1,7 @@
 /// Race simulation of Radmanager.
 library;
 
+export 'src/i18n.dart';
 export 'src/model.dart';
 export 'src/physics.dart';
 export 'src/rng.dart';

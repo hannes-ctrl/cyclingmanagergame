@@ -1,3 +1,4 @@
+import 'package:sim/sim.dart';
 import 'career.dart';
 import 'points.dart';
 
@@ -8,8 +9,11 @@ enum Licence {
   continental('Continental'),
   other('–');
 
-  const Licence(this.label);
-  final String label;
+  const Licence(this._label);
+  final String _label;
+
+  /// The label in the current language.
+  String get label => tr(_label);
 }
 
 /// One row of the three-year ranking.
@@ -146,16 +150,20 @@ class Licences {
       c.inbox.add(Message(
         c.today,
         'UCI',
-        'Einladungen ${c.year + 1}',
-        'Als beste ProTeams der Saison dürfen ${names(wildcards)} im '
-            'nächsten Jahr bei allen WorldTour-Rennen starten.'
-            '${() {
-          final at = ranking().indexWhere((r) => r.teamId == c.teamId);
-          return at < 0
-              ? ''
-              : ' In der Dreijahreswertung $cycleStart–$cycleEnd liegt '
-                  'unser Team auf Platz ${at + 1}.';
-        }()}',
+        tr('Einladungen {0}', [c.year + 1]),
+        tr(
+            'Als beste ProTeams der Saison dürfen {0} im nächsten Jahr bei allen WorldTour-Rennen starten.{1}',
+            [
+              names(wildcards),
+              () {
+                final at = ranking().indexWhere((r) => r.teamId == c.teamId);
+                return at < 0
+                    ? ''
+                    : tr(
+                        ' In der Dreijahreswertung {0}–{1} liegt unser Team auf Platz {2}.',
+                        [cycleStart, cycleEnd, at + 1]);
+              }()
+            ]),
       ));
       return;
     }
@@ -196,11 +204,24 @@ class Licences {
     c.inbox.add(Message(
       c.today,
       'UCI',
-      'Lizenzen ${c.year + 1}–${c.year + 3} vergeben',
-      '${up.isEmpty ? 'In der WorldTour bleibt alles beim Alten.' : 'Neu in der WorldTour: ${names(up)}. Abgestiegen: ${names(down)}.'} '
-          'Neue ProTeams: ${names(best)}; künftig Continental: ${names(weakest)}. '
-          '${before == null ? 'Unser Team fährt weiter als ${own?.label}.' : '$before: Unser Team fährt ab jetzt als ${own?.label}, '
-              'das Sponsorenbudget ${before == 'Aufstieg' ? 'steigt' : 'sinkt'} um ein Viertel.'}',
+      tr('Lizenzen {0}–{1} vergeben', [c.year + 1, c.year + 3]),
+      tr('{0} Neue ProTeams: {1}; künftig Continental: {2}. {3}', [
+        up.isEmpty
+            ? tr('In der WorldTour bleibt alles beim Alten.')
+            : tr('Neu in der WorldTour: {0}. Abgestiegen: {1}.',
+                [names(up), names(down)]),
+        names(best),
+        names(weakest),
+        before == null
+            ? tr('Unser Team fährt weiter als {0}.', [own?.label])
+            : tr(
+                '{0}: Unser Team fährt ab jetzt als {1}, das Sponsorenbudget {2} um ein Viertel.',
+                [
+                    tr(before),
+                    own?.label,
+                    before == 'Aufstieg' ? tr('steigt') : tr('sinkt')
+                  ])
+      ]),
     ));
   }
 

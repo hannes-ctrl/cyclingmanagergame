@@ -3,6 +3,7 @@ import 'package:game/game.dart';
 import 'package:sim/sim.dart';
 
 import '../app_state.dart';
+import '../ui.dart';
 import '../widgets.dart';
 
 const _approachLabels = {
@@ -129,13 +130,13 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Was wäre wenn?',
+              Text(
+                tr('Was wäre wenn?'),
                 style: TextStyle(fontSize: 19, fontWeight: FontWeight.w600),
               ),
               Text(
                 '${p.race.info.name}'
-                '${p.race.isStageRace ? ' · Etappe ${widget.stageIndex + 1}' : ''}'
+                '${p.race.isStageRace ? tr(' · Etappe {0}', [widget.stageIndex + 1]) : ''}'
                 ' · ${route.name} · ${route.raceKm.toStringAsFixed(1)} km',
                 style: const TextStyle(color: TeamColors.muted),
               ),
@@ -153,13 +154,13 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Schließen'),
+                    child: Text(tr('Schließen')),
                   ),
                   const SizedBox(width: 6),
                   if (_result != null || _call != null)
                     OutlinedButton(
                       onPressed: _reset,
-                      child: const Text('Andere Taktik'),
+                      child: Text(tr('Andere Taktik')),
                     )
                   else
                     FilledButton(
@@ -168,7 +169,7 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
                         foregroundColor: c.onAccent,
                       ),
                       onPressed: _run,
-                      child: const Text('Durchrechnen'),
+                      child: Text(tr('Durchrechnen')),
                     ),
                 ],
               ),
@@ -200,18 +201,11 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
           runSpacing: 6,
           children: [
             for (final e in labels.entries)
-              ChoiceChip(
-                label: Text(e.value),
+              Pill(
+                label: tr(e.value),
                 selected: e.key == current,
-                showCheckmark: false,
-                selectedColor: TeamColors.text,
-                backgroundColor: c.panel,
-                side: BorderSide(color: c.line),
-                labelStyle: TextStyle(
-                  fontSize: 13,
-                  color: e.key == current ? TeamColors.ground : TeamColors.text,
-                ),
-                onSelected: (_) => setState(() => onPick(e.key)),
+                colors: c,
+                onTap: () => setState(() => onPick(e.key)),
               ),
           ],
         ),
@@ -221,9 +215,10 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
     return ListView(
       shrinkWrap: true,
       children: [
-        const Text(
-          'So ist das Team gefahren. Ändere Rollen oder Vorgaben; der Funk '
-          'fragt im zweiten Lauf neu nach.',
+        Text(
+          tr(
+            'So ist das Team gefahren. Ändere Rollen oder Vorgaben; der Funk fragt im zweiten Lauf neu nach.',
+          ),
           style: TextStyle(fontSize: 12, color: TeamColors.muted),
         ),
         const SizedBox(height: 8),
@@ -253,10 +248,15 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
             ),
           ),
         const SizedBox(height: 10),
-        choice('Rennverlauf', _approachLabels, _approach, (v) => _approach = v),
+        choice(
+          tr('Rennverlauf'),
+          _approachLabels,
+          _approach,
+          (v) => _approach = v,
+        ),
         const SizedBox(height: 8),
         choice(
-          'Ausreißergruppe',
+          tr('Ausreißergruppe'),
           _breakLabels,
           _breakPolicy,
           (v) => _breakPolicy = v,
@@ -269,7 +269,7 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
     shrinkWrap: true,
     children: [
       Text(
-        'Funk · noch ${call.remainingKm.round()} km',
+        tr('Funk · noch {0} km', [call.remainingKm.round()]),
         style: const TextStyle(fontSize: 12, color: TeamColors.muted),
       ),
       const SizedBox(height: 2),
@@ -303,8 +303,8 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
       final first = r.placings.where((x) => x.group == 0).length;
       final w = r.placings.first.rider;
       return '${w.name} (${w.team}) · '
-          '${first == 1 ? 'Solo' : 'Gruppe von $first'}'
-          '${r.breakSurvived ? ' · aus der Ausreißergruppe' : ''}';
+          '${first == 1 ? 'Solo' : tr('Gruppe von {0}', [first])}'
+          '${r.breakSurvived ? tr(' · aus der Ausreißergruppe') : ''}';
     }
 
     ({int place, double gap})? of(StageResult r, int riderId) {
@@ -344,15 +344,15 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
         Row(
           children: [
             const SizedBox(width: 170),
-            head('GEFAHREN'),
-            head('WAS WÄRE WENN'),
+            head(tr('GEFAHREN')),
+            head(tr('WAS WÄRE WENN')),
           ],
         ),
         const SizedBox(height: 4),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(width: 170, child: Text('Sieger')),
+            SizedBox(width: 170, child: Text(tr('Sieger'))),
             Expanded(child: Text(summary(_real))),
             Expanded(child: Text(summary(other))),
           ],
@@ -370,8 +370,8 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
             ),
           ),
         Divider(color: c.line),
-        const Text(
-          'RENNVERLAUF IM ZWEITEN LAUF',
+        Text(
+          tr('RENNVERLAUF IM ZWEITEN LAUF'),
           style: TextStyle(fontSize: 12, color: TeamColors.muted),
         ),
         const SizedBox(height: 4),

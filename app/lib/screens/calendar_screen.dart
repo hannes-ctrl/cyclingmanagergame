@@ -1,3 +1,4 @@
+import 'package:sim/sim.dart';
 import 'package:flutter/material.dart';
 import 'package:game/game.dart';
 
@@ -238,7 +239,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               SizedBox(
                 width: 170,
                 child: Text(
-                  '${_months[month - 1]} ${career.year}',
+                  '${tr(_months[month - 1])} ${career.year}',
                   textAlign: TextAlign.center,
                   style: headStyle(22),
                 ),
@@ -246,7 +247,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               arrow(LucideIcons.chevronRight, month + 1),
               TextButton(
                 onPressed: () => setState(() => _month = null),
-                child: const Text('Heute'),
+                child: Text(tr('Heute')),
               ),
               const Spacer(),
               OutlinedButton.icon(
@@ -262,11 +263,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         initial: DateTime.utc(career.year, month + 1, 1),
                       ),
                 icon: const Icon(LucideIcons.fastForward, size: 16),
-                label: const Text('Simulieren bis …'),
+                label: Text(tr('Simulieren bis …')),
               ),
               const SizedBox(width: 10),
               Pill(
-                label: 'Nur eigene Rennen',
+                label: tr('Nur eigene Rennen'),
                 selected: _onlyOwn,
                 colors: c,
                 dot: c.accent,
@@ -290,7 +291,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(left: 8),
-                    child: Label(d),
+                    child: Label(tr(d)),
                   ),
                 ),
             ],

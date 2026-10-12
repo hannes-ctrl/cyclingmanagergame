@@ -203,11 +203,10 @@ class Economy {
     if (names.isEmpty) return;
     c.inbox.add(Message(
       c.today,
-      'Teamleitung',
-      'Sponsorensuche ${c.year + 1}',
-      'Zum Jahresende laufen aus: ${names.join(', ')}. Unter Finanzen liegen '
-          'Angebote für die Nachfolge. Wer bis Dezember nichts wählt, '
-          'überlässt den Abschluss der Teamleitung.',
+      tr('Teamleitung'),
+      tr('Sponsorensuche {0}', [c.year + 1]),
+      tr('Zum Jahresende laufen aus: {0}. Unter Finanzen liegen Angebote für die Nachfolge. Wer bis Dezember nichts wählt, überlässt den Abschluss der Teamleitung.',
+          [names.join(', ')]),
     ));
   }
 
@@ -218,9 +217,9 @@ class Economy {
   /// @returns null on success, otherwise the reason.
   String? searchSponsor(int slot) {
     if (!offers.containsKey(slot))
-      return 'Für diesen Platz wird nicht gesucht.';
-    if (signed.containsKey(slot)) return 'Hier ist schon abgeschlossen.';
-    if (_searched.contains(slot)) return 'Mehr gibt der Markt nicht her.';
+      return tr('Für diesen Platz wird nicht gesucht.');
+    if (signed.containsKey(slot)) return tr('Hier ist schon abgeschlossen.');
+    if (_searched.contains(slot)) return tr('Mehr gibt der Markt nicht her.');
     _searched.add(slot);
     searches[slot] = c.today.add(const Duration(days: 30));
     return null;
@@ -234,17 +233,21 @@ class Economy {
   String? acceptSponsor(int slot, int index) {
     final list = offers[slot];
     if (list == null || index < 0 || index >= list.length) {
-      return 'Das Angebot gibt es nicht mehr.';
+      return tr('Das Angebot gibt es nicht mehr.');
     }
-    if (signed.containsKey(slot)) return 'Hier ist schon abgeschlossen.';
+    if (signed.containsKey(slot)) return tr('Hier ist schon abgeschlossen.');
     signed[slot] = list[index];
     searches.remove(slot);
     c.inbox.add(Message(
       c.today,
-      'Teamleitung',
-      '${list[index].name} wird Sponsor',
-      '${list[index].name} zahlt ab ${c.year + 1} für ${list[index].years} Jahre '
-          '${_euro(list[index].amount)} im Jahr.',
+      tr('Teamleitung'),
+      tr('{0} wird Sponsor', [list[index].name]),
+      tr('{0} zahlt ab {1} für {2} Jahre {3} im Jahr.', [
+        list[index].name,
+        c.year + 1,
+        list[index].years,
+        _euro(list[index].amount)
+      ]),
     ));
     return null;
   }
@@ -262,10 +265,10 @@ class Economy {
       offers[slot]?.add(offer);
       c.inbox.add(Message(
         c.today,
-        'Teamleitung',
-        'Weiteres Sponsorenangebot',
-        '${offer.name} bietet ${_euro(offer.amount)} im Jahr für '
-            '${offer.years} Jahre.',
+        tr('Teamleitung'),
+        tr('Weiteres Sponsorenangebot'),
+        tr('{0} bietet {1} im Jahr für {2} Jahre.',
+            [offer.name, _euro(offer.amount), offer.years]),
       ));
     }
   }
@@ -281,8 +284,9 @@ class Economy {
         final place = s.demandPlace;
         if (place != null && rank > place) {
           s.amount *= 0.8;
-          lines.add('${s.name} kürzt um ein Fünftel, weil Platz $place '
-              'in der Teamrangliste verfehlt wurde');
+          lines.add(tr(
+              '{0} kürzt um ein Fünftel, weil Platz {1} in der Teamrangliste verfehlt wurde',
+              [s.name, place]));
         }
         continue;
       }
@@ -292,7 +296,7 @@ class Economy {
               ? list.first
               : SponsorOffer(s.name, _offerBase(s) * 0.9, 1));
       if (!signed.containsKey(i)) {
-        lines.add('Die Teamleitung hat mit ${next.name} abgeschlossen');
+        lines.add(tr('Die Teamleitung hat mit {0} abgeschlossen', [next.name]));
       }
       sponsors[i] = Sponsor(next.name, next.amount, c.year + next.years,
           demandPlace: next.demandPlace);
@@ -422,26 +426,29 @@ class Economy {
   String? offer(int riderId, int wage, int years) {
     final r = c.riderById[riderId];
     final k = contracts[riderId];
-    if (r == null || k == null) return 'Fahrer nicht gefunden.';
-    if (!expiring(r)) return 'Der Vertrag läuft noch oder ist schon geregelt.';
+    if (r == null || k == null) return tr('Fahrer nicht gefunden.');
+    if (!expiring(r))
+      return tr('Der Vertrag läuft noch oder ist schon geregelt.');
     if (!windowOpen)
-      return 'Vertragsgespräche sind erst ab dem 1. August möglich.';
+      return tr('Vertragsgespräche sind erst ab dem 1. August möglich.');
     if (k.refusedUntil?.isAfter(c.today) ?? false) {
-      return 'Er möchte nach der letzten Absage noch nicht wieder verhandeln.';
+      return tr(
+          'Er möchte nach der letzten Absage noch nicht wieder verhandeln.');
     }
     if (squadNextSeason(c.teamId) >= 30) {
-      return 'Der Kader für die nächste Saison ist mit 30 Fahrern voll.';
+      return tr('Der Kader für die nächste Saison ist mit 30 Fahrern voll.');
     }
     if (wageBill(c.teamId, nextSeason: true) + wage > budget * 0.72) {
-      return 'Die Teamleitung gibt das Gehalt nicht frei: Das Budget für '
-          'Gehälter wäre überschritten.';
+      return tr(
+          'Die Teamleitung gibt das Gehalt nicht frei: Das Budget für Gehälter wäre überschritten.');
     }
     final wanted = demand(r);
     if (wage < wanted) {
       k.refusedUntil = c.today.add(const Duration(days: 14));
       // The agent only names the ballpark.
       final hint = (wanted / 50000).ceil() * 50000;
-      return 'Abgelehnt. Sein Berater spricht von mindestens ${_euro(hint)} im Jahr.';
+      return tr('Abgelehnt. Sein Berater spricht von mindestens {0} im Jahr.',
+          [_euro(hint)]);
     }
     k
       ..nextTeam = c.teamId
@@ -449,18 +456,18 @@ class Economy {
       ..nextEnd = c.year + years.clamp(1, 4);
     c.inbox.add(Message(
       c.today,
-      'Berater',
+      tr('Berater'),
       r.teamId == c.teamId
-          ? '${r.name} verlängert'
-          : '${r.name} unterschreibt für ${c.year + 1}',
-      '${c.fullName(r.id)} hat für ${_euro(wage)} im Jahr bis ${k.nextEnd} '
-          'unterschrieben.',
+          ? tr('{0} verlängert', [r.name])
+          : tr('{0} unterschreibt für {1}', [r.name, c.year + 1]),
+      tr('{0} hat für {1} im Jahr bis {2} unterschrieben.',
+          [c.fullName(r.id), _euro(wage), k.nextEnd]),
     ));
     return null;
   }
 
   static String _euro(num v) => v >= 1000000
-      ? '${(v / 1000000).toStringAsFixed(2).replaceAll('.', ',')} Mio. €'
+      ? tr('{0} Mio. €', [dec(v / 1000000, 2)])
       : '${(v / 1000).round()}.000 €';
 
   // --- Daily routine ----------------------------------------------------------
@@ -613,12 +620,18 @@ class Economy {
     if (kept.isEmpty && released.isEmpty) return;
     c.inbox.add(Message(
       c.today,
-      'Teamleitung',
-      'Auslaufende Verträge geregelt',
-      '${kept.isEmpty ? '' : 'Um zwei Jahre verlängert: ${kept.join(', ')}. '}'
-          '${released.isEmpty ? '' : 'Ohne neues Angebot: ${released.join(', ')}. '}'
-          'Wer das selbst entscheiden will, schaltet die automatische '
-          'Verlängerung im Transferbereich ab.',
+      tr('Teamleitung'),
+      tr('Auslaufende Verträge geregelt'),
+      tr(
+          '{0}{1}Wer das selbst entscheiden will, schaltet die automatische Verlängerung im Transferbereich ab.',
+          [
+            kept.isEmpty
+                ? ''
+                : tr('Um zwei Jahre verlängert: {0}. ', [kept.join(', ')]),
+            released.isEmpty
+                ? ''
+                : tr('Ohne neues Angebot: {0}. ', [released.join(', ')])
+          ]),
     ));
   }
 
@@ -644,7 +657,7 @@ class Economy {
     for (final g in goals) {
       final ok = g.achieved();
       change += g.weight * (ok ? 7 : -9);
-      lines.add('${ok ? 'Erreicht' : 'Verfehlt'}: ${g.text}');
+      lines.add('${ok ? tr('Erreicht') : tr('Verfehlt')}: ${g.text}');
     }
     confidence = (confidence + change).clamp(0.0, 100.0);
     final oldBudget = budget;
@@ -686,14 +699,25 @@ class Economy {
 
     c.inbox.add(Message(
       c.today,
-      'Teamleitung',
-      'Saisonbilanz ${c.year}',
-      '${lines.join('. ')}. Vertrauen der Teamleitung: ${confidence.round()} von 100. '
-          'Budget ${c.year + 1}: ${_euro(budget)} '
-          '(${budget >= oldBudget ? '+' : ''}${((budget / oldBudget - 1) * 100).round()} %). '
-          '${joined.isEmpty ? '' : 'Zugänge: ${joined.join(', ')}. '}'
-          '${left.isEmpty ? '' : 'Abgänge: ${left.join(', ')}. '}'
-          '${emergency.isEmpty ? '' : 'Weil der Kader zu klein war, hat die Teamleitung selbst verpflichtet: ${emergency.join(', ')}.'}',
+      tr('Teamleitung'),
+      tr('Saisonbilanz {0}', [c.year]),
+      tr(
+          '{0}. Vertrauen der Teamleitung: {1} von 100. Budget {2}: {3} ({4}{5} %). {6}{7}{8}',
+          [
+            lines.join('. '),
+            confidence.round(),
+            c.year + 1,
+            _euro(budget),
+            budget >= oldBudget ? '+' : '',
+            ((budget / oldBudget - 1) * 100).round(),
+            joined.isEmpty ? '' : tr('Zugänge: {0}. ', [joined.join(', ')]),
+            left.isEmpty ? '' : tr('Abgänge: {0}. ', [left.join(', ')]),
+            emergency.isEmpty
+                ? ''
+                : tr(
+                    'Weil der Kader zu klein war, hat die Teamleitung selbst verpflichtet: {0}.',
+                    [emergency.join(', ')])
+          ]),
     ));
   }
 
@@ -897,24 +921,24 @@ class Economy {
   Goal _goal(GoalKind kind, int target) => switch (kind) {
         GoalKind.ranking => Goal(
             kind,
-            'Teamrangliste: mindestens Platz $target',
+            tr('Teamrangliste: mindestens Platz {0}', [target]),
             3,
             target,
             () => ownRank <= target && c.teamPoints.containsKey(c.teamId)),
         GoalKind.grandTourPodium => Goal(
             kind,
-            'Podium bei einer großen Rundfahrt',
+            tr('Podium bei einer großen Rundfahrt'),
             2,
             target,
             () => grandTourPodium),
         GoalKind.grandTourStage => Goal(
             kind,
-            'Etappensieg bei einer großen Rundfahrt',
+            tr('Etappensieg bei einer großen Rundfahrt'),
             2,
             target,
             () => grandTourStage),
-        GoalKind.wins => Goal(
-            kind, 'Mindestens $target Siege', 1, target, () => wins >= target),
+        GoalKind.wins => Goal(kind, tr('Mindestens {0} Siege', [target]), 1,
+            target, () => wins >= target),
       };
   static int? _ms(DateTime? d) => d?.millisecondsSinceEpoch;
   static DateTime? _date(Object? ms) => ms == null

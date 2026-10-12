@@ -2,7 +2,7 @@ import 'package:sim/sim.dart';
 
 import 'career.dart';
 import 'economy.dart';
-import 'licence.dart';
+import 'points.dart';
 
 /// Development team of the player's team.
 ///
@@ -22,46 +22,43 @@ class DevTeam {
   /// and a development team belongs to one professional team only.
   final links = <int, int>{};
 
-  /// Pairs professional teams with development teams that carry their name.
+  /// The real partnerships of the 2026 season: abbreviation of the
+  /// development team to that of its professional team. Teams that are not
+  /// listed have no development team, and a few development teams of the
+  /// database have no professional team.
+  static const partners = {
+    'APD': 'APT', // Alpecin-Premier Tech Development Team
+    'LBK': 'EUS', // BBK-Euskadi
+    'BVD': 'TBV', // Bahrain Victorious Development Team
+    'CJA': 'CJR', // Caja Rural-Alea
+    'DCD': 'DCT', // Decathlon CMA CGM Development Team
+    'DPP': 'TPP', // Development Team Picnic PostNL
+    'EFA': 'EFE', // EF Education - Aevolo
+    'LIZ': 'EKP', // Equipo Finisher
+    'CGF': 'GFC', // Groupama-FDJ United Équipe continentale
+    'HBG': 'JAY', // Hagens Berman Jayco
+    'IGA': 'NCI', // INEOS Grenadiers Racing Academy
+    'LTF': 'LTK', // Lidl-Trek Future Racing
+    'LWD': 'LOI', // Lotto - Groupe Wanty
+    'MOY': 'MOV', // Movistar Team Academy
+    'NDT': 'NSN', // NSN Development Team
+    'RBC': 'RBH', // Red Bull - BORA - hansgrohe Rookies
+    'SQD': 'SOQ', // Soudal Quick-Step Devo Team
+    'TFD': 'TFT', // Team NIPPO Nuovacomauto Obor
+    'TND': 'TNN', // Team Novo Nordisk Development
+    'VLD': 'TVL', // Team Visma | Lease a Bike Development
+    'TUU': 'TUD', // Tudor Pro Cycling Team U23
+    'UAZ': 'UEX', // UAE Team Emirates Gen-Z
+    'VDU': 'TEN', // Vendée U Primeo Energie
+    'XAD': 'XAT', // XDS Astana Development Team
+  };
+
+  /// Links the development teams of the database to their professional teams.
   void _link() {
-    final pros = [
-      for (final t in c.teams.values)
-        if (c.licences.of(t.id) == Licence.worldTour ||
-            c.licences.of(t.id) == Licence.pro)
-          t,
-    ];
-    final devs = [
-      for (final t in c.teams.values)
-        if ((t.division == 'Under23' ||
-                c.licences.of(t.id) == Licence.continental) &&
-            (c.squads[t.id]?.isNotEmpty ?? false))
-          t,
-    ];
-    final pairs = <({int pro, int dev, int score})>[];
-    for (final p in pros) {
-      final words = _tokens(p.name);
-      for (final d in devs) {
-        final shared = _tokens(d.name).intersection(words).length;
-        if (shared == 0) continue;
-        pairs.add((
-          pro: p.id,
-          dev: d.id,
-          score: 3 * shared + (d.country == p.country ? 1 : 0),
-        ));
-      }
-    }
-    // Best matches first; ties go to the lower ids so the result is stable.
-    pairs.sort((a, b) {
-      final s = b.score.compareTo(a.score);
-      if (s != 0) return s;
-      final p = a.pro.compareTo(b.pro);
-      return p != 0 ? p : a.dev.compareTo(b.dev);
-    });
-    final taken = <int>{};
-    for (final x in pairs) {
-      if (links.containsKey(x.pro) || taken.contains(x.dev)) continue;
-      links[x.pro] = x.dev;
-      taken.add(x.dev);
+    final byAbbr = {for (final t in c.teams.values) t.abbr: t.id};
+    for (final e in partners.entries) {
+      final dev = byAbbr[e.key], pro = byAbbr[e.value];
+      if (dev != null && pro != null) links[pro] = dev;
     }
   }
 
@@ -85,49 +82,126 @@ class DevTeam {
   /// Yearly cost, 0 without a development team.
   double get cost => teamId == null ? 0 : yearlyCost;
 
-  static const _stop = {
-    'team',
-    'pro',
-    'cycling',
-    'development',
-    'the',
-    'racing'
-  };
+  /// Team founded as a development team during the career, if any; such a
+  /// team is not in the world database and has to be saved with the career.
+  TeamInfo? founded;
 
-  static Set<String> _tokens(String name) => {
-        for (final w in name.toLowerCase().split(RegExp(r'[^a-z0-9à-ÿ]+')))
-          if (w.length >= 3 && !_stop.contains(w)) w,
-      };
+  /// Whether the player's team may found a development team: it has none.
+  bool get canFound => teamId == null;
 
-  /// @returns Teams that qualify as a development team, best match first.
-  List<TeamInfo> candidates() {
+  /// Founds a development team for the player's team: a new under-23 team
+  /// with the eight most talented free riders of at most 21 years. The
+  /// yearly cost is that of every development team.
+  ///
+  /// @returns null on success, otherwise the reason.
+  String? found() {
+    if (!canFound) return tr('Das Team hat schon ein Nachwuchsteam.');
     final own = c.teams[c.teamId]!;
-    final words = _tokens(own.name);
-    int score(TeamInfo t) =>
-        3 * _tokens(t.name).intersection(words).length +
-        (t.country == own.country ? 1 : 0);
-    return [
-      for (final t in c.teams.values)
-        if (t.id != c.teamId &&
-            (t.division == 'Under23' ||
-                c.licences.of(t.id) == Licence.continental) &&
-            (c.squads[t.id]?.isNotEmpty ?? false))
-          t,
+    final free = c.teams.values.where((t) => t.division == 'Free').first.id;
+    final id = c.teams.keys.reduce((a, b) => a > b ? a : b) + 1;
+    final abbr = own.abbr.length >= 2 ? '${own.abbr.substring(0, 2)}D' : 'DEV';
+    final info = TeamInfo(id, '${own.name} Development', abbr, 'Under23',
+        own.country, own.color, own.color2, '');
+    final pool = [
+      for (final r in c.squads[free] ?? const <SimRider>[])
+        if (c.year - r.born ~/ 10000 <= 21) r,
     ]..sort((a, b) {
-        final s = score(b).compareTo(score(a));
-        return s != 0
-            ? s
-            : c.teamStrength(b.id).compareTo(c.teamStrength(a.id));
+        final p = b.potential.compareTo(a.potential);
+        return p != 0 ? p : Economy.rating(b).compareTo(Economy.rating(a));
       });
+    if (pool.length < 8)
+      return tr('Es gibt nicht genug junge Fahrer ohne Team.');
+    c.teams[id] = info;
+    founded = info;
+    for (final r in pool.take(8)) {
+      c.economy.move(r, id);
+      c.economy.contracts[r.id]!.endYear = c.year + 2;
+    }
+    links[c.teamId] = id;
+    teamId = id;
+    c.inbox.add(Message(
+      c.today,
+      tr('Teamleitung'),
+      tr('Nachwuchsteam gegründet'),
+      tr('{0} nimmt mit acht jungen Fahrern den Betrieb auf. Es kostet {1} im Jahr.',
+          [info.name, '${(yearlyCost / 1000).round()}.000 €']),
+    ));
+    return null;
+  }
+
+  // --- Stagiaires ---------------------------------------------------------------
+  // From 1 August a professional team may let riders of its own development
+  // team ride for it as trainees. They stay with the development team, are
+  // not paid by the professional team and may not start in WorldTour races.
+
+  /// Most trainees a team may take per season.
+  static const maxStagiaires = 3;
+
+  /// The player's trainees of the running season, by rider id.
+  final stagiaires = <int>{};
+
+  /// Whether trainees may ride on a day: from 1 August to the end of the year.
+  ///
+  /// @param date A day.
+  /// @returns true from 1 August on.
+  bool window(DateTime date) => date.month >= 8;
+
+  /// Whether a race is open to trainees: everything below the WorldTour,
+  /// championships excluded.
+  ///
+  /// @param tier Tier of the race.
+  /// @returns true if trainees may start.
+  static bool allows(RaceTier tier) =>
+      tier == RaceTier.proSeries ||
+      tier == RaceTier.class1 ||
+      tier == RaceTier.class2 ||
+      tier == RaceTier.under23;
+
+  /// Takes a rider of the development team on as a trainee.
+  ///
+  /// @param riderId Id of the rider.
+  /// @returns null on success, otherwise the reason.
+  String? takeStagiaire(int riderId) {
+    if (!has(riderId)) return tr('Er fährt nicht im Nachwuchsteam.');
+    if (!window(c.today))
+      return tr('Stagiaires gibt es erst ab dem 1. August.');
+    if (stagiaires.contains(riderId)) return tr('Er ist schon Stagiaire.');
+    if (stagiaires.length >= maxStagiaires) {
+      return tr('Mehr als {0} Stagiaires sind nicht erlaubt.', [maxStagiaires]);
+    }
+    stagiaires.add(riderId);
+    return null;
+  }
+
+  /// The trainees a professional team can call on for a race on a day. The
+  /// player chooses his; every other team with a development team takes its
+  /// two strongest riders there.
+  ///
+  /// @param proTeam Id of the professional team.
+  /// @param date Day of the race.
+  /// @returns The riders, still as members of the development team.
+  List<SimRider> stagiairesOf(int proTeam, DateTime date) {
+    final dev = links[proTeam];
+    if (dev == null || !window(date)) return const [];
+    final squad = c.squads[dev] ?? const <SimRider>[];
+    if (proTeam == c.teamId) {
+      return [
+        for (final r in squad)
+          if (stagiaires.contains(r.id)) r,
+      ];
+    }
+    return ([...squad]
+          ..sort((a, b) => Economy.rating(b).compareTo(Economy.rating(a))))
+        .take(2)
+        .toList();
   }
 
   /// Chooses another development team.
   ///
   /// @param id Team id, or null for none.
   /// @returns null on success, otherwise the reason.
-  String? choose(int? id) =>
-      'Das Nachwuchsteam ist fest mit dem Team verbunden und lässt sich '
-      'nicht wechseln.';
+  String? choose(int? id) => tr(
+      'Das Nachwuchsteam ist fest mit dem Team verbunden und lässt sich nicht wechseln.');
 
   /// @param riderId Id of a rider.
   /// @returns Whether he rides for the development team.
@@ -148,15 +222,17 @@ class DevTeam {
     final r = c.riderById[riderId];
     final k = c.economy.contracts[riderId];
     if (r == null || k == null || !has(riderId)) {
-      return 'Er fährt nicht im Nachwuchsteam.';
+      return tr('Er fährt nicht im Nachwuchsteam.');
     }
-    if (k.nextTeam == c.teamId) return 'Er ist schon für nächstes Jahr geholt.';
-    if (k.nextTeam != null) return 'Er hat schon woanders unterschrieben.';
+    if (k.nextTeam == c.teamId)
+      return tr('Er ist schon für nächstes Jahr geholt.');
+    if (k.nextTeam != null) return tr('Er hat schon woanders unterschrieben.');
     if (!c.economy.windowOpen) {
-      return 'Verträge für die nächste Saison gibt es erst ab dem 1. August.';
+      return tr(
+          'Verträge für die nächste Saison gibt es erst ab dem 1. August.');
     }
     if (c.economy.squadNextSeason(c.teamId) >= 30) {
-      return 'Der Kader für die nächste Saison ist mit 30 Fahrern voll.';
+      return tr('Der Kader für die nächste Saison ist mit 30 Fahrern voll.');
     }
     final wage = c.economy.marketWage(r);
     k
@@ -165,10 +241,10 @@ class DevTeam {
       ..nextEnd = c.year + 2;
     c.inbox.add(Message(
       c.today,
-      'Nachwuchsteam',
-      '${r.name} rückt ${c.year + 1} auf',
-      '${c.fullName(r.id)} kommt aus dem Nachwuchsteam und hat bis '
-          '${k.nextEnd} unterschrieben.',
+      tr('Nachwuchsteam'),
+      tr('{0} rückt {1} auf', [r.name, c.year + 1]),
+      tr('{0} kommt aus dem Nachwuchsteam und hat bis {1} unterschrieben.',
+          [c.fullName(r.id), k.nextEnd]),
     ));
     return null;
   }
@@ -196,9 +272,9 @@ class DevTeam {
     if (names.isEmpty) return;
     c.inbox.add(Message(
       c.today,
-      'Nachwuchsteam',
-      'Neue Talente im Nachwuchsteam',
-      'Neu bei ${team?.name}: ${names.join(', ')}.',
+      tr('Nachwuchsteam'),
+      tr('Neue Talente im Nachwuchsteam'),
+      tr('Neu bei {0}: {1}.', [team?.name, names.join(', ')]),
     ));
   }
 }

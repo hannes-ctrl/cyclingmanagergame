@@ -3,6 +3,7 @@ import 'package:game/game.dart';
 import 'package:sim/sim.dart';
 
 import '../app_state.dart';
+import '../ui.dart';
 import '../widgets.dart';
 
 String _date(DateTime d) =>
@@ -53,18 +54,11 @@ class _CampsScreenState extends State<CampsScreen> {
       runSpacing: 6,
       children: [
         for (final v in values)
-          ChoiceChip(
-            label: Text(label(v)),
+          Pill(
+            label: label(v),
             selected: v == current,
-            showCheckmark: false,
-            selectedColor: TeamColors.text,
-            backgroundColor: c.panel,
-            side: BorderSide(color: c.line),
-            labelStyle: TextStyle(
-              fontSize: 13,
-              color: v == current ? TeamColors.ground : TeamColors.text,
-            ),
-            onSelected: (_) => setState(() => onPick(v)),
+            colors: c,
+            onTap: () => setState(() => onPick(v)),
           ),
       ],
     );
@@ -77,10 +71,10 @@ class _CampsScreenState extends State<CampsScreen> {
     );
 
     String status(SimRider r) {
-      if (career.isInjured(r.id, start)) return 'verletzt';
-      if (career.camps.blocks(r.id, start, end)) return 'im Lager';
-      if (career.isBusy(r.id, start)) return 'im Rennen';
-      return 'frei';
+      if (career.isInjured(r.id, start)) return tr('verletzt');
+      if (career.camps.blocks(r.id, start, end)) return tr('im Lager');
+      if (career.isBusy(r.id, start)) return tr('im Rennen');
+      return tr('frei');
     }
 
     return Padding(
@@ -95,7 +89,7 @@ class _CampsScreenState extends State<CampsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Label('Lager buchen'),
+                  Label(tr('Lager buchen')),
                   const SizedBox(height: 8),
                   chips(
                     CampType.values,
@@ -105,9 +99,14 @@ class _CampsScreenState extends State<CampsScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Fördert ${_type.focus.label} · ${_type.costPerDay} € je '
-                    'Fahrer und Tag · Formgewinn danach '
-                    '${(_type.peak * 100).toStringAsFixed(1).replaceAll('.', ',')} %',
+                    tr(
+                      'Fördert {0} · {1} € je Fahrer und Tag · Formgewinn danach {2} %',
+                      [
+                        _type.focus.label,
+                        _type.costPerDay,
+                        dec(_type.peak * 100),
+                      ],
+                    ),
                     style: const TextStyle(
                       fontSize: 12,
                       color: TeamColors.muted,
@@ -116,13 +115,13 @@ class _CampsScreenState extends State<CampsScreen> {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      const SizedBox(width: 60, child: Text('Beginn')),
+                      SizedBox(width: 60, child: Text(tr('Beginn'))),
                       step('−7', -7),
                       step('−1', -1),
                       SizedBox(
                         width: 130,
                         child: Text(
-                          '${_date(start)} bis ${_date(end)}',
+                          tr('{0} bis {1}', [_date(start), _date(end)]),
                           textAlign: TextAlign.center,
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
@@ -134,10 +133,10 @@ class _CampsScreenState extends State<CampsScreen> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const SizedBox(width: 60, child: Text('Dauer')),
+                      SizedBox(width: 60, child: Text(tr('Dauer'))),
                       chips(
                         const [7, 10, 14, 21],
-                        (d) => '$d Tage',
+                        (d) => tr('{0} Tage', [d]),
                         _days,
                         (d) => _days = d,
                       ),
@@ -147,8 +146,10 @@ class _CampsScreenState extends State<CampsScreen> {
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
-                        'In dieser Zeit fahren wir: ${clashes.join(', ')}. '
-                        'Wer im Lager ist, fehlt dort.',
+                        tr(
+                          'In dieser Zeit fahren wir: {0}. Wer im Lager ist, fehlt dort.',
+                          [clashes.join(', ')],
+                        ),
                         style: const TextStyle(
                           fontSize: 12,
                           color: TeamColors.gold,
@@ -182,13 +183,13 @@ class _CampsScreenState extends State<CampsScreen> {
                           ),
                         ),
                         Col(
-                          'Fahrer',
+                          tr('Fahrer'),
                           200,
                           (r, _) => cellText(career.fullName(r.id)),
                           sortKey: (r) => r.lastName,
                         ),
                         Col(
-                          'Alter',
+                          tr('Alter'),
                           50,
                           (r, _) =>
                               cellText('${career.year - r.born ~/ 10000}'),
@@ -203,7 +204,7 @@ class _CampsScreenState extends State<CampsScreen> {
                           sortKey: (r) => r.potential,
                         ),
                         Col(
-                          'Frische',
+                          tr('Frische'),
                           70,
                           (r, _) {
                             final f = career.shapeOf(r.id).freshness;
@@ -219,11 +220,11 @@ class _CampsScreenState extends State<CampsScreen> {
                           numeric: true,
                           sortKey: (r) => career.shapeOf(r.id).freshness,
                         ),
-                        Col('Am ${_date(start)}', 110, (r, _) {
+                        Col(tr('Am {0}', [_date(start)]), 110, (r, _) {
                           final text = status(r);
                           return cellText(
                             text,
-                            color: text == 'frei'
+                            color: text == tr('frei')
                                 ? TeamColors.muted
                                 : TeamColors.red,
                           );
@@ -237,10 +238,10 @@ class _CampsScreenState extends State<CampsScreen> {
                       Expanded(
                         child: Text(
                           _message ??
-                              '${_selected.length} von höchstens '
-                                  '${Camps.maxRiders} Fahrern · Kosten '
-                                  '${euro(cost)} €, fällig mit der nächsten '
-                                  'Monatsabrechnung',
+                              tr(
+                                '{0} von höchstens {1} Fahrern · Kosten {2} €, fällig mit der nächsten Monatsabrechnung',
+                                [_selected.length, Camps.maxRiders, euro(cost)],
+                              ),
                           style: TextStyle(
                             color: _message == null
                                 ? TeamColors.muted
@@ -264,12 +265,15 @@ class _CampsScreenState extends State<CampsScreen> {
                                       _days,
                                       _selected.toList(),
                                     ) ??
-                                    '${_type.label} ab ${_date(start)} ist gebucht.';
+                                    tr('{0} ab {1} ist gebucht.', [
+                                      _type.label,
+                                      _date(start),
+                                    ]);
                                 if (_message!.endsWith('gebucht.')) {
                                   _selected.clear();
                                 }
                               }),
-                        child: const Text('LAGER BUCHEN'),
+                        child: Text(tr('LAGER BUCHEN')),
                       ),
                     ],
                   ),
@@ -285,15 +289,13 @@ class _CampsScreenState extends State<CampsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Label('Lager ${career.year}'),
+                  Label(tr('Lager {0}', [career.year])),
                   const SizedBox(height: 6),
                   if (career.camps.all.isEmpty)
-                    const Text(
-                      'Noch keines gebucht. Ein Lager bindet die Fahrer für '
-                      'seine Dauer, belastet sie hart und zahlt sich ein bis '
-                      'vier Wochen später aus: Die geförderten Werte steigen '
-                      '(bei jungen Fahrern am meisten), und die Form liegt '
-                      'höher.',
+                    Text(
+                      tr(
+                        'Noch keines gebucht. Ein Lager bindet die Fahrer für seine Dauer, belastet sie hart und zahlt sich ein bis vier Wochen später aus: Die geförderten Werte steigen (bei jungen Fahrern am meisten), und die Form liegt höher.',
+                      ),
                       style: TextStyle(color: TeamColors.muted),
                     ),
                   Expanded(
@@ -309,8 +311,15 @@ class _CampsScreenState extends State<CampsScreen> {
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        '${k.type.label} · ${_date(k.start)} bis '
-                                        '${_date(k.end.subtract(const Duration(days: 1)))}',
+                                        tr('{0} · {1} bis {2}', [
+                                          k.type.label,
+                                          _date(k.start),
+                                          _date(
+                                            k.end.subtract(
+                                              const Duration(days: 1),
+                                            ),
+                                          ),
+                                        ]),
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -318,10 +327,10 @@ class _CampsScreenState extends State<CampsScreen> {
                                     ),
                                     Text(
                                       k.closed
-                                          ? 'beendet'
+                                          ? tr('beendet')
                                           : k.covers(career.today)
-                                          ? 'läuft'
-                                          : 'gebucht',
+                                          ? tr('läuft')
+                                          : tr('gebucht'),
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: k.covers(career.today)

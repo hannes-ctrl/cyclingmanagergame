@@ -154,6 +154,50 @@ Future<void> main(List<String> argv) async {
       pak.close();
       print('$written Rennlogos nach ${outDir.path}, $skipped nicht lesbar, '
           '$unknown ohne Rennen');
+    case 'photos':
+      // Exports the rider photos of the graphics pack as PNG files, named
+      // after the id of the rider.
+      final pak = PakFile.open(args[1]);
+      final outDir = Directory('${File(worldPath).parent.path}/photos')
+        ..createSync(recursive: true);
+      final db = openSqlite(worldPath);
+      final ids = <String, List<int>>{};
+      for (final r in db.select(
+          "SELECT IDcyclist, gene_sz_photo FROM raw_DYN_cyclist WHERE gene_sz_photo <> ''")) {
+        ids
+            .putIfAbsent(
+                (r['gene_sz_photo'] as String).toLowerCase(), () => [])
+            .add(r['IDcyclist'] as int);
+      }
+      db.dispose();
+      final name = RegExp(r'ProCyclistPhoto/([^/]+)\.uexp$');
+      final ooz = Ooz(Platform.script
+          .resolve('../../../native/build/ooz.dll')
+          .toFilePath());
+      var written = 0, skipped = 0;
+      for (final e in pak.entries) {
+        final m = name.firstMatch(e.path);
+        if (m == null) continue;
+        final riders = ids[m[1]!.toLowerCase()];
+        if (riders == null) continue;
+        final texture = Texture.fromUexp(pak.read(e, decoder: ooz.decode));
+        if (texture == null) {
+          skipped++;
+          continue;
+        }
+        // 128 px is plenty for the rider page.
+        var t = texture;
+        while (t.width > 128) {
+          t = t.shrink(1);
+        }
+        final png = t.toPng();
+        for (final id in riders) {
+          File('${outDir.path}/$id.png').writeAsBytesSync(png);
+          written++;
+        }
+      }
+      pak.close();
+      print('$written Fahrerfotos nach ${outDir.path}, $skipped nicht lesbar');
     case 'game-stages':
       final pak = PakFile.open(args[1]);
       final ooz = Ooz(Platform.script
@@ -187,6 +231,14 @@ Future<void> main(List<String> argv) async {
       print(
           '$worldPath (${(File(worldPath).lengthSync() / 1048576).toStringAsFixed(1)} MB, '
           '${watch.elapsed.inSeconds} s)');
+    case 'variants':
+      // Adds the routes of earlier seasons for the calibration.
+      final db = openSqlite(worldPath);
+      db.execute('BEGIN;');
+      final added = importVariants(db, root, [2021, 2022, 2023, 2024, 2025]);
+      db.execute('COMMIT;');
+      db.dispose();
+      print('$added Strecken der Jahrgänge 2021 bis 2025 ergänzt');
     case 'classifications':
       // Adds the points schemes to an existing world database.
       final db = openSqlite(worldPath);

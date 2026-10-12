@@ -143,11 +143,11 @@ class HomeScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        head('Nächste Rennen', 'planner'),
+                        head(tr('Nächste Rennen'), 'planner'),
                         const SizedBox(height: 6),
                         if (upcoming.isEmpty)
-                          const Text(
-                            'Kein Rennen mehr in dieser Saison.',
+                          Text(
+                            tr('Kein Rennen mehr in dieser Saison.'),
                             style: TextStyle(color: TeamColors.muted),
                           ),
                         for (final r in upcoming)
@@ -183,7 +183,7 @@ class HomeScreen extends StatelessWidget {
                                         ),
                                         Text(
                                           '${r.tier.label} · ${r.info.country} · '
-                                          '${r.isStageRace ? '${r.stages.length} Etappen' : 'Eintagesrennen'}',
+                                          '${r.isStageRace ? tr('{0} Etappen', [r.stages.length]) : tr('Eintagesrennen')}',
                                           style: const TextStyle(
                                             fontSize: 12,
                                             color: TeamColors.muted,
@@ -194,10 +194,12 @@ class HomeScreen extends StatelessWidget {
                                   ),
                                   Text(
                                     career.progress.containsKey(r.info.id)
-                                        ? 'läuft'
+                                        ? tr('läuft')
                                         : r.start == today
-                                        ? 'heute'
-                                        : 'in ${r.start.difference(today).inDays} Tagen',
+                                        ? tr('heute')
+                                        : tr('in {0} Tagen', [
+                                            r.start.difference(today).inDays,
+                                          ]),
                                     style: TextStyle(
                                       color:
                                           r.start.difference(today).inDays <= 0
@@ -226,14 +228,16 @@ class HomeScreen extends StatelessWidget {
                             Expanded(
                               child: Label(
                                 s.unread > 0
-                                    ? 'Neuigkeiten · ${s.unread} ungelesen'
-                                    : 'Neuigkeiten',
+                                    ? tr('Neuigkeiten · {0} ungelesen', [
+                                        s.unread,
+                                      ])
+                                    : tr('Neuigkeiten'),
                               ),
                             ),
                             InkWell(
                               onTap: onInbox,
-                              child: const Text(
-                                'Zum Postfach',
+                              child: Text(
+                                tr('Zum Postfach'),
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: TeamColors.muted,
@@ -244,9 +248,10 @@ class HomeScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         if (s.inbox.isEmpty)
-                          const Text(
-                            '„Weiter" lässt die Saison laufen, bis etwas '
-                            'dein Team betrifft.',
+                          Text(
+                            tr(
+                              '„Weiter" lässt die Saison laufen, bis etwas dein Team betrifft.',
+                            ),
                             style: TextStyle(color: TeamColors.muted),
                           ),
                         Expanded(
@@ -310,32 +315,38 @@ class HomeScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      head('Saison ${career.year}', 'rankings'),
+                      head(tr('Saison {0}', [career.year]), 'rankings'),
                       const SizedBox(height: 4),
-                      fact('Lizenz', career.licences.of(s.team.id).label),
+                      fact(tr('Lizenz'), career.licences.of(s.team.id).label),
                       fact(
-                        'Teamrangliste',
+                        tr('Teamrangliste'),
                         rank == 0
                             ? '–'
-                            : 'Platz $rank · ${(career.teamPoints[s.team.id] ?? 0).round()} Punkte',
+                            : tr('Platz {0} · {1} Punkte', [
+                                rank,
+                                (career.teamPoints[s.team.id] ?? 0).round(),
+                              ]),
                       ),
                       if (cycle >= 0)
                         fact(
-                          'Dreijahreswertung ${career.licences.cycleStart}–${career.licences.cycleEnd}',
-                          'Platz ${cycle + 1}',
+                          tr('Dreijahreswertung {0}–{1}', [
+                            career.licences.cycleStart,
+                            career.licences.cycleEnd,
+                          ]),
+                          tr('Platz {0}', [cycle + 1]),
                           color: cycle < career.licences.worldTourPlaces
                               ? TeamColors.green
                               : TeamColors.red,
                         ),
-                      fact('Siege', '${eco.wins}'),
+                      fact(tr('Siege'), '${eco.wins}'),
                       fact(
-                        'Kasse',
+                        tr('Kasse'),
                         '${euro(eco.balance)} €',
                         color: eco.balance < 0 ? TeamColors.red : null,
                       ),
                       fact(
-                        'Vertrauen der Teamleitung',
-                        '${eco.confidence.round()} von 100',
+                        tr('Vertrauen der Teamleitung'),
+                        tr('{0} von 100', [eco.confidence.round()]),
                       ),
                     ],
                   ),
@@ -346,22 +357,22 @@ class HomeScreen extends StatelessWidget {
                     colors: c,
                     child: ListView(
                       children: [
-                        head('Saisonziele', 'finance'),
+                        head(tr('Saisonziele'), 'finance'),
                         const SizedBox(height: 4),
                         for (final g in eco.goals)
                           line(
                             g.text,
-                            g.achieved() ? 'erreicht' : 'offen',
+                            g.achieved() ? tr('erreicht') : tr('offen'),
                             color: g.achieved()
                                 ? TeamColors.green
                                 : TeamColors.gold,
                           ),
                         const SizedBox(height: 12),
-                        head('Im Rennen', 'races'),
+                        head(tr('Im Rennen'), 'races'),
                         const SizedBox(height: 4),
                         if (running.isEmpty)
-                          const Text(
-                            'Gerade fährt niemand.',
+                          Text(
+                            tr('Gerade fährt niemand.'),
                             style: TextStyle(color: TeamColors.muted),
                           ),
                         for (final p in running)
@@ -370,8 +381,11 @@ class HomeScreen extends StatelessWidget {
                             child: line(
                               p.race.info.name,
                               p.race.isStageRace
-                                  ? 'Etappe ${p.stagesDone} von ${p.race.stages.length}'
-                                  : 'heute',
+                                  ? tr('Etappe {0} von {1}', [
+                                      p.stagesDone,
+                                      p.race.stages.length,
+                                    ])
+                                  : tr('heute'),
                             ),
                           ),
                       ],
@@ -388,43 +402,49 @@ class HomeScreen extends StatelessWidget {
               colors: c,
               child: ListView(
                 children: [
-                  head('Beste Form', 'squad:shape'),
+                  head(tr('Beste Form'), 'squad:shape'),
                   const SizedBox(height: 4),
                   for (final r in inForm.take(5))
                     riderLine(
                       r,
-                      '${((career.shapeOf(r.id).form - 1) * 100).toStringAsFixed(1).replaceAll('.', ',')} %',
+                      '${dec((career.shapeOf(r.id).form - 1) * 100)} %',
                       color: career.shapeOf(r.id).form >= 1
                           ? TeamColors.green
                           : TeamColors.muted,
                     ),
                   const SizedBox(height: 12),
-                  head('Punktesammler', 'squad:season'),
+                  head(tr('Punktesammler'), 'squad:season'),
                   const SizedBox(height: 4),
                   if (scorers.isEmpty)
-                    const Text(
-                      'Noch keine Punkte.',
+                    Text(
+                      tr('Noch keine Punkte.'),
                       style: TextStyle(color: TeamColors.muted),
                     ),
                   for (final r in scorers.take(6))
                     riderLine(r, '${career.riderPoints[r.id]!.round()}'),
                   const SizedBox(height: 12),
-                  head('Nicht einsatzbereit · ${out.length}', 'squad:shape'),
+                  head(
+                    tr('Nicht einsatzbereit · {0}', [out.length]),
+                    'squad:shape',
+                  ),
                   const SizedBox(height: 4),
                   if (out.isEmpty)
-                    const Text(
-                      'Alle gesund.',
+                    Text(
+                      tr('Alle gesund.'),
                       style: TextStyle(color: TeamColors.muted),
                     ),
                   for (final r in out)
                     riderLine(
                       r,
-                      'bis ${_d(career.shapeOf(r.id).injuredUntil!)}',
+                      tr('bis {0}', [_d(career.shapeOf(r.id).injuredUntil!)]),
                       color: TeamColors.red,
                     ),
                   if (inCamp.isNotEmpty) ...[
                     const SizedBox(height: 12),
-                    head('Im Trainingslager · ${inCamp.length}', 'camps'),
+                    head(
+                      tr('Im Trainingslager · {0}', [inCamp.length]),
+                      'camps',
+                    ),
                     const SizedBox(height: 4),
                     for (final r in inCamp)
                       riderLine(

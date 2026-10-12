@@ -219,6 +219,27 @@ class AppState extends ChangeNotifier {
   /// radio call of a stage; the shell clears it.
   bool jumpToRace = false;
 
+  /// Debug mode of the app, set by the shell from the settings.
+  bool debug = false;
+
+  /// Debug action: adds money to the account without a booking.
+  ///
+  /// @param amount Euros to add.
+  void debugMoney(double amount) {
+    career.economy.balance += amount;
+    _save();
+    notifyListeners();
+  }
+
+  /// Debug action: ends every injury and illness in the player's team.
+  void debugHeal() {
+    for (final r in squad) {
+      career.shapeOf(r.id).injuredUntil = null;
+    }
+    _save();
+    notifyListeners();
+  }
+
   /// Rider whose page is open on top of the selected screen, or null.
   int? riderPage;
 
@@ -549,7 +570,7 @@ class AppState extends ChangeNotifier {
     _saveTimer?.cancel();
     _saveTimer = null;
     if (!persist || _replayDays > 0) return;
-    _saveFile.writeAsStringSync(_saveText('Automatisch'));
+    _saveFile.writeAsStringSync(_saveText(tr('Automatisch')));
   }
 
   // --- Named saves --------------------------------------------------------------
@@ -601,8 +622,8 @@ class AppState extends ChangeNotifier {
   /// @returns null on success, otherwise the reason.
   String? saveAs(String name) {
     final clean = name.trim();
-    if (clean.isEmpty) return 'Der Spielstand braucht einen Namen.';
-    if (busy) return 'Die Tage laufen gerade.';
+    if (clean.isEmpty) return tr('Der Spielstand braucht einen Namen.');
+    if (busy) return tr('Die Tage laufen gerade.');
     final file = clean.replaceAll(RegExp(r'[^A-Za-z0-9äöüÄÖÜß _-]'), '_');
     _savesDir.createSync(recursive: true);
     File('${_savesDir.path}/$file.rmsave').writeAsStringSync(_saveText(clean));
@@ -616,10 +637,10 @@ class AppState extends ChangeNotifier {
   /// @param info The save to load.
   /// @returns null on success, otherwise the reason.
   Future<String?> loadSave(SaveInfo info) async {
-    if (busy) return 'Die Tage laufen gerade.';
+    if (busy) return tr('Die Tage laufen gerade.');
     _log.clear();
     final saved = _readSave(File(info.path));
-    if (saved == null) return 'Die Datei lässt sich nicht lesen.';
+    if (saved == null) return tr('Die Datei lässt sich nicht lesen.');
     _open(saved);
     notifyListeners();
     // Only a save in the old format still has to be replayed.
@@ -868,7 +889,7 @@ class AppState extends ChangeNotifier {
   /// @param years Contract term.
   /// @returns null if he signs, otherwise the reason for the refusal.
   String? offer(int riderId, int wage, int years) {
-    if (busy) return 'Die Tage laufen gerade.';
+    if (busy) return tr('Die Tage laufen gerade.');
     final answer = career.economy.offer(riderId, wage, years);
     // Log refusals too: they block the rider for two weeks.
     _log.add({
@@ -891,7 +912,7 @@ class AppState extends ChangeNotifier {
   /// @param action The action; returns null on success.
   /// @returns null on success, otherwise the reason.
   String? _act(String type, String key, int id, String? Function(int) action) {
-    if (busy) return 'Die Tage laufen gerade.';
+    if (busy) return tr('Die Tage laufen gerade.');
     final answer = action(id);
     if (answer == null) {
       _log.add({'type': type, key: id, 'day': _days});
@@ -972,7 +993,7 @@ class AppState extends ChangeNotifier {
   /// @param riders Ids of the riders to send.
   /// @returns null on success, otherwise the reason.
   String? bookCamp(CampType type, DateTime start, int days, List<int> riders) {
-    if (busy) return 'Die Tage laufen gerade.';
+    if (busy) return tr('Die Tage laufen gerade.');
     final answer = career.camps.book(type, start, days, riders);
     if (answer == null) {
       _log.add({
@@ -996,7 +1017,7 @@ class AppState extends ChangeNotifier {
   /// @param index Index of the offer.
   /// @returns null on success, otherwise the reason.
   String? acceptSponsor(int slot, int index) {
-    if (busy) return 'Die Tage laufen gerade.';
+    if (busy) return tr('Die Tage laufen gerade.');
     final answer = career.economy.acceptSponsor(slot, index);
     if (answer == null) {
       _log.add({'type': 'sponsor', 'slot': slot, 'index': index, 'day': _days});
@@ -1019,7 +1040,7 @@ class AppState extends ChangeNotifier {
   /// @param action `decline`, `restore` or `apply` (for a wildcard).
   /// @returns null on success, otherwise the reason.
   String? entry(int raceId, String action) {
-    if (busy) return 'Die Tage laufen gerade.';
+    if (busy) return tr('Die Tage laufen gerade.');
     final e = career.entries;
     final answer = switch (action) {
       'decline' => e.decline(raceId),
@@ -1046,12 +1067,35 @@ class AppState extends ChangeNotifier {
   String? promote(int riderId) =>
       _act('promote', 'rider', riderId, career.devTeam.promote);
 
+  /// Founds a development team for the player's team.
+  ///
+  /// @returns null on success, otherwise the reason.
+  String? foundDevTeam() {
+    if (busy) return tr('Die Tage laufen gerade.');
+    final answer = career.devTeam.found();
+    if (answer == null) _save();
+    notifyListeners();
+    return answer;
+  }
+
+  /// Takes a rider of the development team on as a trainee.
+  ///
+  /// @param riderId Id of the rider.
+  /// @returns null on success, otherwise the reason.
+  String? takeStagiaire(int riderId) {
+    if (busy) return tr('Die Tage laufen gerade.');
+    final answer = career.devTeam.takeStagiaire(riderId);
+    if (answer == null) _save();
+    notifyListeners();
+    return answer;
+  }
+
   /// Chooses another development team.
   ///
   /// @param teamId Team id, or null for none.
   /// @returns null on success, otherwise the reason.
   String? chooseDevTeam(int? teamId) {
-    if (busy) return 'Die Tage laufen gerade.';
+    if (busy) return tr('Die Tage laufen gerade.');
     final answer = career.devTeam.choose(teamId);
     if (answer == null) {
       _log.add({'type': 'devTeam', 'team': teamId, 'day': _days});

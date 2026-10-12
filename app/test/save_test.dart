@@ -44,7 +44,9 @@ void main() {
       a.delegate('training', true);
       a.delegate('scouting', true);
       // The development team is tied to the team and cannot be switched.
-      expect(a.chooseDevTeam(a.career.devTeam.candidates()[1].id), isNotNull);
+      expect(a.chooseDevTeam(1), isNotNull);
+      // Red Bull's development team is the one of the real world.
+      expect(a.career.devTeam.team?.abbr, 'RBC');
       // Training camp in three weeks for four riders.
       expect(
         a.bookCamp(
@@ -268,6 +270,13 @@ void customTest() {
     );
     a.delegate('radio', RadioMode.off.name);
     expect(a.squad.length, 22);
+    // A founded team has no development team until it founds one. Trainees
+    // are only possible from August.
+    expect(a.career.devTeam.teamId, isNull);
+    expect(a.foundDevTeam(), isNull);
+    expect(a.career.devTeam.squad.length, 8);
+    expect(a.foundDevTeam(), isNotNull);
+    expect(a.takeStagiaire(a.career.devTeam.squad.first.id), isNotNull);
     for (var i = 0; i < 12; i++) {
       final p = a.pending;
       if (p != null) {
@@ -295,7 +304,31 @@ void customTest() {
     );
     expect(b.career.teamPoints, a.career.teamPoints);
     expect(b.career.economy.balance, a.career.economy.balance);
-  }, timeout: const Timeout(Duration(minutes: 5)));
+    // The founded development team is part of the save.
+    expect(b.career.devTeam.team?.name, a.career.devTeam.team?.name);
+    expect(
+      b.career.devTeam.squad.map((r) => r.id).toSet(),
+      a.career.devTeam.squad.map((r) => r.id).toSet(),
+    );
+
+    // From August a trainee can be taken and starts for the professional
+    // team in races below the WorldTour.
+    await a.simulateUntil(DateTime.utc(a.career.year, 8, 2), auto: true);
+    final trainee = a.career.devTeam.squad.first;
+    expect(a.takeStagiaire(trainee.id), isNull);
+    await a.simulateUntil(DateTime.utc(a.career.year, 10, 20), auto: true);
+    final rides = [
+      for (final p in a.career.progress.values)
+        if (p.riders.any((r) => r.id == trainee.id && r.teamId == a.team.id))
+          p.race.tier,
+    ];
+    expect(rides.every(DevTeam.allows), isTrue);
+    // No rider starts twice in a race.
+    for (final p in a.career.progress.values) {
+      final ids = [for (final r in p.riders) r.id];
+      expect(ids.toSet().length, ids.length, reason: p.race.info.name);
+    }
+  }, timeout: const Timeout(Duration(minutes: 8)));
 }
 
 // A whole year with contract offers and a change of season: the loaded

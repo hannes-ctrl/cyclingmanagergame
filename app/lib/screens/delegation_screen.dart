@@ -1,3 +1,4 @@
+import 'package:sim/sim.dart';
 import 'package:flutter/material.dart';
 import 'package:game/game.dart';
 
@@ -22,7 +23,7 @@ class DelegationScreen extends StatelessWidget {
       final people = book.of(s.team.id, role).toList()
         ..sort((a, b) => b.skill.compareTo(a.skill));
       return people.isEmpty
-          ? 'niemand im Team'
+          ? tr('niemand im Team')
           : '${people.first.name} (${people.first.skill})';
     }
 
@@ -65,7 +66,7 @@ class DelegationScreen extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Text(
-            on ? 'Personal' : 'Ich selbst',
+            on ? tr('Personal') : tr('Ich selbst'),
             style: const TextStyle(fontSize: 12, color: TeamColors.muted),
           ),
           const SizedBox(width: 6),
@@ -94,20 +95,22 @@ class DelegationScreen extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Label('Aufgabenverteilung'),
+                Label(tr('Aufgabenverteilung')),
                 const SizedBox(height: 4),
-                const Text(
-                  'Was du abgibst, erledigt das Personal ohne Rückfrage. '
-                  'Wie gut, hängt von den Leuten ab.',
+                Text(
+                  tr(
+                    'Was du abgibst, erledigt das Personal ohne Rückfrage. Wie gut, hängt von den Leuten ab.',
+                  ),
                   style: TextStyle(color: TeamColors.muted),
                 ),
                 const SizedBox(height: 8),
                 row(
-                  'Aufgebote',
-                  'Sportlicher Leiter: ${best(StaffRole.director)}',
-                  'Vor jedem Rennen wählst du Fahrer, Rollen und Taktik.',
-                  'Der Sportliche Leiter stellt auf und plant jede Etappe; '
-                      'die Saisonplanung berücksichtigt er weiter.',
+                  tr('Aufgebote'),
+                  tr('Sportlicher Leiter: {0}', [best(StaffRole.director)]),
+                  tr('Vor jedem Rennen wählst du Fahrer, Rollen und Taktik.'),
+                  tr(
+                    'Der Sportliche Leiter stellt auf und plant jede Etappe; die Saisonplanung berücksichtigt er weiter.',
+                  ),
                   d.lineups,
                   (v) => s.delegate('lineups', v),
                 ),
@@ -122,15 +125,17 @@ class DelegationScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Funk im Rennen',
+                            Text(
+                              tr('Funk im Rennen'),
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             Text(
-                              'Sportlicher Leiter: ${best(StaffRole.director)}',
+                              tr('Sportlicher Leiter: {0}', [
+                                best(StaffRole.director),
+                              ]),
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: TeamColors.muted,
@@ -139,11 +144,11 @@ class DelegationScreen extends StatelessWidget {
                           ],
                         ),
                       ),
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Bis zu dreimal je Etappe meldet sich der Leiter: '
-                          'wenn die Gruppe des Tages steht, zu Beginn des '
-                          'Finales und wenn ein Gegner angreift.',
+                          tr(
+                            'Bis zu dreimal je Etappe meldet sich der Leiter: wenn die Gruppe des Tages steht, zu Beginn des Finales und wenn ein Gegner angreift.',
+                          ),
                           style: TextStyle(color: TeamColors.muted),
                         ),
                       ),
@@ -172,11 +177,13 @@ class DelegationScreen extends StatelessWidget {
                 Divider(height: 1, color: c.line),
                 row(
                   'Training',
-                  'Trainer: ${best(StaffRole.coach)}',
-                  'Belastung und Schwerpunkt stellst du je Fahrer im Kader ein.',
-                  'Der Trainer dosiert jeden Montag nach Frische und Alter, '
-                      'nimmt vor geplanten Rennen heraus und wählt den '
-                      'Schwerpunkt nach der Stärke des Fahrers.',
+                  tr('Trainer: {0}', [best(StaffRole.coach)]),
+                  tr(
+                    'Belastung und Schwerpunkt stellst du je Fahrer im Kader ein.',
+                  ),
+                  tr(
+                    'Der Trainer dosiert jeden Montag nach Frische und Alter, nimmt vor geplanten Rennen heraus und wählt den Schwerpunkt nach der Stärke des Fahrers.',
+                  ),
                   d.training,
                   (v) => s.delegate('training', v),
                 ),
@@ -184,19 +191,21 @@ class DelegationScreen extends StatelessWidget {
                 row(
                   'Scouting',
                   'Scout: ${best(StaffRole.scout)}',
-                  'Du schickst die Scouts im Transfermarkt einzeln los.',
-                  'Ab Juni beobachten freie Scouts von sich aus Fahrer mit '
-                      'auslaufendem Vertrag, die zum Team passen.',
+                  tr('Du schickst die Scouts im Transfermarkt einzeln los.'),
+                  tr(
+                    'Ab Juni beobachten freie Scouts von sich aus Fahrer mit auslaufendem Vertrag, die zum Team passen.',
+                  ),
                   d.scouting,
                   (v) => s.delegate('scouting', v),
                 ),
                 Divider(height: 1, color: c.line),
                 row(
-                  'Vertragsverlängerungen',
-                  'Teamleitung',
-                  'Auslaufende Verträge verhandelst du selbst.',
-                  'Am 1. August verlängert die Teamleitung mit allen, die '
-                      'zum Kern gehören oder jung und begabt sind.',
+                  tr('Vertragsverlängerungen'),
+                  tr('Teamleitung'),
+                  tr('Auslaufende Verträge verhandelst du selbst.'),
+                  tr(
+                    'Am 1. August verlängert die Teamleitung mit allen, die zum Kern gehören oder jung und begabt sind.',
+                  ),
                   career.economy.autoRenew,
                   s.setAutoRenew,
                 ),

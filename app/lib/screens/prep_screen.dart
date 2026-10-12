@@ -3,6 +3,7 @@ import 'package:game/game.dart';
 import 'package:sim/sim.dart';
 
 import '../app_state.dart';
+import '../ui.dart';
 import '../widgets.dart';
 
 const _approachLabels = {
@@ -181,24 +182,11 @@ class _PrepScreenState extends State<PrepScreen> {
           runSpacing: 6,
           children: [
             for (final e in labels.entries)
-              ChoiceChip(
-                label: Text(e.value),
+              Pill(
+                label: tr(e.value),
                 selected: e.key == current,
-                showCheckmark: false,
-                selectedColor: TeamColors.text,
-                backgroundColor: c.panel,
-                side: BorderSide(color: c.line),
-                labelStyle: TextStyle(
-                  fontSize: 13,
-                  color: e.key == current
-                      ? TeamColors.ground
-                      : _ownTactics
-                      ? TeamColors.text
-                      : TeamColors.muted,
-                ),
-                onSelected: _ownTactics
-                    ? (_) => setState(() => onPick(e.key))
-                    : null,
+                colors: c,
+                onTap: _ownTactics ? () => setState(() => onPick(e.key)) : null,
               ),
           ],
         ),
@@ -224,9 +212,14 @@ class _PrepScreenState extends State<PrepScreen> {
                       ),
                     ),
                     Text(
-                      '${race.tier.label} · ${race.info.country} · '
-                      '${race.isStageRace ? '${race.stages.length} Etappen' : 'Eintagesrennen'} · '
-                      '${_p.others.length + lineup.length} Fahrer am Start',
+                      tr('{0} · {1} · {2} · {3} Fahrer am Start', [
+                        race.tier.label,
+                        race.info.country,
+                        race.isStageRace
+                            ? tr('{0} Etappen', [race.stages.length])
+                            : tr('Eintagesrennen'),
+                        _p.others.length + lineup.length,
+                      ]),
                       style: const TextStyle(color: TeamColors.muted),
                     ),
                   ],
@@ -249,7 +242,7 @@ class _PrepScreenState extends State<PrepScreen> {
                   _ownTactics = false;
                   _takeSuggestion();
                 }),
-                child: const Text('Vorschlag des Sportlichen Leiters'),
+                child: Text(tr('Vorschlag des Sportlichen Leiters')),
               ),
               const SizedBox(width: 10),
               FilledButton(
@@ -279,8 +272,8 @@ class _PrepScreenState extends State<PrepScreen> {
                             : null,
                         directorId: _director,
                       ),
-                child: const Text(
-                  'BESTÄTIGEN UND STARTEN',
+                child: Text(
+                  tr('BESTÄTIGEN UND STARTEN'),
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.6,
@@ -303,10 +296,13 @@ class _PrepScreenState extends State<PrepScreen> {
                       children: [
                         Row(
                           children: [
-                            const Label('Verfügbare Fahrer'),
+                            Label(tr('Verfügbare Fahrer')),
                             const Spacer(),
                             Text(
-                              '${lineup.length} von ${_p.size} gewählt',
+                              tr('{0} von {1} gewählt', [
+                                lineup.length,
+                                _p.size,
+                              ]),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: lineup.length == _p.size
@@ -338,19 +334,23 @@ class _PrepScreenState extends State<PrepScreen> {
                                 ),
                               ),
                               Col(
-                                'Fahrer',
+                                tr('Fahrer'),
                                 170,
-                                (r, _) => cellText(r.name),
+                                (r, _) => cellText(
+                                  s.career.devTeam.stagiaires.contains(r.id)
+                                      ? '${r.name} · Stagiaire'
+                                      : r.name,
+                                ),
                                 sortKey: (r) => r.lastName,
                               ),
-                              value('Eignung', _fit),
+                              value(tr('Eignung'), _fit),
                               value('FL', (r) => r.attributes.flat),
-                              value('BG', (r) => r.attributes.mountain),
-                              value('HÜ', (r) => r.attributes.hill),
-                              value('ZF', (r) => r.attributes.timeTrial),
-                              value('KO', (r) => r.attributes.cobble),
-                              value('SP', (r) => r.attributes.sprint),
-                              value('AUS', (r) => r.attributes.breakaway),
+                              value(tr('BG'), (r) => r.attributes.mountain),
+                              value(tr('HÜ'), (r) => r.attributes.hill),
+                              value(tr('ZF'), (r) => r.attributes.timeTrial),
+                              value(tr('KO'), (r) => r.attributes.cobble),
+                              value(tr('SP'), (r) => r.attributes.sprint),
+                              value(tr('AUS'), (r) => r.attributes.breakaway),
                             ],
                           ),
                         ),
@@ -373,7 +373,7 @@ class _PrepScreenState extends State<PrepScreen> {
                                 Expanded(
                                   child: Text(
                                     race.isStageRace
-                                        ? 'Etappe 1 · ${_first.name}'
+                                        ? tr('Etappe 1 · {0}', [_first.name])
                                         : _first.name,
                                     style: const TextStyle(
                                       fontSize: 15,
@@ -382,7 +382,10 @@ class _PrepScreenState extends State<PrepScreen> {
                                   ),
                                 ),
                                 Text(
-                                  '${_first.raceKm.toStringAsFixed(1)} km · ${meters.round()} Hm',
+                                  tr('{0} km · {1} Hm', [
+                                    _first.raceKm.toStringAsFixed(1),
+                                    meters.round(),
+                                  ]),
                                   style: const TextStyle(
                                     color: TeamColors.muted,
                                   ),
@@ -411,10 +414,10 @@ class _PrepScreenState extends State<PrepScreen> {
                                   children: [
                                     Row(
                                       children: [
-                                        const Label('Rollen und Taktik'),
+                                        Label(tr('Rollen und Taktik')),
                                         const Spacer(),
-                                        const Text(
-                                          'Eigene Taktik',
+                                        Text(
+                                          tr('Eigene Taktik'),
                                           style: TextStyle(fontSize: 12),
                                         ),
                                         const SizedBox(width: 4),
@@ -433,9 +436,12 @@ class _PrepScreenState extends State<PrepScreen> {
                                     ),
                                     Text(
                                       _ownTactics
-                                          ? 'Deine Vorgaben gelten für das ganze Rennen.'
-                                          : 'Der Sportliche Leiter plant jede Etappe selbst. '
-                                                'Das hier ist sein Plan für den Auftakt.',
+                                          ? tr(
+                                              'Deine Vorgaben gelten für das ganze Rennen.',
+                                            )
+                                          : tr(
+                                              'Der Sportliche Leiter plant jede Etappe selbst. Das hier ist sein Plan für den Auftakt.',
+                                            ),
                                       style: const TextStyle(
                                         fontSize: 12,
                                         color: TeamColors.muted,
@@ -445,8 +451,8 @@ class _PrepScreenState extends State<PrepScreen> {
                                     if (_p.directors.isNotEmpty)
                                       Row(
                                         children: [
-                                          const Text(
-                                            'Im Wagen:',
+                                          Text(
+                                            tr('Im Wagen:'),
                                             style: TextStyle(
                                               fontSize: 13,
                                               color: TeamColors.muted,
@@ -472,10 +478,16 @@ class _PrepScreenState extends State<PrepScreen> {
                                                   DropdownMenuItem(
                                                     value: d.id,
                                                     child: Text(
-                                                      '${d.name} · Taktik ${d.skill}, '
-                                                      'Rennlesen ${d.second}, '
-                                                      'Motivation ${d.third} · '
-                                                      '${d.focus.label}',
+                                                      tr(
+                                                        '{0} · Taktik {1}, Rennlesen {2}, Motivation {3} · {4}',
+                                                        [
+                                                          d.name,
+                                                          d.skill,
+                                                          d.second,
+                                                          d.third,
+                                                          d.focus.label,
+                                                        ],
+                                                      ),
                                                       overflow:
                                                           TextOverflow.ellipsis,
                                                     ),
@@ -486,8 +498,10 @@ class _PrepScreenState extends State<PrepScreen> {
                                         ],
                                       )
                                     else
-                                      const Text(
-                                        'Kein Sportlicher Leiter frei: ein Mechaniker fährt den Wagen.',
+                                      Text(
+                                        tr(
+                                          'Kein Sportlicher Leiter frei: ein Mechaniker fährt den Wagen.',
+                                        ),
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: TeamColors.red,
@@ -539,14 +553,14 @@ class _PrepScreenState extends State<PrepScreen> {
                                             ),
                                           const SizedBox(height: 10),
                                           choice(
-                                            'Rennverlauf',
+                                            tr('Rennverlauf'),
                                             _approachLabels,
                                             _approach,
                                             (v) => _approach = v,
                                           ),
                                           const SizedBox(height: 8),
                                           choice(
-                                            'Ausreißergruppe',
+                                            tr('Ausreißergruppe'),
                                             _breakLabels,
                                             _breakPolicy,
                                             (v) => _breakPolicy = v,
@@ -571,10 +585,14 @@ class _PrepScreenState extends State<PrepScreen> {
                                         Expanded(
                                           child: Label(
                                             _forecast != null
-                                                ? 'Prognose · ${_forecast!.runs} Läufe'
+                                                ? tr('Prognose · {0} Läufe', [
+                                                    _forecast!.runs,
+                                                  ])
                                                 : race.isStageRace
-                                                ? 'Stärkste Gegner am ersten Tag'
-                                                : 'Stärkste Gegner',
+                                                ? tr(
+                                                    'Stärkste Gegner am ersten Tag',
+                                                  )
+                                                : tr('Stärkste Gegner'),
                                           ),
                                         ),
                                         InkWell(
@@ -598,10 +616,10 @@ class _PrepScreenState extends State<PrepScreen> {
                                             ),
                                             child: Text(
                                               _forecasting
-                                                  ? 'rechnet …'
+                                                  ? tr('rechnet …')
                                                   : _forecast != null
-                                                  ? 'Gegner zeigen'
-                                                  : 'Prognose',
+                                                  ? tr('Gegner zeigen')
+                                                  : tr('Prognose'),
                                               style: const TextStyle(
                                                 fontSize: 12,
                                               ),
@@ -627,7 +645,7 @@ class _PrepScreenState extends State<PrepScreen> {
                                               row.rider.teamId == s.team.id,
                                           columns: [
                                             Col(
-                                              'Fahrer',
+                                              tr('Fahrer'),
                                               124,
                                               (row, _) =>
                                                   cellText(row.rider.name),
@@ -641,7 +659,7 @@ class _PrepScreenState extends State<PrepScreen> {
                                               ),
                                             ),
                                             Col(
-                                              'Sieg',
+                                              tr('Sieg'),
                                               44,
                                               (row, _) => cellText(
                                                 row.wins == 0
@@ -679,7 +697,7 @@ class _PrepScreenState extends State<PrepScreen> {
                                           rows: rivals.take(25).toList(),
                                           columns: [
                                             Col(
-                                              'Fahrer',
+                                              tr('Fahrer'),
                                               150,
                                               (r, _) => cellText(r.name),
                                             ),
@@ -692,7 +710,7 @@ class _PrepScreenState extends State<PrepScreen> {
                                               ),
                                             ),
                                             value(
-                                              'Eignung',
+                                              tr('Eignung'),
                                               (r) => suitability(
                                                 _first,
                                                 r.attributes,

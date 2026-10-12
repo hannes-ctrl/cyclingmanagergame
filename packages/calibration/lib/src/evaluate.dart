@@ -28,13 +28,20 @@ class RaceShape {
   /// @param times Riding times in seconds, sorted ascending.
   /// @param raceKm Race distance.
   /// @param breakWin Whether a breakaway rider won.
+  /// @param fieldShare Share of the field the first group is scaled to.
   /// @returns The key figures.
-  static RaceShape of(List<double> times, double raceKm, bool breakWin) {
+  static RaceShape of(List<double> times, double raceKm, bool breakWin,
+      {double fieldShare = 1}) {
     final t0 = times.first;
     double gapAt(double share) =>
         log(1 + times[((times.length - 1) * share).round()] - t0);
+    // A real field is larger than the part of it found in the database; a
+    // big first group is scaled down to the simulated field, a solo win or
+    // a duo stays what it is.
+    final first = times.where((t) => t - t0 <= 1).length;
+    final scaled = first <= 2 ? first : max(3, (first * fieldShare).round());
     return RaceShape(
-      log(times.where((t) => t - t0 <= 1).length),
+      log(scaled),
       log(1 + times[min(9, times.length - 1)] - t0),
       gapAt(0.5),
       gapAt(0.9),
@@ -67,14 +74,15 @@ class CaseScore {
       this.wonHow,
       this.shapeTerm = 0,
       this.speedTerm = 0,
-      this.breakTerm = 0,
-      this.finishTerm = 0});
+      this.realKind});
 
   /// Parts of [loss], already weighted, for the report.
   final double shapeTerm;
   final double speedTerm;
-  final double breakTerm;
-  final double finishTerm;
+
+  /// Size class of the real winner's group, counted over all finishers;
+  /// null for time trials.
+  final FinishKind? realKind;
 
   /// Share of the simulation runs that ended solo, as a duo, in a small
   /// group and in a bunch sprint (in the order of [FinishKind.road]).
@@ -99,24 +107,20 @@ class CaseScore {
 
 /// Weights of the error terms.
 ///
-/// The shape of the race comes first: how big the first group is, where the
-/// winner comes from (breakaway or favourites), how the race is decided
-/// (solo, duo, small group, bunch) and what the time gaps look like. Who
-/// exactly wins does not count at all: the best riders do not start
+/// Only the dynamics of a race count, measured by four figures: the size of
+/// the winner's group, the gap of tenth place, the gap of the middle of the
+/// field and the average speed. Who wins, and whether he comes from the
+/// breakaway, does not enter the error at all: the best riders do not start
 /// everywhere, and crashes, injuries and form of the day decide a single
-/// real result. The simulation should produce believable races, not retell
-/// the season. The placing of the real top five is still measured, but only
-/// for the report.
+/// real result. Those figures are still printed, for information.
 ///
 /// Two kinds of terms exist. Per race: how far the simulated race is from
-/// the real one. Per race type: how far the simulated *frequencies* (of
-/// breakaway wins and of each kind of finish) are from the real ones. The
-/// second kind keeps the search from giving up on rare outcomes, which a
-/// per-race error alone tolerates.
-const _wShape = 0.4;
+/// the real one in the four figures. Per race type: how far the simulated
+/// *frequency* of each size class of the winner's group (solo, duo, small
+/// group, bunch) is from the real one. The second kind keeps the search
+/// from giving up on rare outcomes, which a per-race error alone tolerates.
+const _wShape = 0.5;
 const _wSpeed = 400.0;
-const _wBreak = 2.0;
-const _wFinish = 2.0;
 
 /// Upper limit for shape plus speed error of one race. Stages that were
 /// neutralised, shortened or ridden as a parade cannot be matched and must
@@ -134,7 +138,12 @@ const _wFrequency = 60.0;
 /// @param seed Base seed.
 /// @returns The score of this race.
 CaseScore scoreCase(CalibrationCase c, SimTuning tuning, int runs, int seed) {
-  final real = RaceShape.of(c.realTimes, c.route.raceKm, c.winnerFromBreak);
+  // The real race is measured on all finishers; its first group is scaled
+  // to the part of the field that the simulation has.
+  final all = c.allTimes.isEmpty ? c.realTimes : c.allTimes;
+  final real = RaceShape.of(all, c.route.raceKm, c.winnerFromBreak,
+      fieldShare: c.riders.length / all.length);
+  final realGroup = all.where((t) => t - all.first <= 1).length;
   final top5 = c.realOrder.take(5).toSet();
   final winner = c.realOrder.first;
   final shapes = <RaceShape>[];
@@ -172,31 +181,18 @@ CaseScore scoreCase(CalibrationCase c, SimTuning tuning, int runs, int seed) {
   final shapeTerm = _wShape *
       ((road ? sq(sim.logFirstGroup - real.logFirstGroup) : 0) +
           sq(sim.logGap10 - real.logGap10) +
-          sq(sim.logGapMedian - real.logGapMedian) +
-          sq(sim.logGap90 - real.logGap90));
+          sq(sim.logGapMedian - real.logGapMedian));
   final speedTerm = _wSpeed * sq(sim.speedKmh / real.speedKmh - 1);
-  final breakTerm = road ? _wBreak * sq(sim.breakWin - real.breakWin) : 0.0;
-  // How the race was decided: squared distance between the real outcome
-  // (one kind) and the shares of the simulation runs.
-  final kind = FinishKind.parse(c.wonHow);
   final shares = [for (final n in finishes) n / runs];
-  var finishTerm = 0.0;
-  if (road && kind != null && kind != FinishKind.timeTrial) {
-    for (var k = 0; k < FinishKind.road.length; k++) {
-      finishTerm += sq(shares[k] - (FinishKind.road[k] == kind ? 1 : 0));
-    }
-    finishTerm *= _wFinish;
-  }
   final capped = min(_caseCap, shapeTerm + speedTerm);
-  final loss = capped + breakTerm + finishTerm;
+  final loss = capped;
   return CaseScore(
       c.label, c.type, real, sim, rankTerm, top3 / runs, top10 / runs, loss,
       finishShares: shares,
       wonHow: c.wonHow,
+      realKind: road ? FinishKind.ofGroup(realGroup) : null,
       shapeTerm: shapeTerm,
-      speedTerm: speedTerm,
-      breakTerm: breakTerm,
-      finishTerm: finishTerm);
+      speedTerm: speedTerm);
 }
 
 /// Scores of all races for one tuning set.
@@ -208,8 +204,8 @@ class Evaluation {
   double get caseLoss =>
       scores.map((s) => s.loss).reduce((a, b) => a + b) / scores.length;
 
-  /// Error of the frequencies per race type: how often a breakaway wins and
-  /// how often each kind of finish occurs, simulation against reality.
+  /// Error of the frequencies per race type: how often the winner's group
+  /// falls into each size class, simulation against reality.
   /// Types with fewer than four races are left out as too noisy.
   double get frequencyLoss {
     final byType = <String, List<CaseScore>>{};
@@ -221,21 +217,15 @@ class Evaluation {
     var sum = 0.0, weight = 0;
     for (final list in byType.values) {
       if (list.length < 4) continue;
-      var term = sq(mean(list.map((s) => s.sim.breakWin)) -
-          mean(list.map((s) => s.real.breakWin)));
+      var term = 0.0;
       final known = [
         for (final s in list)
-          if (FinishKind.road.contains(FinishKind.parse(s.wonHow)) &&
-              s.finishShares.isNotEmpty)
-            s,
+          if (s.realKind != null && s.finishShares.isNotEmpty) s,
       ];
       if (known.length >= 4) {
         for (var k = 0; k < FinishKind.road.length; k++) {
           term += sq(mean(known.map((s) => s.finishShares[k])) -
-              known
-                      .where((s) =>
-                          FinishKind.parse(s.wonHow) == FinishKind.road[k])
-                      .length /
+              known.where((s) => s.realKind == FinishKind.road[k]).length /
                   known.length);
         }
       }

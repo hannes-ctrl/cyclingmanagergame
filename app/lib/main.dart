@@ -1,3 +1,5 @@
+import 'package:sim/sim.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -10,6 +12,7 @@ import 'app_state.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/camps_screen.dart';
 import 'screens/delegation_screen.dart';
+import 'screens/debug_screen.dart';
 import 'screens/dev_screen.dart';
 import 'screens/finance_screen.dart';
 import 'screens/home_screen.dart';
@@ -22,6 +25,7 @@ import 'screens/simulate_dialog.dart';
 import 'screens/radio_panel.dart';
 import 'screens/rankings_screen.dart';
 import 'screens/saves_screen.dart';
+import 'screens/search_screen.dart';
 import 'screens/squad_screen.dart';
 import 'screens/staff_screen.dart';
 import 'screens/start_screen.dart';
@@ -90,15 +94,115 @@ class RadmanagerApp extends StatelessWidget {
       textTheme: const TextTheme(
         bodyMedium: TextStyle(fontSize: 14, color: TeamColors.text),
       ),
-      tooltipTheme: const TooltipThemeData(
-        waitDuration: Duration(milliseconds: 400),
+      canvasColor: const Color(0xFF241F3D),
+      dividerColor: const Color(0xFF3A3558),
+      tooltipTheme: TooltipThemeData(
+        waitDuration: const Duration(milliseconds: 400),
+        decoration: BoxDecoration(
+          color: TeamColors.text,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        textStyle: const TextStyle(fontSize: 12.5, color: TeamColors.ground),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: TeamColors.text,
+          disabledForegroundColor: TeamColors.muted.withValues(alpha: 0.5),
+          side: BorderSide(color: TeamColors.muted.withValues(alpha: 0.45)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          textStyle: const TextStyle(
+            fontFamily: 'Barlow',
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: TeamColors.text,
+          disabledForegroundColor: TeamColors.muted.withValues(alpha: 0.5),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          textStyle: const TextStyle(
+            fontFamily: 'Barlow',
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        isDense: true,
+        filled: true,
+        fillColor: TeamColors.ground,
+        hintStyle: const TextStyle(color: TeamColors.muted),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 10,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(4),
+          borderSide: BorderSide(
+            color: TeamColors.muted.withValues(alpha: 0.45),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(4),
+          borderSide: const BorderSide(color: TeamColors.text),
+        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
+      ),
+      textSelectionTheme: const TextSelectionThemeData(
+        cursorColor: TeamColors.text,
+        selectionColor: Color(0x55A59FC8),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: const Color(0xFF1E1B33),
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: TeamColors.muted.withValues(alpha: 0.35)),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        titleTextStyle: const TextStyle(
+          fontFamily: 'Barlow Semi Condensed',
+          fontSize: 21,
+          fontWeight: FontWeight.w700,
+          color: TeamColors.text,
+        ),
+      ),
+      popupMenuTheme: const PopupMenuThemeData(color: Color(0xFF241F3D)),
+      checkboxTheme: CheckboxThemeData(
+        side: const BorderSide(color: TeamColors.muted, width: 1.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
+      ),
+      scrollbarTheme: ScrollbarThemeData(
+        thickness: const WidgetStatePropertyAll(7),
+        radius: const Radius.circular(4),
+        thumbColor: WidgetStatePropertyAll(
+          TeamColors.muted.withValues(alpha: 0.4),
+        ),
       ),
     );
+    return ListenableBuilder(
+      listenable: settings ?? _noSettings,
+      builder: (context, _) => _app(theme),
+    );
+  }
+
+  static final _noSettings = ValueNotifier(0);
+
+  /// @param theme The theme of the app.
+  /// @returns The app in the current language.
+  Widget _app(ThemeData theme) {
     return MaterialApp(
       title: 'Radmanager',
       debugShowCheckedModeBanner: false,
-      locale: const Locale('de'),
-      supportedLocales: const [Locale('de')],
+      locale: Locale(I18n.lang.name),
+      supportedLocales: const [Locale('en'), Locale('de')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: theme,
       // The whole interface can be drawn larger or smaller.
@@ -128,11 +232,12 @@ class RadmanagerApp extends StatelessWidget {
         );
       },
       home: state == null
-          ? const Scaffold(
+          ? Scaffold(
               body: Center(
                 child: Text(
-                  'Die Weltdatenbank data\\world.sqlite wurde nicht gefunden.\n'
-                  'Sie entsteht mit "worlddb import".',
+                  tr(
+                    'Die Weltdatenbank data\\world.sqlite wurde nicht gefunden.\nSie entsteht mit "worlddb import".',
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -154,13 +259,18 @@ enum _Page {
   races('Rennen', LucideIcons.flag),
   rankings('Ranglisten', LucideIcons.trophy),
   transfers('Transfers', LucideIcons.arrowLeftRight),
+  search('Fahrersuche', LucideIcons.search),
   finance('Finanzen und Ziele', LucideIcons.landmark),
   staff('Personal', LucideIcons.idCard),
   delegation('Aufgabenverteilung', LucideIcons.clipboardList),
-  saves('Spielstände', LucideIcons.save);
+  saves('Spielstände', LucideIcons.save),
+  debug('Debug', LucideIcons.bug);
 
-  const _Page(this.label, this.icon);
-  final String label;
+  const _Page(this._label, this.icon);
+  final String _label;
+
+  /// The label in the current language.
+  String get label => tr(_label);
   final IconData icon;
 }
 
@@ -255,6 +365,11 @@ class _ShellState extends State<Shell> {
       final s = widget.state;
       final c = s.colors;
       final career = s.career;
+      // Debug mode comes from the settings and reaches the screens and the
+      // scouting through the state.
+      s.debug = widget.settings.debug;
+      career.staff.revealAll = s.debug;
+      if (!s.debug && _page == _Page.debug) _page = _Page.home;
       // When one of our races starts, the game only continues after the line-up.
       final pending = s.pending;
       if (pending != null && _prepRace != pending.race.info.id) {
@@ -311,11 +426,11 @@ class _ShellState extends State<Shell> {
                           children: [
                             Text(
                               prep != null
-                                  ? 'Rennvorbereitung'
+                                  ? tr('Rennvorbereitung')
                                   : s.riderPage != null
-                                  ? 'Fahrerprofil'
+                                  ? tr('Fahrerprofil')
                                   : _page == _Page.finance
-                                  ? 'Finanzen'
+                                  ? tr('Finanzen')
                                   : _page.label,
                               style: headStyle(23),
                             ),
@@ -330,6 +445,25 @@ class _ShellState extends State<Shell> {
                           ],
                         ),
                         const Spacer(),
+                        if (s.debug)
+                          Container(
+                            margin: const EdgeInsets.only(right: 16),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: TeamColors.gold),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Text(
+                              'DEBUG · Seed ${career.seed}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: TeamColors.gold,
+                              ),
+                            ),
+                          ),
                         if (next != null && !career.seasonOver)
                           Padding(
                             padding: const EdgeInsets.only(right: 18),
@@ -337,8 +471,8 @@ class _ShellState extends State<Shell> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                const Text(
-                                  'NÄCHSTES RENNEN',
+                                Text(
+                                  tr('NÄCHSTES RENNEN'),
                                   style: TextStyle(
                                     fontSize: 10.5,
                                     letterSpacing: 0.8,
@@ -348,10 +482,10 @@ class _ShellState extends State<Shell> {
                                 Text(
                                   '${next.info.name} · '
                                   '${days == 0
-                                      ? 'heute'
+                                      ? tr('heute')
                                       : days == 1
-                                      ? 'morgen'
-                                      : 'in $days Tagen'}',
+                                      ? tr('morgen')
+                                      : tr('in {0} Tagen', [days])}',
                                   style: const TextStyle(fontSize: 13),
                                 ),
                               ],
@@ -361,7 +495,7 @@ class _ShellState extends State<Shell> {
                         // The date opens a small calendar to simulate up
                         // to a chosen day.
                         Tooltip(
-                          message: 'Bis zu einem Datum simulieren',
+                          message: tr('Bis zu einem Datum simulieren'),
                           child: InkWell(
                             onTap: s.busy || career.seasonOver
                                 ? null
@@ -381,7 +515,9 @@ class _ShellState extends State<Shell> {
                                   const SizedBox(width: 8),
                                   Text(
                                     career.seasonOver
-                                        ? 'Saison ${career.year} beendet'
+                                        ? tr('Saison {0} beendet', [
+                                            career.year,
+                                          ])
                                         : _longDate(career.today),
                                     style: const TextStyle(
                                       fontSize: 15,
@@ -419,16 +555,18 @@ class _ShellState extends State<Shell> {
                               children: [
                                 Text(
                                   loading != null
-                                      ? 'LÄDT ${(loading * 100).round()} %'
+                                      ? tr('LÄDT {0} %', [
+                                          (loading * 100).round(),
+                                        ])
                                       : s.busy
-                                      ? 'LÄUFT …'
+                                      ? tr('LÄUFT …')
                                       : s.radio != null
-                                      ? 'FUNK …'
+                                      ? tr('FUNK …')
                                       : career.seasonOver
-                                      ? 'NEUE SAISON'
+                                      ? tr('NEUE SAISON')
                                       : pending != null
-                                      ? 'ZUM AUFGEBOT'
-                                      : 'WEITER',
+                                      ? tr('ZUM AUFGEBOT')
+                                      : tr('WEITER'),
                                   style: const TextStyle(
                                     fontFamily: headFont,
                                     fontSize: 16,
@@ -489,6 +627,8 @@ class _ShellState extends State<Shell> {
                                 _Page.rankings => RankingsScreen(state: s),
                                 _Page.planner => PlannerScreen(state: s),
                                 _Page.transfers => TransfersScreen(state: s),
+                                _Page.search => SearchScreen(state: s),
+                                _Page.debug => DebugScreen(state: s),
                                 _Page.finance => FinanceScreen(state: s),
                                 _Page.staff => StaffScreen(state: s),
                                 _Page.dev => DevScreen(state: s),
@@ -657,7 +797,7 @@ class _Sidebar extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Saison ${state.career.year}',
+                        tr('Saison {0}', [state.career.year]),
                         style: TextStyle(fontSize: 11.5, color: faded),
                       ),
                     ],
@@ -673,19 +813,21 @@ class _Sidebar extends StatelessWidget {
           item(_Page.squad),
           item(_Page.dev),
           item(_Page.camps),
-          group('Rennen'),
+          group(tr('Rennen')),
           item(_Page.calendar),
           item(_Page.planner, badge: open > 0 ? '$open' : null),
           item(_Page.races),
           item(_Page.rankings),
-          group('Markt'),
+          group(tr('Markt')),
           item(_Page.transfers),
-          group('Führung'),
+          item(_Page.search),
+          group(tr('Führung')),
           item(_Page.finance),
           item(_Page.staff),
           item(_Page.delegation),
           const Spacer(),
           Divider(height: 1, color: c.onSide.withValues(alpha: 0.18)),
+          if (state.debug) item(_Page.debug),
           item(_Page.saves),
           InkWell(
             onTap: state.busy ? null : onMenu,
@@ -697,7 +839,7 @@ class _Sidebar extends StatelessWidget {
                   Icon(LucideIcons.logOut, size: 18, color: faded),
                   const SizedBox(width: 11),
                   Text(
-                    'Hauptmenü',
+                    tr('Hauptmenü'),
                     style: TextStyle(fontSize: 14, color: c.onSide),
                   ),
                 ],
@@ -745,7 +887,7 @@ class _Badge extends StatelessWidget {
 const _weekdays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
 String _longDate(DateTime d) =>
-    '${_weekdays[d.weekday - 1]}, ${d.day.toString().padLeft(2, '0')}.'
+    '${tr(_weekdays[d.weekday - 1])}, ${d.day.toString().padLeft(2, '0')}.'
     '${d.month.toString().padLeft(2, '0')}.${d.year}';
 
 /// Heading above tables, used by the screens.

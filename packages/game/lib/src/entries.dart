@@ -1,3 +1,4 @@
+import 'package:sim/sim.dart';
 import 'dart:math';
 
 import 'career.dart';
@@ -23,8 +24,11 @@ enum EntryStatus {
   closed('Meldeschluss vorbei'),
   ineligible('Nicht startberechtigt');
 
-  const EntryStatus(this.label);
-  final String label;
+  const EntryStatus(this._label);
+  final String _label;
+
+  /// The label in the current language.
+  String get label => tr(_label);
 
   /// Whether the team is on the start list.
   bool get starts => this == mandatory || this == entered || this == accepted;
@@ -146,9 +150,11 @@ class Entries {
   /// @returns null on success, otherwise the reason.
   String? decline(int raceId) {
     final r = _race(raceId);
-    if (r == null || !c.isInvited(r)) return 'Dort sind wir nicht gemeldet.';
-    if (mandatory(r)) return 'WorldTeams müssen alle WorldTour-Rennen fahren.';
-    if (!r.start.isAfter(c.today)) return 'Das Rennen hat schon begonnen.';
+    if (r == null || !c.isInvited(r))
+      return tr('Dort sind wir nicht gemeldet.');
+    if (mandatory(r))
+      return tr('WorldTeams müssen alle WorldTour-Rennen fahren.');
+    if (!r.start.isAfter(c.today)) return tr('Das Rennen hat schon begonnen.');
     declined.add(raceId);
     c.refreshEntries(raceId);
     return null;
@@ -160,8 +166,8 @@ class Entries {
   /// @returns null on success, otherwise the reason.
   String? restore(int raceId) {
     final r = _race(raceId);
-    if (r == null || !declined.contains(raceId)) return 'Nicht abgesagt.';
-    if (!r.start.isAfter(c.today)) return 'Das Rennen hat schon begonnen.';
+    if (r == null || !declined.contains(raceId)) return tr('Nicht abgesagt.');
+    if (!r.start.isAfter(c.today)) return tr('Das Rennen hat schon begonnen.');
     declined.remove(raceId);
     c.refreshEntries(raceId);
     return null;
@@ -173,14 +179,15 @@ class Entries {
   /// @returns null on success, otherwise the reason.
   String? apply(int raceId) {
     final r = _race(raceId);
-    if (r == null) return 'Rennen nicht gefunden.';
-    if (c.isInvited(r)) return 'Dort sind wir schon eingeladen.';
+    if (r == null) return tr('Rennen nicht gefunden.');
+    if (c.isInvited(r)) return tr('Dort sind wir schon eingeladen.');
     if (applications.containsKey(raceId))
-      return 'Die Bewerbung liegt schon vor.';
+      return tr('Die Bewerbung liegt schon vor.');
     if (!eligible(r))
-      return 'Mit unserer Lizenz dürfen wir dort nicht starten.';
+      return tr('Mit unserer Lizenz dürfen wir dort nicht starten.');
     if (!_open(r)) {
-      return 'Bewerbungen müssen $deadlineDays Tage vor dem Start eingehen.';
+      return tr('Bewerbungen müssen {0} Tage vor dem Start eingehen.',
+          [deadlineDays]);
     }
     final rng = Random(c.seed * 31 + raceId * 7 + c.year);
     applications[raceId] = Application(
@@ -222,13 +229,13 @@ class Entries {
       if (r == null) continue;
       c.inbox.add(Message(
         c.today,
-        'Veranstalter',
+        tr('Veranstalter'),
         a.success
-            ? 'Wildcard für ${r.info.name}'
-            : 'Keine Wildcard für ${r.info.name}',
+            ? tr('Wildcard für {0}', [r.info.name])
+            : tr('Keine Wildcard für {0}', [r.info.name]),
         a.success
-            ? 'Wir sind dabei. Das Rennen steht jetzt in der Saisonplanung.'
-            : 'Der Veranstalter hat sich für andere Teams entschieden.',
+            ? tr('Wir sind dabei. Das Rennen steht jetzt in der Saisonplanung.')
+            : tr('Der Veranstalter hat sich für andere Teams entschieden.'),
         raceId: e.key,
       ));
     }

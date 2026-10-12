@@ -4,16 +4,19 @@ A cycling team management game for Windows in the spirit of *Pro Cycling Manager
 
 The game runs on the community **WorldDB** for Pro Cycling Manager, so riders, teams, races and stage profiles are the real ones.
 
-> **Status:** version 0.1.0 alpha. A private hobby project, playable end to end, not balanced. The interface is in German. Nothing in this repository is affiliated with Cyanide, Nacon, Sports Interactive or the UCI.
+> **Status:** version 0.2.0 alpha. A private hobby project, playable end to end, not balanced. The interface is in English and German. Nothing in this repository is affiliated with Cyanide, Nacon, Sports Interactive or the UCI.
 
 ## Features
 
 **Team**
 
 - Start menu to continue, load a save, start a new career or change settings. Take over any WorldTeam or ProTeam, or found your own: pick 16 to 30 riders from the whole database, and the licence (Continental, ProTeam, WorldTeam) follows from the strength of that squad.
-- Rider form from a fitness/fatigue model, training load and focus per rider, monthly development by age and potential, crashes and illness.
-- Rider page with key figures, attributes, the change of each attribute since the rider joined, a twelve-month outlook, the form curve of the season, results, palmares and career seasons.
-- Training camps, and a development team to promote riders from. A development team is tied to one professional team for the whole career; a professional team has one or none.
+- Rider form from a fitness/fatigue model, training load and focus per rider, crashes and illness.
+- Monthly development by age and potential: a rider grows mainly where he is already strong, slows down towards a ceiling set by his potential and declines from 31.
+- Rider search over the whole database: name, team, country, level, age, strength, potential, any single attribute, rider type and contract; riders nobody has scouted show ranges.
+- Rider page with photo (a neutral silhouette for riders without one), key figures, attributes, the change of each attribute since the rider joined, a twelve-month outlook, the form curve of the season, results, palmares and career seasons.
+- Training camps, and a development team to promote riders from. The 24 development teams of the database are linked to their real professional teams; the link never changes, and a team without one (such as a newly founded team) can found its own.
+- Stagiaires as in the real sport: from 1 August up to three riders of the own development team may start for the professional team in races below the WorldTour. The other teams use theirs as well.
 - Staff (sports directors, coaches, doctors, scouts) with a job market that renews every month; the number of coaches matters as well as their skill. Scouting with value ranges for unknown riders.
 - Delegate line-ups, in-race radio, training, scouting and contract renewals to staff.
 
@@ -24,7 +27,7 @@ The game runs on the community **WorldDB** for Pro Cycling Manager, so riders, t
 - Race planner: see every race you are eligible for, withdraw from invitations, apply for wildcards, assign riders.
 - Race preparation with line-up, eleven rider roles, team approach and breakaway policy, plus a pre-race forecast from a handful of quick runs.
 - DS radio: up to three decision points per stage (breakaway formed, start of the finale, rival attack); after the last answer of the day the result opens. Can be switched off.
-- Race report after every stage: a neutral press text, a chart of the time gaps along the route (head of the race, favourites, middle of the field), a view of what each of your riders did (role, where he lost contact, kilometres on the front), and all classification tables.
+- Race report after every stage: a neutral press text, a chart of the time gaps along the route (head of the race, favourites, middle of the field) with the values under the pointer, a view of what each of your riders did (role, where he lost contact, kilometres on the front), and all classification tables.
 - "What if": re-run any finished stage with the same random seed but different tactics.
 
 **Season and career**
@@ -37,11 +40,13 @@ The game runs on the community **WorldDB** for Pro Cycling Manager, so riders, t
 
 **Interface**
 
-- Always dark, tinted in the team's colours; a light team colour never fills the sidebar.
+- Always dark, tinted in the team's colours; a light team colour never fills the sidebar. Buttons, fields, chips, menus and dialogs share one look on every screen.
 - Race logos, team jerseys and country flags throughout; races are colour-coded by tier.
 - Filter columns in the race planner and the transfer market (tier, entry state, rider, contract, age range, rider type), a season timeline and tier filter in the calendar, search in squad, races and rankings.
 - The tiles of the home page lead to the area they summarise. Explanations of every figure (form, fitness, attributes, staff values) appear as tooltips on column headings and on the rider page.
+- English and German, switched by flags in the settings of the start menu; English is the default.
 - Settings for the size of the interface, page transitions and full screen.
+- Debug mode (in the settings): exact values for every rider, internal figures on the rider page, the wildcard chance in per cent, and a debug page with the seed, the tuning values and test actions (simulate to the end of the season, add money, heal riders).
 
 ## Repository layout
 
@@ -56,7 +61,7 @@ native/                 Build script and shim for the Oodle decompressor (ooz)
 third_party/ooz/        Clone of zao/ooz (not tracked, see native/build_ooz.sh)
 docs/konzept.html       Requirements, UI concept and roadmap (German)
 data/                   Tuning values (tracked); generated and not tracked: world.sqlite,
-                        jerseys, logos, real results, save games, settings
+                        jerseys, logos, photos, real results, save games, settings
 worlddb/                Your copy of the WorldDB (not included)
 kalibrieren.ps1         Runs the calibration, e.g. overnight
 ```
@@ -87,7 +92,9 @@ The packages are plain Dart and have no Flutter dependency. `sim` and `game` can
    dart run bin/worlddb.dart check
    ```
 
-   `classifications` reads the points scales, mountain points and bonus seconds of every race. Some races refer to stage files that only ship with the base game. To pull those in, build the decompressor with `native/build_ooz.sh` and run `dart run bin/worlddb.dart game-stages <path to the game's .pak>` before the import. With the decompressor in place, `dart run bin/worlddb.dart jerseys <path to the mod's .pak>` extracts the team jerseys to `data/jerseys/`; without them teams are shown by their two colours. `dart run bin/worlddb.dart logos <path to the mod's .pak>` does the same for the race logos (`data/logos/`, named by race id); races without one show their abbreviation.
+   For the calibration, `dart run bin/worlddb.dart variants` adds the routes of the seasons 2021 to 2025 from the same stage files.
+
+   `classifications` reads the points scales, mountain points and bonus seconds of every race. Some races refer to stage files that only ship with the base game. To pull those in, build the decompressor with `native/build_ooz.sh` and run `dart run bin/worlddb.dart game-stages <path to the game's .pak>` before the import. With the decompressor in place, `dart run bin/worlddb.dart jerseys <path to the mod's .pak>` extracts the team jerseys to `data/jerseys/`; without them teams are shown by their two colours. `dart run bin/worlddb.dart logos <path to the mod's .pak>` does the same for the race logos (`data/logos/`, named by race id); races without one show their abbreviation. `dart run bin/worlddb.dart photos <path to the mod's .pak>` extracts the rider photos (`data/photos/`, named by rider id, about 165 MB).
 
 3. **Build and run the app:**
 
@@ -110,10 +117,12 @@ The packages are plain Dart and have no Flutter dependency. `sim` and `game` can
 | `dart run bin/season.dart [team] [seed]` | Play a whole season headless and print a summary |
 | `dart run bin/step7.dart [team] [years]` | Exercise radio, forecast, what-if, licences, development team |
 | `dart run bin/step8.dart [team \| NEU]` | Exercise championships, camps, sponsors, a founded team |
-| `dart run bin/calibrate.dart report` | Compare the simulation with real 2026 results |
+| `dart run bin/fetch_results.dart <year>` | Load the WorldTour results of a season from ProCyclingStats |
+| `dart run bin/calibrate.dart report` | Compare the simulation with the real results since 2021 |
 | `dart run bin/calibrate.dart run [--hours h] [--runs n] [--dry]` | Search better tuning values; `--dry` does not write them |
 | `dart run bin/calibrate.dart reparse` | Rebuild the stored results from the cached result pages |
 | `dart run bin/snapshot.dart` | Check that a saved and reloaded career continues identically |
+| `dart run bin/growth.dart [seasons] [rider id]` | Play several seasons and print how the level of the riders moves, to balance development against decline |
 
 ## How the simulation works
 
@@ -121,13 +130,21 @@ A stage is cut into 500 m segments. Riders have a threshold power derived from t
 
 Each team rides to a plan: a role per rider, an approach (wait, control, make the race hard) and a breakaway policy. AI teams derive their plan from the route, their riders and the general classification. The quality of the sports director in the car changes how well the plan is executed.
 
-Everything is deterministic for a given seed. 35 tuning parameters live in `data/calibration/tuning.json`.
+Everything is deterministic for a given seed. 37 tuning parameters live in `data/calibration/tuning.json`; among them the effort on cobbled sectors and the rate of punctures and crashes there.
 
 ## Calibration
 
-The calibration package compares the simulation with 127 real WorldTour results of 2026 and searches for better tuning values (`kalibrieren.ps1`, typically overnight). The results are not part of the repository: `dart run bin/fetch_results.dart 2026` in `packages/calibration` loads them into `data/results/`, and the script does that itself before every run. It scores the shape of a race only: size of the first group, time gaps of tenth place and of the middle of the field, average speed, how often a breakaway wins and how the race is decided (solo, duo, small group, bunch sprint). Who wins is deliberately not part of the score, because the best riders do not start everywhere and crashes, illness and form of the day decide a single real result.
+The calibration package compares the simulation with real WorldTour results of the seasons 2021 to 2026 and searches for better tuning values (`kalibrieren.ps1`, typically overnight). The results are not part of the repository: `dart run bin/fetch_results.dart <year>` in `packages/calibration` loads a season into `data/results/<year>/`, and the script does that itself before every run. Races of earlier seasons are simulated on the route of their year (`worlddb variants`) with the riders of the real result who are in the database, at their strength of 2026.
 
-The error has two parts: a capped error per race, and the difference in frequencies per race type, which keeps the search from giving up on rare outcomes. A fifth of the races is held back as a control set, and an improvement only counts if it holds on a second set of random numbers. Races that cannot be matched, such as parade stages, are listed in `data/calibration/exclude.txt`. The report also names tuning values that sit at the edge of their range.
+Only the dynamics of a race are scored, by four figures: the size of the winner's group, the gap of tenth place, the gap of the middle of the field and the average speed. Who wins, and whether he comes from the breakaway, is deliberately not part of the score: the best riders do not start everywhere, and crashes, illness and form of the day decide a single real result. That is also why older seasons are usable although their fields were different.
+
+The error has two parts: a capped error per race in the four figures, and per race type the difference in how often the winner's group falls into each size class (solo, duo, small group, bunch), which keeps the search from giving up on rare outcomes. The real figures are measured on all finishers, so a winner who has since retired still counts; a big first group is scaled to the part of the field that is simulated. A fifth of the races is held back as a control set, and an improvement only counts if it holds on a second set of random numbers. Races that cannot be matched, such as parade stages, are listed in `data/calibration/exclude.txt`. The report also names tuning values that sit at the edge of their range.
+
+## Languages
+
+Texts are written in German in the sources and wrapped in `tr('…')` (`packages/sim/lib/src/i18n.dart`). The English texts live in one table, `packages/sim/lib/src/i18n_en.dart`, keyed by the German text; a text without an entry is shown in German. Placeholders are `{0}`, `{1}` and so on, and `dec()` formats numbers with the decimal mark of the language.
+
+To add a text: write `tr('Neuer Text {0}', [value])` and add the English line to the table. Enum labels and constant tables keep their German text as a constant and are translated where they are shown. Texts that the game has already written, such as inbox messages and race reports, keep the language they were written in; code that recognises such a text uses `isText()`. The command-line tools of the other packages print German only.
 
 ## Save games
 
@@ -149,11 +166,14 @@ flutter test test/screens_test.dart    # renders every screen with real data
 
 A career starts from a random seed. Set the environment variable `RADMANAGER_SEED` to a number to reproduce a run, for example a failing test.
 
+See [ROADMAP.md](ROADMAP.md) for what is planned and [CHANGELOG.md](CHANGELOG.md) for what changed.
+
 ## Known limitations
 
-- Cobbled classics are too easy: groups arrive where the real races end solo. Hilly stages produce too few bunch finishes. A further calibration round over more seasons is planned.
+- Cobbled classics are still too easy, though less so since the sectors are ridden above threshold and cost riders through mishaps (solo wins 33 % against 67 % in reality before the next calibration run). Hilly stages produce too few bunch finishes. A calibration round over more seasons is planned.
 - Crashes and punctures during a stage, and the time cut, are not simulated.
-- Stagiaires are missing, and AI teams do not yet promote riders from their development teams.
+- AI teams do not yet promote riders from their development teams.
+- Few riders reach the very top (a best attribute of 84 or more) after several seasons: the stars of 2026 age and their successors arrive slowly.
 - Money is not balanced: salaries, budgets, sponsor offers and camp costs are placeholders derived from rider strength, because the WorldDB contains none of them.
 - Prize money from the WorldDB is not used yet.
 - Staff other than the team managers named in the WorldDB is generated.

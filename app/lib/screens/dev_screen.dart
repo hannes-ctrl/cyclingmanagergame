@@ -58,7 +58,7 @@ class _DevScreenState extends State<DevScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      dev.team?.name ?? 'Kein Nachwuchsteam',
+                      dev.team?.name ?? tr('Kein Nachwuchsteam'),
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w600,
@@ -67,13 +67,14 @@ class _DevScreenState extends State<DevScreen> {
                     Text(
                       _message ??
                           (dev.teamId == null
-                              ? 'Dein Team hat kein Nachwuchsteam. Die Zuordnung '
-                                    'ist fest: Ein Nachwuchsteam gehört zu genau '
-                                    'einem Profiteam.'
-                              : '${squad.length} Fahrer · Zuschuss ${euro(dev.cost)} € im Jahr · '
-                                    'Hochziehen geht ab dem 1. August, zum marktüblichen Gehalt. '
-                                    'Jedes Jahr kommen zwei Talente dazu. Die Zuordnung zum '
-                                    'Profiteam ist fest.'),
+                              ? tr(
+                                  'Dein Team hat kein Nachwuchsteam. Du kannst eines gründen: acht junge Fahrer ohne Team, {0} € im Jahr. Die Zuordnung ist danach fest.',
+                                  [euro(DevTeam.yearlyCost)],
+                                )
+                              : tr(
+                                  '{0} Fahrer · Zuschuss {1} € im Jahr · Hochziehen geht ab dem 1. August, zum marktüblichen Gehalt. Jedes Jahr kommen zwei Talente dazu. Die Zuordnung zum Profiteam ist fest.',
+                                  [squad.length, euro(dev.cost)],
+                                )),
                       style: TextStyle(
                         color: _message == null
                             ? TeamColors.muted
@@ -85,14 +86,42 @@ class _DevScreenState extends State<DevScreen> {
               ),
             ],
           ),
+          if (dev.canFound) ...[
+            const SizedBox(height: 10),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: c.accent,
+                foregroundColor: c.onAccent,
+              ),
+              onPressed: s.busy
+                  ? null
+                  : () => setState(
+                      () => _message =
+                          s.foundDevTeam() ??
+                          tr('Das Nachwuchsteam ist gegründet.'),
+                    ),
+              child: Text(tr('Nachwuchsteam gründen')),
+            ),
+          ] else ...[
+            const SizedBox(height: 6),
+            Text(
+              tr(
+                'Stagiaires: Ab dem 1. August dürfen bis zu {0} Fahrer des Nachwuchsteams für das Profiteam starten, außer bei WorldTour-Rennen und Meisterschaften. Sie bleiben im Nachwuchsteam. Derzeit: {1}.',
+                [DevTeam.maxStagiaires, dev.stagiaires.length],
+              ),
+              style: const TextStyle(fontSize: 12, color: TeamColors.muted),
+            ),
+          ],
           const SizedBox(height: 12),
           Expanded(
             child: Panel(
               colors: c,
               child: squad.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
-                        'Ohne Nachwuchsteam kommen junge Fahrer über den Transfermarkt.',
+                        tr(
+                          'Ohne Nachwuchsteam kommen junge Fahrer über den Transfermarkt.',
+                        ),
                         style: TextStyle(color: TeamColors.muted),
                       ),
                     )
@@ -103,21 +132,21 @@ class _DevScreenState extends State<DevScreen> {
                       onTap: (r) => showRiderDialog(context, s, r.id),
                       columns: [
                         Col(
-                          'Fahrer',
+                          tr('Fahrer'),
                           210,
                           (r, _) => cellText(career.fullName(r.id)),
                           sortKey: (r) => r.lastName,
                         ),
                         Col(
-                          'Alter',
+                          tr('Alter'),
                           50,
                           (r, _) =>
                               cellText('${career.year - r.born ~/ 10000}'),
                           numeric: true,
                           sortKey: (r) => -r.born,
                         ),
-                        Col('Land', 70, (r, _) => flagCell(r.country)),
-                        value('Stärke', Economy.rating),
+                        Col(tr('Land'), 70, (r, _) => flagCell(r.country)),
+                        value(tr('Stärke'), Economy.rating),
                         Col(
                           'Pot.',
                           50,
@@ -131,40 +160,44 @@ class _DevScreenState extends State<DevScreen> {
                           sortKey: (r) => r.potential,
                         ),
                         value('FL', (r) => r.attributes.flat),
-                        value('BG', (r) => r.attributes.mountain),
-                        value('HÜ', (r) => r.attributes.hill),
-                        value('ZF', (r) => r.attributes.timeTrial),
-                        value('KO', (r) => r.attributes.cobble),
-                        value('SP', (r) => r.attributes.sprint),
+                        value(tr('BG'), (r) => r.attributes.mountain),
+                        value(tr('HÜ'), (r) => r.attributes.hill),
+                        value(tr('ZF'), (r) => r.attributes.timeTrial),
+                        value(tr('KO'), (r) => r.attributes.cobble),
+                        value(tr('SP'), (r) => r.attributes.sprint),
                         Col(
-                          'Gehalt oben',
+                          tr('Gehalt oben'),
                           100,
                           (r, _) => cellText(euro(eco.marketWage(r))),
                           numeric: true,
                           sortKey: (r) => eco.marketWage(r),
                         ),
-                        Col('', 150, (r, _) {
-                          final k = eco.contracts[r.id];
-                          if (dev.promoted(r.id)) {
+                        Col(tr('Stagiaire'), 130, (r, _) {
+                          if (dev.stagiaires.contains(r.id)) {
                             return cellText(
-                              'rückt ${career.year + 1} auf',
+                              tr('Stagiaire'),
                               color: TeamColors.green,
                             );
                           }
-                          if (k?.nextTeam != null) {
+                          if (!dev.window(career.today)) {
                             return cellText(
-                              'wechselt zu ${career.teams[k!.nextTeam]?.abbr ?? '?'}',
+                              tr('ab 1. August'),
                               color: TeamColors.muted,
                             );
+                          }
+                          if (dev.stagiaires.length >= DevTeam.maxStagiaires) {
+                            return cellText('–', color: TeamColors.muted);
                           }
                           return InkWell(
                             onTap: s.busy
                                 ? null
                                 : () => setState(
                                     () => _message =
-                                        s.promote(r.id) ??
-                                        '${career.fullName(r.id)} rückt zur '
-                                            'nächsten Saison ins Profiteam auf.',
+                                        s.takeStagiaire(r.id) ??
+                                        tr(
+                                          '{0} fährt bis zum Saisonende als Stagiaire für das Profiteam.',
+                                          [career.fullName(r.id)],
+                                        ),
                                   ),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
@@ -175,8 +208,51 @@ class _DevScreenState extends State<DevScreen> {
                                 border: Border.all(color: c.line),
                                 borderRadius: BorderRadius.circular(11),
                               ),
-                              child: const Text(
-                                'Hochziehen',
+                              child: Text(
+                                tr('Als Stagiaire holen'),
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          );
+                        }),
+                        Col('', 150, (r, _) {
+                          final k = eco.contracts[r.id];
+                          if (dev.promoted(r.id)) {
+                            return cellText(
+                              tr('rückt {0} auf', [career.year + 1]),
+                              color: TeamColors.green,
+                            );
+                          }
+                          if (k?.nextTeam != null) {
+                            return cellText(
+                              tr('wechselt zu {0}', [
+                                career.teams[k!.nextTeam]?.abbr ?? '?',
+                              ]),
+                              color: TeamColors.muted,
+                            );
+                          }
+                          return InkWell(
+                            onTap: s.busy
+                                ? null
+                                : () => setState(
+                                    () => _message =
+                                        s.promote(r.id) ??
+                                        tr(
+                                          '{0} rückt zur nächsten Saison ins Profiteam auf.',
+                                          [career.fullName(r.id)],
+                                        ),
+                                  ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: c.line),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              child: Text(
+                                tr('Hochziehen'),
                                 style: TextStyle(fontSize: 12),
                               ),
                             ),

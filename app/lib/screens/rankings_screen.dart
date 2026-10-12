@@ -40,10 +40,10 @@ class _RankingsScreenState extends State<RankingsScreen> {
       children: [
         TabStrip<_View>(
           colors: c,
-          tabs: const {
-            _View.season: 'Saison',
-            _View.licences: 'Lizenzen',
-            _View.archive: 'Archiv',
+          tabs: {
+            _View.season: tr('Saison'),
+            _View.licences: tr('Lizenzen'),
+            _View.archive: tr('Archiv'),
           },
           value: _view,
           onChanged: (v) => setState(() => _view = v),
@@ -69,9 +69,9 @@ class _RankingsScreenState extends State<RankingsScreen> {
     final c = state.colors;
     final career = state.career;
     if (career.archive.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
-          'Das Archiv füllt sich mit dem Ende der ersten Saison.',
+          tr('Das Archiv füllt sich mit dem Ende der ersten Saison.'),
           style: TextStyle(color: TeamColors.muted),
         ),
       );
@@ -110,7 +110,7 @@ class _RankingsScreenState extends State<RankingsScreen> {
       numeric: true,
     );
     Col<List<dynamic>> points(int at) => Col(
-      'Punkte',
+      tr('Punkte'),
       76,
       (r, _) => cellText('${(r[at] as num).round()}'),
       numeric: true,
@@ -124,30 +124,31 @@ class _RankingsScreenState extends State<RankingsScreen> {
             for (final s in career.archive.reversed)
               Padding(
                 padding: const EdgeInsets.only(right: 6),
-                child: ChoiceChip(
-                  label: Text('${s['year']}'),
+                child: Pill(
+                  label: '${s['year']}',
                   selected: s['year'] == year,
-                  showCheckmark: false,
-                  selectedColor: TeamColors.text,
-                  backgroundColor: c.panel,
-                  side: BorderSide(color: c.line),
-                  labelStyle: TextStyle(
-                    fontSize: 13,
-                    color: s['year'] == year
-                        ? TeamColors.ground
-                        : TeamColors.text,
-                  ),
-                  onSelected: (_) =>
-                      setState(() => _archiveYear = s['year'] as int),
+                  colors: c,
+                  onTap: () => setState(() => _archiveYear = s['year'] as int),
                 ),
               ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Unser Team: Platz ${own['rank']} mit '
-                '${(own['points'] as num).round()} Punkten und '
-                '${own['wins']} Siegen'
-                '${titles.isEmpty ? '' : ' · Titel: ${titles.map((t) => '${career.fullName(t.riderId)} (${t.race})').join(', ')}'}',
+                tr('Unser Team: Platz {0} mit {1} Punkten und {2} Siegen{3}', [
+                  own['rank'],
+                  (own['points'] as num).round(),
+                  own['wins'],
+                  titles.isEmpty
+                      ? ''
+                      : tr(' · Titel: {0}', [
+                          titles
+                              .map(
+                                (t) =>
+                                    '${career.fullName(t.riderId)} (${t.race})',
+                              )
+                              .join(', '),
+                        ]),
+                ]),
                 style: const TextStyle(color: TeamColors.muted),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -166,7 +167,9 @@ class _RankingsScreenState extends State<RankingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Label('Sieger $year · ${winners.length} Rennen'),
+                      Label(
+                        tr('Sieger {0} · {1} Rennen', [year, winners.length]),
+                      ),
                       const SizedBox(height: 6),
                       Expanded(
                         child: DenseTable<List<dynamic>>(
@@ -174,9 +177,9 @@ class _RankingsScreenState extends State<RankingsScreen> {
                           rows: winners,
                           highlight: (r) => r[3] == state.team.abbr,
                           columns: [
-                            text('Rennen', 250, 0),
-                            text('Klasse', 100, 1, muted: true),
-                            text('Sieger', 190, 2),
+                            text(tr('Rennen'), 250, 0),
+                            text(tr('Klasse'), 100, 1, muted: true),
+                            text(tr('Sieger'), 190, 2),
                             text('Team', 60, 3, muted: true),
                           ],
                         ),
@@ -215,7 +218,7 @@ class _RankingsScreenState extends State<RankingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Label('Fahrer'),
+                      Label(tr('Fahrer')),
                       const SizedBox(height: 6),
                       Expanded(
                         child: DenseTable<List<dynamic>>(
@@ -226,7 +229,7 @@ class _RankingsScreenState extends State<RankingsScreen> {
                               showRiderDialog(context, state, r[0] as int),
                           columns: [
                             place(),
-                            text('Fahrer', 180, 1),
+                            text(tr('Fahrer'), 180, 1),
                             text('Team', 56, 2, muted: true),
                             points(3),
                           ],
@@ -274,7 +277,7 @@ class _RankingsScreenState extends State<RankingsScreen> {
           numeric: true,
         ),
       Col(
-        'Gesamt',
+        tr('Gesamt'),
         80,
         (r, _) => cellText('${r.total.round()}', bold: true),
         numeric: true,
@@ -291,12 +294,24 @@ class _RankingsScreenState extends State<RankingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Label('Dreijahreswertung ${l.cycleStart}–${l.cycleEnd}'),
+                Label(
+                  tr('Dreijahreswertung {0}–{1}', [l.cycleStart, l.cycleEnd]),
+                ),
                 const SizedBox(height: 2),
                 Text(
-                  'Nach der Saison ${l.cycleEnd} bekommen die ersten $places '
-                  'die WorldTour-Lizenzen für drei Jahre. '
-                  '${own < 0 ? '' : 'Unser Team: Platz ${own + 1}, ${own < places ? 'innerhalb' : 'außerhalb'} der Lizenzplätze.'}',
+                  tr(
+                    'Nach der Saison {0} bekommen die ersten {1} die WorldTour-Lizenzen für drei Jahre. {2}',
+                    [
+                      l.cycleEnd,
+                      places,
+                      own < 0
+                          ? ''
+                          : tr('Unser Team: Platz {0}, {1} der Lizenzplätze.', [
+                              own + 1,
+                              own < places ? tr('innerhalb') : tr('außerhalb'),
+                            ]),
+                    ],
+                  ),
                   style: const TextStyle(fontSize: 12, color: TeamColors.muted),
                 ),
                 const SizedBox(height: 6),
@@ -317,20 +332,20 @@ class _RankingsScreenState extends State<RankingsScreen> {
                       ),
                       team(),
                       Col(
-                        'Lizenz',
+                        tr('Lizenz'),
                         90,
                         (r, _) =>
                             cellText(r.licence.label, color: TeamColors.muted),
                       ),
-                      Col('Lage', 110, (r, i) {
+                      Col(tr('Lage'), 110, (r, i) {
                         final wt = r.licence == Licence.worldTour;
                         return i < places
                             ? cellText(
-                                wt ? 'bleibt' : 'steigt auf',
+                                wt ? tr('bleibt') : tr('steigt auf'),
                                 color: wt ? TeamColors.muted : TeamColors.green,
                               )
                             : cellText(
-                                wt ? 'steigt ab' : '–',
+                                wt ? tr('steigt ab') : '–',
                                 color: wt ? TeamColors.red : TeamColors.muted,
                               );
                       }),
@@ -353,22 +368,30 @@ class _RankingsScreenState extends State<RankingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Label('Unser Team'),
+                    Label(tr('Unser Team')),
                     const SizedBox(height: 4),
                     Text(
                       '${ownLicence.label} · '
                       '${ownLicence == Licence.worldTour
-                          ? 'Startrecht bei allen WorldTour-Rennen.'
+                          ? tr('Startrecht bei allen WorldTour-Rennen.')
                           : l.wildcards.contains(state.team.id)
-                          ? 'Als eines der zwei besten ProTeams der Vorsaison zu allen WorldTour-Rennen eingeladen.'
-                          : 'WorldTour-Rennen nur auf Einladung.'}',
+                          ? tr('Als eines der zwei besten ProTeams der Vorsaison zu allen WorldTour-Rennen eingeladen.')
+                          : tr('WorldTour-Rennen nur auf Einladung.')}',
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Einladungen ${career.year} für alle WorldTour-Rennen: '
-                      '${l.wildcards.isEmpty ? 'wie in der Weltdatenbank hinterlegt' : l.wildcards.map((id) => career.teams[id]?.name ?? '?').join(', ')}. '
-                      'Die zwei besten ProTeams dieser Saison bekommen sie '
-                      'für ${career.year + 1}.',
+                      tr(
+                        'Einladungen {0} für alle WorldTour-Rennen: {1}. Die zwei besten ProTeams dieser Saison bekommen sie für {2}.',
+                        [
+                          career.year,
+                          l.wildcards.isEmpty
+                              ? tr('wie in der Weltdatenbank hinterlegt')
+                              : l.wildcards
+                                    .map((id) => career.teams[id]?.name ?? '?')
+                                    .join(', '),
+                          career.year + 1,
+                        ],
+                      ),
                       style: const TextStyle(
                         fontSize: 12,
                         color: TeamColors.muted,
@@ -384,12 +407,18 @@ class _RankingsScreenState extends State<RankingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Label('Continental-Teams'),
+                      Label(tr('Continental-Teams')),
                       const SizedBox(height: 2),
                       Text(
-                        'Die zwei besten werden ${l.cycleEnd + 1} ProTeam, die '
-                        'zwei schwächsten ProTeams gehen zurück.'
-                        '${ownLower < 0 ? '' : ' Unser Team: Platz ${ownLower + 1}.'}',
+                        tr(
+                          'Die zwei besten werden {0} ProTeam, die zwei schwächsten ProTeams gehen zurück.{1}',
+                          [
+                            l.cycleEnd + 1,
+                            ownLower < 0
+                                ? ''
+                                : tr(' Unser Team: Platz {0}.', [ownLower + 1]),
+                          ],
+                        ),
                         style: const TextStyle(
                           fontSize: 12,
                           color: TeamColors.muted,
@@ -435,9 +464,9 @@ class _RankingsScreenState extends State<RankingsScreen> {
     final c = state.colors;
     final career = state.career;
     if (career.riderPoints.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
-          'Noch keine Punkte vergeben. Die Saison beginnt im Januar.',
+          tr('Noch keine Punkte vergeben. Die Saison beginnt im Januar.'),
           style: TextStyle(color: TeamColors.muted),
         ),
       );
@@ -470,7 +499,7 @@ class _RankingsScreenState extends State<RankingsScreen> {
       numeric: true,
     );
     Col<MapEntry<int, double>> points() => Col(
-      'Punkte',
+      tr('Punkte'),
       80,
       (e, _) => cellText('${e.value.round()}'),
       numeric: true,
@@ -488,7 +517,7 @@ class _RankingsScreenState extends State<RankingsScreen> {
               children: [
                 Row(
                   children: [
-                    const Label('Fahrer'),
+                    Label(tr('Fahrer')),
                     const SizedBox(width: 10),
                     if (_team != null)
                       Pill(
@@ -498,13 +527,13 @@ class _RankingsScreenState extends State<RankingsScreen> {
                         onTap: () => setState(() => _team = null),
                       )
                     else
-                      const Text(
-                        'Klick auf ein Team zeigt nur dessen Fahrer',
+                      Text(
+                        tr('Klick auf ein Team zeigt nur dessen Fahrer'),
                         style: TextStyle(fontSize: 12, color: TeamColors.muted),
                       ),
                     const Spacer(),
                     SearchBox(
-                      hint: 'Fahrer oder Land',
+                      hint: tr('Fahrer oder Land'),
                       colors: c,
                       onChanged: (v) => setState(() => _search = v),
                     ),
@@ -525,7 +554,7 @@ class _RankingsScreenState extends State<RankingsScreen> {
                         (e, _) => Flag(byId[e.key]?.country ?? '', width: 18),
                       ),
                       Col(
-                        'Fahrer',
+                        tr('Fahrer'),
                         220,
                         (e, _) => cellText(byId[e.key]?.name ?? '?'),
                       ),
@@ -582,7 +611,7 @@ class _RankingsScreenState extends State<RankingsScreen> {
                         ),
                       ),
                       Col(
-                        'Lizenz',
+                        tr('Lizenz'),
                         90,
                         (e, _) => cellText(
                           career.licences.of(e.key).label,

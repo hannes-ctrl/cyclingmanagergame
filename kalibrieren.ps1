@@ -9,11 +9,12 @@
 # continues from there. The log is in data\calibration\log.txt.
 #
 # -Stunden  hours to search
-# -Laeufe   simulation runs per race
+# -Laeufe   simulation runs per race (three are enough with several
+#           hundred races; more makes every attempt slower)
 # -Bericht  report only
 param(
     [double]$Stunden = 8,
-    [int]$Laeufe = 6,
+    [int]$Laeufe = 3,
     [switch]$Bericht
 )
 
@@ -27,8 +28,10 @@ if (-not (Get-Command $dart -ErrorAction SilentlyContinue)) {
 }
 Set-Location "$PSScriptRoot\packages\calibration"
 
-# Fetch new results; pages loaded before come from the cache.
-& $dart run bin/fetch_results.dart 2026 | Select-Object -Last 1
+# Fetch new results of all seasons; pages loaded before come from the cache.
+foreach ($year in 2021..2026) {
+    & $dart run bin/fetch_results.dart $year | Select-Object -Last 1
+}
 
 $out = "$PSScriptRoot\data\calibration"
 if ($Bericht) {

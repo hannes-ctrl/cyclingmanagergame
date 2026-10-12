@@ -8,7 +8,7 @@ import '../widgets.dart';
 
 /// Course of a stage as a chart: time gaps to the favourites' group along the
 /// route, and below it how many riders that group still holds.
-class RaceChart extends StatelessWidget {
+class RaceChart extends StatefulWidget {
   /// Creates the chart.
   ///
   /// @param result The stage result with its timeline.
@@ -25,24 +25,81 @@ class RaceChart extends StatelessWidget {
   final TeamColors colors;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      CustomPaint(
-        painter: _ChartPainter(result, route, colors),
-        size: const Size(double.infinity, 190),
-      ),
-      const SizedBox(height: 4),
-      Wrap(
-        spacing: 14,
-        children: [
-          _legend(TeamColors.gold, 'Spitze vor den Favoriten'),
-          _legend(TeamColors.red, 'Mitte des Feldes'),
-          _legend(colors.accent, 'Fahrer in der Favoritengruppe'),
-        ],
-      ),
-    ],
-  );
+  State<RaceChart> createState() => _RaceChartState();
+}
+
+/// State of the chart: the kilometre under the pointer.
+class _RaceChartState extends State<RaceChart> {
+  double? _km;
+
+  @override
+  Widget build(BuildContext context) {
+    final result = widget.result, route = widget.route;
+    // The sample closest to the pointer.
+    RaceSample? at;
+    if (_km case final km?) {
+      for (final s in result.timeline) {
+        if (at == null || (s.km - km).abs() < (at.km - km).abs()) at = s;
+      }
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LayoutBuilder(
+          builder: (context, box) => MouseRegion(
+            onHover: (e) => setState(() {
+              final x =
+                  (e.localPosition.dx - _ChartPainter.left) /
+                  (box.maxWidth - _ChartPainter.left - _ChartPainter.right);
+              _km = x < 0 || x > 1 ? null : x * route.raceKm;
+            }),
+            onExit: (_) => setState(() => _km = null),
+            child: CustomPaint(
+              painter: _ChartPainter(result, route, widget.colors, at?.km),
+              size: const Size(double.infinity, 190),
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        SizedBox(
+          height: 18,
+          child: at == null
+              ? Wrap(
+                  spacing: 14,
+                  children: [
+                    _legend(TeamColors.gold, tr('Spitze vor den Favoriten')),
+                    _legend(TeamColors.red, tr('Mitte des Feldes')),
+                    _legend(
+                      widget.colors.accent,
+                      tr('Fahrer in der Favoritengruppe'),
+                    ),
+                  ],
+                )
+              : Text(
+                  tr(
+                    'km {0} · {1} · Feldmitte {2} · {3} in der Favoritengruppe',
+                    [
+                      at.km.round(),
+                      at.frontGapS < 1
+                          ? tr('Favoriten an der Spitze')
+                          : tr('Spitze ({0}) {1} voraus', [
+                              at.frontSize,
+                              clock(at.frontGapS),
+                            ]),
+                      at.lastGapS < 1
+                          ? tr('bei den Favoriten')
+                          : tr('{0} zurück', [clock(at.lastGapS)]),
+                      at.mainSize,
+                    ],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12),
+                ),
+        ),
+      ],
+    );
+  }
 
   /// @param color Colour of the line.
   /// @param text What the line shows.
@@ -59,14 +116,19 @@ class RaceChart extends StatelessWidget {
 
 /// Paints the chart.
 class _ChartPainter extends CustomPainter {
-  _ChartPainter(this.result, this.route, this.colors);
+  _ChartPainter(this.result, this.route, this.colors, this.markKm);
   final StageResult result;
   final SimRoute route;
   final TeamColors colors;
 
+  /// Kilometre under the pointer, drawn as a vertical line.
+  final double? markKm;
+
+  static const left = 58.0, right = 8.0;
+
   @override
   void paint(Canvas canvas, Size size) {
-    const left = 58.0, right = 8.0, top = 6.0, bottom = 18.0, sizeH = 44.0;
+    const top = 6.0, bottom = 18.0, sizeH = 44.0;
     final line = result.timeline;
     final w = size.width - left - right;
     final gapH = size.height - top - bottom - sizeH - 10;
@@ -97,7 +159,7 @@ class _ChartPainter extends CustomPainter {
       ..color = colors.line
       ..strokeWidth = 1;
     canvas.drawLine(Offset(left, zero), Offset(left + w, zero), grid);
-    text('Favoriten', Offset(left - 5, zero), end: true);
+    text(tr('Favoriten'), Offset(left - 5, zero), end: true);
     text('+${clock(ahead)}', Offset(left - 5, top + 5), end: true);
     text('−${clock(behind)}', Offset(left - 5, top + gapH - 5), end: true);
 
@@ -153,6 +215,16 @@ class _ChartPainter extends CustomPainter {
     text('${most.round()}', Offset(left - 5, base - sizeH + 4), end: true);
     text('${line.last.mainSize}', Offset(left - 5, base - 5), end: true);
 
+    if (markKm case final km?) {
+      canvas.drawLine(
+        Offset(x(km), top),
+        Offset(x(km), base),
+        Paint()
+          ..color = TeamColors.text.withValues(alpha: 0.55)
+          ..strokeWidth = 1,
+      );
+    }
+
     final step = route.raceKm > 120 ? 50 : 20;
     for (var km = 0; km < route.raceKm; km += step) {
       text('$km', Offset(x(km.toDouble()), base + 10));
@@ -161,7 +233,8 @@ class _ChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ChartPainter old) => old.result != result;
+  bool shouldRepaint(_ChartPainter old) =>
+      old.result != result || old.markKm != markKm;
 }
 
 /// The own team's riders after a stage: place, role and how their race went.
@@ -185,14 +258,14 @@ class OwnRiders extends StatelessWidget {
   /// @returns What happened to him, in a few words.
   String _note(RiderTrace t) {
     final parts = <String>[
-      if (t.inBreak) 'in der Gruppe des Tages',
+      if (t.inBreak) tr('in der Gruppe des Tages'),
       if (t.gruppetto)
-        'im Gruppetto'
+        tr('im Gruppetto')
       else if (t.lostKm case final km?)
-        'abgehängt ${(route.raceKm - km).round()} km vor dem Ziel'
+        tr('abgehängt {0} km vor dem Ziel', [(route.raceKm - km).round()])
       else if (!t.inBreak)
-        'bei den Favoriten',
-      if (t.frontKm >= 10) '${t.frontKm.round()} km Führungsarbeit',
+        tr('bei den Favoriten'),
+      if (t.frontKm >= 10) tr('{0} km Führungsarbeit', [t.frontKm.round()]),
     ];
     return parts.join(' · ');
   }

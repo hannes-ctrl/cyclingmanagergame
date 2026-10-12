@@ -74,8 +74,11 @@ enum RadioMode {
   important('Nur bei WorldTour-Rennen'),
   off('Nie – der Sportliche Leiter entscheidet');
 
-  const RadioMode(this.label);
-  final String label;
+  const RadioMode(this._label);
+  final String _label;
+
+  /// The label in the current language.
+  String get label => tr(_label);
 }
 
 /// What the player leaves to his staff.
@@ -102,8 +105,11 @@ enum TrainingFocus {
   classics('Klassiker', ['cobble', 'hill', 'flat']),
   stamina('Ausdauer', ['endurance', 'resistance', 'recovery']);
 
-  const TrainingFocus(this.label, this.attributes);
-  final String label;
+  const TrainingFocus(this._label, this.attributes);
+  final String _label;
+
+  /// The label in the current language.
+  String get label => tr(_label);
   final List<String> attributes;
 }
 
@@ -113,8 +119,11 @@ enum TrainingLoad {
   normal('Normal', 110),
   high('Hart', 135);
 
-  const TrainingLoad(this.label, this.dailyLoad);
-  final String label;
+  const TrainingLoad(this._label, this.dailyLoad);
+  final String _label;
+
+  /// The label in the current language.
+  String get label => tr(_label);
 
   /// Load of a training day in the same units as a race day.
   final double dailyLoad;
@@ -170,15 +179,20 @@ class Message {
   final String body;
 
   /// Topic the inbox files the message under, derived from the sender.
-  String get topic => switch (from) {
-        'Rennbericht' || 'Sportlicher Leiter' || 'Veranstalter' => 'Rennen',
-        'Teamarzt' => 'Medizin',
-        'Trainer' || 'Nachwuchsteam' => 'Training und Nachwuchs',
-        'Berater' => 'Verträge',
-        'UCI' => 'Lizenz',
-        'Teamleitung' => 'Teamleitung',
-        _ => 'Scouting',
-      };
+  String get topic {
+    // The sender was written in the language of the time.
+    bool from_(List<String> senders) => senders.any((s) => isText(from, s));
+    if (from_(['Rennbericht', 'Sportlicher Leiter', 'Veranstalter'])) {
+      return tr('Rennen');
+    }
+    if (from_(['Teamarzt'])) return tr('Medizin');
+    if (from_(['Trainer', 'Nachwuchsteam']))
+      return tr('Training und Nachwuchs');
+    if (from_(['Berater'])) return tr('Verträge');
+    if (from_(['UCI'])) return tr('Lizenz');
+    if (from_(['Teamleitung'])) return tr('Teamleitung');
+    return 'Scouting';
+  }
 
   /// Race the message belongs to, for the jump to the race report.
   final int? raceId;
@@ -836,10 +850,14 @@ class Career {
       final month = until.month.toString().padLeft(2, '0');
       inbox.add(Message(
         today,
-        'Teamarzt',
-        '${r.name} fällt $days Tage aus',
-        '$what. Voraussichtlich wieder einsatzbereit am $day.$month.'
-            '${abandons ? ' Er musste das Rennen aufgeben.' : ''}',
+        tr('Teamarzt'),
+        tr('{0} fällt {1} Tage aus', [r.name, days]),
+        tr('{0}. Voraussichtlich wieder einsatzbereit am {1}.{2}.{3}', [
+          what,
+          day,
+          month,
+          abandons ? tr(' Er musste das Rennen aufgeben.') : ''
+        ]),
         raceId: race?.race.info.id,
       ));
     }
@@ -855,15 +873,16 @@ class Career {
         if (_rng.nextDouble() >= (cobbles ? 0.008 : 0.004)) continue;
         final x = _rng.nextDouble();
         if (x < 0.7) {
-          sideline(p.rider, 3 + _rng.nextInt(8), 'Prellungen nach einem Sturz',
+          sideline(
+              p.rider, 3 + _rng.nextInt(8), tr('Prellungen nach einem Sturz'),
               race: day.race);
         } else if (x < 0.95) {
           sideline(p.rider, 14 + _rng.nextInt(29),
-              'Bruch nach einem Sturz, die Operation verlief gut',
+              tr('Bruch nach einem Sturz, die Operation verlief gut'),
               race: day.race);
         } else {
           sideline(p.rider, 60 + _rng.nextInt(61),
-              'Schwerer Sturz mit mehreren Brüchen',
+              tr('Schwerer Sturz mit mehreren Brüchen'),
               race: day.race);
         }
       }
@@ -871,7 +890,7 @@ class Career {
     for (final r in riderById.values) {
       if (racing.contains(r.id) || isInjured(r.id, today)) continue;
       if (_rng.nextDouble() < 0.0007) {
-        sideline(r, 3 + _rng.nextInt(8), 'Infekt, einige Tage Pause');
+        sideline(r, 3 + _rng.nextInt(8), tr('Infekt, einige Tage Pause'));
       }
     }
   }
@@ -879,17 +898,41 @@ class Career {
   /// @param age Age of a rider in years.
   /// @returns Attribute points a rider of that age gains or loses per year
   ///   before potential, training and coaching are applied.
-  static double _yearlyStep(int age) => age <= 21
-      ? 2.0
-      : age <= 24
-          ? 1.2
-          : age <= 27
-              ? 0.5
-              : age <= 31
-                  ? 0.0
-                  : age <= 34
-                      ? -0.6
-                      : -1.2;
+  static double _yearlyStep(int age) => switch (age) {
+        <= 19 => 1.5,
+        20 => 1.35,
+        21 => 1.2,
+        22 => 0.95,
+        23 => 0.75,
+        24 => 0.6,
+        25 => 0.4,
+        26 => 0.25,
+        27 => 0.1,
+        <= 30 => 0.0,
+        <= 32 => -0.3,
+        <= 34 => -0.7,
+        _ => -1.2,
+      };
+
+  /// The level a rider's best attributes approach but hardly exceed; it
+  /// follows from his potential (6 gives about 87, 4 about 81).
+  ///
+  /// @param r The rider.
+  /// @returns The ceiling on the attribute scale.
+  static double ceiling(SimRider r) => 70 + 2.8 * r.potential;
+
+  /// Scales a gain so that an attribute slows down as it nears the rider's
+  /// ceiling and stops there.
+  ///
+  /// @param r The rider.
+  /// @param value Current value of the attribute.
+  /// @param gain Gain without the ceiling.
+  /// @returns The gain that is actually applied.
+  static double capped(SimRider r, double value, double gain) =>
+      gain <= 0 ? gain : gain * ((ceiling(r) - value) / 7).clamp(0.0, 1.0);
+
+  /// How much faster or slower a rider develops than one of potential 5.
+  static double _talent(SimRider r) => ((r.potential - 2) / 3).clamp(0.2, 1.4);
 
   /// What a rider can expect over the next twelve months with normal
   /// training and an average coach.
@@ -898,7 +941,14 @@ class Career {
   /// @returns Attribute points per year; negative from the age of 32.
   double outlook(SimRider r) {
     final step = _yearlyStep(year - r.born ~/ 10000);
-    return step > 0 ? step * r.potential / 5 : step;
+    if (step <= 0) return step;
+    // For his best attribute, which is the one closest to the ceiling.
+    var best = 0.0;
+    r.attributes.adjusted((_, v) {
+      if (v > best) best = v;
+      return v;
+    });
+    return capped(r, best, step * _talent(r));
   }
 
   /// Attribute history of the player's riders by rider id, one line per
@@ -963,25 +1013,34 @@ class Career {
             ? max(staff.coachFactor(r.teamId), staff.coachFactor(teamId))
             : staff.coachFactor(r.teamId);
         final step = perYear > 0
-            ? perYear / 12 * (r.potential / 5) * load * coach
+            ? perYear / 12 * _talent(r) * load * coach
             : perYear / 12;
         final focus = s.focus.attributes;
+        // A rider grows where he is already strong: his best attribute at
+        // the full rate, his weakest at under a third of it.
+        var lo = 100.0, hi = 0.0;
+        r.attributes.adjusted((_, v) {
+          if (v < lo) lo = v;
+          if (v > hi) hi = v;
+          return v;
+        });
         final updated = r.withAttributes(r.attributes.adjusted((name, v) {
-          double factor;
           if (step > 0) {
-            factor = focus.isEmpty
+            final profile = hi == lo ? 1.0 : 0.3 + 0.7 * (v - lo) / (hi - lo);
+            final training = focus.isEmpty
                 ? 1.0
                 : focus.contains(name)
-                    ? 2.5
-                    : 0.6;
-          } else {
-            // Explosiveness goes first, endurance last.
-            factor = name == 'sprint' || name == 'acceleration'
-                ? 1.5
-                : name == 'endurance'
-                    ? 0.5
-                    : 1.0;
+                    ? 1.4
+                    : 0.85;
+            return (v + capped(r, v, step * profile * training))
+                .clamp(50.0, 86.0);
           }
+          // Explosiveness goes first, endurance last.
+          final factor = name == 'sprint' || name == 'acceleration'
+              ? 1.5
+              : name == 'endurance'
+                  ? 0.5
+                  : 1.0;
           return (v + step * factor).clamp(50.0, 86.0);
         }));
         squad[i] = updated;
@@ -1007,6 +1066,7 @@ class Career {
     today = DateTime.utc(year, 1, 1);
     progress.clear();
     formLog.clear();
+    devTeam.stagiaires.clear();
     riderPoints.clear();
     teamPoints.clear();
     ownPlans.clear();
@@ -1035,10 +1095,10 @@ class Career {
     economy.openSeason();
     inbox.add(Message(
       today,
-      'Teamleitung',
-      'Saison $year beginnt',
-      'Die Saison ${year - 1} endete für uns auf Platz ${history.last.rank} '
-          'der Teamrangliste mit ${history.last.points.round()} Punkten.',
+      tr('Teamleitung'),
+      tr('Saison {0} beginnt', [year]),
+      tr('Die Saison {0} endete für uns auf Platz {1} der Teamrangliste mit {2} Punkten.',
+          [year - 1, history.last.rank, history.last.points.round()]),
     ));
   }
 
@@ -1157,12 +1217,17 @@ class Career {
   /// @returns The available riders.
   List<SimRider> _free(int team, RaceEntry race) {
     final grandTour = race.tier == RaceTier.grandTour;
+    bool ready(SimRider r) =>
+        !isBusy(r.id, race.start) &&
+        !camps.blocks(r.id, race.start, race.end) &&
+        (team == teamId || _fitToStart(shapeOf(r.id), race, grandTour));
     return [
       for (final r in squads[team] ?? const <SimRider>[])
-        if (!isBusy(r.id, race.start) &&
-            !camps.blocks(r.id, race.start, race.end) &&
-            (team == teamId || _fitToStart(shapeOf(r.id), race, grandTour)))
-          r,
+        if (ready(r)) r,
+      // Trainees from the team's own development team ride in its colours.
+      if (DevTeam.allows(race.tier))
+        for (final r in devTeam.stagiairesOf(team, race.start))
+          if (ready(r)) r.withTeam(team, teams[team]?.abbr ?? ''),
     ];
   }
 
@@ -1211,8 +1276,18 @@ class Career {
     final size = world.raceField(race.info.id).ridersPerTeam;
     final others = <SimRider>[];
     var own = const <SimRider>[];
-    for (final team in _field(race)) {
-      final available = _free(team, race);
+    // A trainee rides for the professional team; his development team, if
+    // it starts in the same race, has to do without him.
+    final field = _field(race);
+    final lent = <int>{
+      if (DevTeam.allows(race.tier))
+        for (final team in field)
+          for (final r in devTeam.stagiairesOf(team, race.start)) r.id,
+    };
+    for (final team in field) {
+      final available = _free(team, race)
+        ..removeWhere(
+            (r) => lent.contains(r.id) && riderById[r.id]?.teamId == team);
       if (team == teamId) {
         own = available;
         continue;
@@ -1285,9 +1360,9 @@ class Career {
     if (ownLineup.isNotEmpty) {
       inbox.add(Message(
         today,
-        'Sportlicher Leiter',
-        'Aufgebot für ${race.info.name}',
-        'Am Start: ${ownLineup.map((r) => r.name).join(', ')}.',
+        tr('Sportlicher Leiter'),
+        tr('Aufgebot für {0}', [race.info.name]),
+        tr('Am Start: {0}.', [ownLineup.map((r) => r.name).join(', ')]),
         raceId: id,
       ));
     }
@@ -1361,18 +1436,22 @@ class Career {
     if (championship) {
       titles.add((year: year, race: race.info.name, riderId: winner.id));
     }
-    if (race.isStageRace) _honour(winner, race, 'Etappe ${index + 1}');
+    if (race.isStageRace) _honour(winner, race, tr('Etappe {0}', [index + 1]));
     if (p.finished) {
       final gc = p.run.standings.last.general;
       final order = race.isStageRace
           ? [for (final e in gc) e.rider]
           : [for (final x in result.placings) x.rider];
       if (!race.isStageRace) {
-        _honour(order.first, race, 'Sieg');
+        _honour(order.first, race, tr('Sieg'));
       } else {
         for (var i = 0; i < 3 && i < order.length; i++) {
-          _honour(order[i], race,
-              i == 0 ? 'Gesamtsieg' : '${i + 1}. der Gesamtwertung');
+          _honour(
+              order[i],
+              race,
+              i == 0
+                  ? tr('Gesamtsieg')
+                  : tr('{0}. der Gesamtwertung', [i + 1]));
         }
       }
       for (var i = 0; i < 10 && i < order.length; i++) {
@@ -1385,26 +1464,32 @@ class Career {
       return;
     }
     final best = result.placings[own].rider;
-    final stageLabel = race.isStageRace ? ', Etappe ${index + 1}' : '';
+    final stageLabel = race.isStageRace ? tr(', Etappe {0}', [index + 1]) : '';
     var body = own == 0
         ? championship
-            ? '${best.name} holt den Titel und fährt ein Jahr im Meistertrikot.'
-            : '${best.name} gewinnt für uns.'
-        : 'Sieger: ${winner.name} (${winner.team}). '
-            'Unser Bester: ${best.name} auf Platz ${own + 1}.';
+            ? tr('{0} holt den Titel und fährt ein Jahr im Meistertrikot.',
+                [best.name])
+            : tr('{0} gewinnt für uns.', [best.name])
+        : tr('Sieger: {0} ({1}). Unser Bester: {2} auf Platz {3}.',
+            [winner.name, winner.team, best.name, own + 1]);
     if (race.isStageRace) {
       final gc = p.run.standings.last.general;
       final place = gc.indexWhere((e) => e.rider.teamId == teamId);
       body += p.finished
-          ? ' ${gc.first.rider.name} gewinnt ${race.info.name}, '
-              '${gc[place].rider.name} wird ${place + 1}.'
-          : ' Gesamtwertung: ${gc[place].rider.name} auf Platz ${place + 1}.';
+          ? tr(' {0} gewinnt {1}, {2} wird {3}.', [
+              gc.first.rider.name,
+              race.info.name,
+              gc[place].rider.name,
+              place + 1
+            ])
+          : tr(' Gesamtwertung: {0} auf Platz {1}.',
+              [gc[place].rider.name, place + 1]);
     }
     inbox.add(Message(
       today,
-      'Rennbericht',
+      tr('Rennbericht'),
       '${race.info.name}$stageLabel: '
-          '${own == 0 ? 'Sieg' : 'Platz ${own + 1}'}',
+      '${own == 0 ? tr('Sieg') : tr('Platz {0}', [own + 1])}',
       body,
       raceId: id(race),
     ));
@@ -1441,7 +1526,9 @@ class Career {
   /// @returns His number of wins (races, stages, overall) in that season.
   int winsOf(int riderId, int inYear) => (palmares[riderId] ?? const [])
       .where((p) =>
-          p[0] == inYear && !(p[2] as String).contains('der Gesamtwertung'))
+          p[0] == inYear &&
+          !(p[2] as String).contains('der Gesamtwertung') &&
+          !(p[2] as String).contains('. overall'))
       .length;
 
   /// Championship titles a rider currently holds (won this season, or last
@@ -1664,6 +1751,13 @@ class Career {
       'staff': staff.toJson(),
       'licences': licences.toJson(),
       'dev': devTeam.teamId,
+      'stagiaires': devTeam.stagiaires.toList(),
+      'devFounded': switch (devTeam.founded) {
+        final t? => [
+            t.id, t.name, t.abbr, t.division, t.country, t.color, t.color2, //
+          ],
+        null => null,
+      },
       'camps': camps.toJson(),
       'entries': entries.toJson(),
     };
@@ -1798,6 +1892,17 @@ class Career {
     staff.restore(j['staff'] as Map<String, dynamic>);
     licences.restore(j['licences'] as Map<String, dynamic>);
     devTeam.teamId = j['dev'] as int?;
+    devTeam.stagiaires
+      ..clear()
+      ..addAll((j['stagiaires'] as List? ?? const []).cast<int>());
+    if (j['devFounded'] case final List<dynamic> t) {
+      final info = TeamInfo(t[0] as int, t[1] as String, t[2] as String,
+          t[3] as String, t[4] as String, t[5] as String, t[6] as String, '');
+      teams[info.id] = info;
+      devTeam
+        ..founded = info
+        ..links[teamId] = info.id;
+    }
     camps.restore(j['camps'] as List<dynamic>);
     entries.load(j['entries'] as Map<String, dynamic>);
 

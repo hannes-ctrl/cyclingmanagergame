@@ -1,3 +1,4 @@
+import 'package:sim/sim.dart';
 import 'package:flutter/material.dart';
 import 'package:game/game.dart';
 
@@ -46,9 +47,10 @@ class _InboxScreenState extends State<InboxScreen> {
       return Center(
         child: Text(
           s.busy
-              ? 'Die Tage laufen …'
-              : 'Noch keine Nachrichten. „Weiter" lässt die Saison laufen, '
-                    'bis etwas dein Team betrifft.',
+              ? tr('Die Tage laufen …')
+              : tr(
+                  'Noch keine Nachrichten. „Weiter" lässt die Saison laufen, bis etwas dein Team betrifft.',
+                ),
           style: const TextStyle(color: TeamColors.muted),
         ),
       );
@@ -69,7 +71,7 @@ class _InboxScreenState extends State<InboxScreen> {
                   runSpacing: 6,
                   children: [
                     Pill(
-                      label: 'Alle · ${all.length}',
+                      label: tr('Alle · {0}', [all.length]),
                       selected: _topic == null,
                       colors: c,
                       onTap: () => setState(() => _topic = null),
@@ -89,8 +91,8 @@ class _InboxScreenState extends State<InboxScreen> {
                 icon: const Icon(LucideIcons.trash2, size: 16),
                 label: Text(
                   _topic == null
-                      ? 'Gelesene löschen'
-                      : 'Gelesene in „$_topic" löschen',
+                      ? tr('Gelesene löschen')
+                      : tr('Gelesene in „{0}" löschen', [_topic]),
                 ),
               ),
             ],
@@ -181,7 +183,7 @@ class _InboxScreenState extends State<InboxScreen> {
                               ),
                             ),
                             IconButton(
-                              tooltip: 'Nachricht löschen',
+                              tooltip: tr('Nachricht löschen'),
                               onPressed: s.busy
                                   ? null
                                   : () => s.deleteMessage(selected),
@@ -215,7 +217,7 @@ class _InboxScreenState extends State<InboxScreen> {
                             ),
                             onPressed: () =>
                                 widget.onOpenRace(selected.raceId!),
-                            child: const Text('Zum Rennen'),
+                            child: Text(tr('Zum Rennen')),
                           ),
                       ],
                     ),

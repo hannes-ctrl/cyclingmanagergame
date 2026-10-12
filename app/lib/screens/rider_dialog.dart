@@ -106,7 +106,7 @@ class RiderPage extends StatelessWidget {
           (x) => x.rider.id == riderId,
         );
         out.add(
-          _Result(p.race, at < 0 ? 'nicht im Ziel' : '${at + 1}.', at == 0),
+          _Result(p.race, at < 0 ? tr('nicht im Ziel') : '${at + 1}.', at == 0),
         );
         continue;
       }
@@ -119,13 +119,13 @@ class RiderPage extends StatelessWidget {
       out.add(
         _Result(
           p.race,
-          '${gc < 0 ? 'aufgegeben' : '${gc + 1}. gesamt'}'
-          '${p.finished ? '' : ' (läuft)'}'
+          '${gc < 0 ? tr('aufgegeben') : tr('{0}. gesamt', [gc + 1])}'
+          '${p.finished ? '' : tr(' (läuft)')}'
           '${stageWins == 0
               ? ''
               : stageWins == 1
-              ? ' · 1 Etappe'
-              : ' · $stageWins Etappen'}',
+              ? tr(' · 1 Etappe')
+              : tr(' · {0} Etappen', [stageWins])}',
           gc == 0 && p.finished || stageWins > 0,
         ),
       );
@@ -140,9 +140,7 @@ class RiderPage extends StatelessWidget {
     final career = s.career;
     final r = career.riderById[riderId];
     if (r == null) {
-      return const AlertDialog(
-        content: Text('Der Fahrer ist nicht mehr aktiv.'),
-      );
+      return AlertDialog(content: Text(tr('Der Fahrer ist nicht mehr aktiv.')));
     }
     final own = r.teamId == s.team.id;
     final book = career.staff;
@@ -187,7 +185,7 @@ class RiderPage extends StatelessWidget {
     final outlook = career.outlook(r);
     final formLog = career.formLog[r.id] ?? const <List<num>>[];
     String signed(double v, [int digits = 1]) =>
-        '${v >= 0 ? '+' : '−'}${v.abs().toStringAsFixed(digits).replaceAll('.', ',')}';
+        '${v >= 0 ? '+' : '−'}${dec(v.abs(), digits)}';
 
     Widget bar(String label, String code, double value, double? was) {
       final (low, high) = book.range(r.id, code, value);
@@ -201,7 +199,10 @@ class RiderPage extends StatelessWidget {
               width: 128,
               child: withHelp(
                 label,
-                Text(label, style: const TextStyle(color: TeamColors.muted)),
+                Text(
+                  tr(label),
+                  style: const TextStyle(color: TeamColors.muted),
+                ),
               ),
             ),
             SizedBox(
@@ -286,7 +287,7 @@ class RiderPage extends StatelessWidget {
     );
 
     String percent(double form) =>
-        '${form >= 1 ? '+' : ''}${((form - 1) * 100).toStringAsFixed(1).replaceAll('.', ',')} %';
+        '${form >= 1 ? '+' : ''}${dec((form - 1) * 100)} %';
 
     Widget tile(String label, String value, {Color? color}) => Container(
       width: 132,
@@ -324,9 +325,14 @@ class RiderPage extends StatelessWidget {
                         Flag(r.country, width: 20),
                         const SizedBox(width: 7),
                         Text(
-                          '${r.country} · ${career.year - r.born ~/ 10000} Jahre · '
-                          '${team?.division == 'Free' ? 'vereinslos' : team?.name ?? r.team}'
-                          '${exact ? ' · ${riderType(r)}' : ''}',
+                          tr('{0} · {1} Jahre · {2}{3}', [
+                            r.country,
+                            career.year - r.born ~/ 10000,
+                            team?.division == 'Free'
+                                ? tr('vereinslos')
+                                : team?.name ?? r.team,
+                            exact ? ' · ${tr(riderType(r))}' : '',
+                          ]),
                           style: const TextStyle(color: TeamColors.muted),
                         ),
                       ],
@@ -349,7 +355,7 @@ class RiderPage extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(3),
                                 ),
                                 child: Text(
-                                  'Meistertrikot · $t',
+                                  tr('Meistertrikot · {0}', [t]),
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: TeamColors.gold,
@@ -362,13 +368,15 @@ class RiderPage extends StatelessWidget {
                   ],
                 ),
               ),
+              RiderPhoto(dataDir: s.dataDir, riderId: r.id, size: 76),
+              const SizedBox(width: 12),
               Jersey(dataDir: s.dataDir, abbr: s.jerseyOf(r.teamId), size: 64),
               const SizedBox(width: 12),
               TextButton(
                 onPressed: page
                     ? state.closeRider
                     : () => Navigator.pop(context),
-                child: Text(page ? 'Zurück' : 'Schließen'),
+                child: Text(page ? tr('Zurück') : tr('Schließen')),
               ),
             ],
           ),
@@ -376,14 +384,14 @@ class RiderPage extends StatelessWidget {
             const SizedBox(height: 14),
             Row(
               children: [
-                tile('Alter', '${career.year - r.born ~/ 10000}'),
+                tile(tr('Alter'), '${career.year - r.born ~/ 10000}'),
                 tile(
-                  'Stärke',
+                  tr('Stärke'),
                   exact ? Economy.rating(r).round().toString() : '?',
                   color: exact ? attributeColor(Economy.rating(r)) : null,
                 ),
                 tile(
-                  'Potenzial',
+                  tr('Potenzial'),
                   book.knowledge(r.id) < 0.6
                       ? '?'
                       : r.potential.toStringAsFixed(1),
@@ -394,16 +402,16 @@ class RiderPage extends StatelessWidget {
                     percent(shape.form),
                     color: shape.form >= 1 ? TeamColors.green : null,
                   ),
-                tile('Renntage', '${shape.raceDays}'),
+                tile(tr('Renntage'), '${shape.raceDays}'),
                 tile(
-                  'Punkte ${career.year}',
+                  tr('Punkte {0}', [career.year]),
                   '${(career.riderPoints[r.id] ?? 0).round()}',
                 ),
                 tile(
-                  'Siege ${career.year}',
+                  tr('Siege {0}', [career.year]),
                   '${career.winsOf(r.id, career.year)}',
                 ),
-                if (k != null) tile('Vertrag bis', '${k.endYear}'),
+                if (k != null) tile(tr('Vertrag bis'), '${k.endYear}'),
               ],
             ),
           ],
@@ -416,7 +424,27 @@ class RiderPage extends StatelessWidget {
                   flex: 5,
                   child: ListView(
                     children: [
-                      const Label('Werte'),
+                      Row(
+                        children: [
+                          Expanded(child: Label(tr('Werte'))),
+                          if (before != null)
+                            Tooltip(
+                              message: tr(
+                                'Die kleine Zahl neben jedem Wert zeigt, wie er sich seit {0} verändert hat – dem Beginn der Karriere oder dem Tag, an dem der Fahrer zum Team kam.',
+                                [_month(growth.first[0].toInt())],
+                              ),
+                              child: Text(
+                                tr('Veränderung seit {0}', [
+                                  _month(growth.first[0].toInt()),
+                                ]),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: TeamColors.muted,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                       const SizedBox(height: 4),
                       for (final (label, code, pick) in _attributes)
                         bar(
@@ -427,15 +455,15 @@ class RiderPage extends StatelessWidget {
                         ),
                       if (own || means.length > 1) ...[
                         const SizedBox(height: 14),
-                        const Label('Entwicklung'),
+                        Label(tr('Entwicklung')),
                         const SizedBox(height: 4),
                         fact(
-                          'Aussicht für zwölf Monate',
+                          tr('Aussicht für zwölf Monate'),
                           book.knowledge(r.id) < 0.6
-                              ? 'unbekannt'
+                              ? tr('unbekannt')
                               : outlook.abs() < 0.05
-                              ? 'hält sein Niveau'
-                              : '${signed(outlook)} Punkte je Wert',
+                              ? tr('hält sein Niveau')
+                              : tr('{0} Punkte je Wert', [signed(outlook)]),
                           color: outlook > 0.05
                               ? TeamColors.green
                               : outlook < -0.05
@@ -444,8 +472,10 @@ class RiderPage extends StatelessWidget {
                         ),
                         if (means.length > 1) ...[
                           fact(
-                            'Seit ${_month(growth.first[0].toInt())}',
-                            '${signed(means.last - means.first, 2)} im Schnitt',
+                            tr('Seit {0}', [_month(growth.first[0].toInt())]),
+                            tr('{0} im Schnitt', [
+                              signed(means.last - means.first, 2),
+                            ]),
                             color: means.last >= means.first
                                 ? TeamColors.green
                                 : TeamColors.red,
@@ -456,25 +486,51 @@ class RiderPage extends StatelessWidget {
                             color: means.last >= means.first
                                 ? TeamColors.green
                                 : TeamColors.red,
-                            label: (v) =>
-                                v.toStringAsFixed(1).replaceAll('.', ','),
+                            label: (v) => dec(v),
                           ),
                         ] else
-                          const Text(
-                            'Der Verlauf wird ab dem nächsten Monatsersten '
-                            'aufgezeichnet.',
+                          Text(
+                            tr(
+                              'Der Verlauf wird ab dem nächsten Monatsersten aufgezeichnet.',
+                            ),
                             style: TextStyle(
                               fontSize: 12,
                               color: TeamColors.muted,
                             ),
                           ),
                       ],
+                      if (s.debug) ...[
+                        const SizedBox(height: 14),
+                        const Label('Debug'),
+                        const SizedBox(height: 4),
+                        fact('ID', '${r.id}'),
+                        fact(
+                          tr('Obergrenze der Werte'),
+                          dec(Career.ceiling(r)),
+                        ),
+                        fact(
+                          tr('Entwicklung je Jahr (bester Wert)'),
+                          dec(outlook, 2),
+                        ),
+                        fact(tr('Formfaktor'), shape.form.toStringAsFixed(4)),
+                        fact(
+                          tr('Fitness / Ermüdung'),
+                          '${dec(shape.fitness)} / ${dec(shape.fatigue)}',
+                        ),
+                        fact(
+                          tr('Scouting-Kenntnis'),
+                          career.staff.scouted.contains(r.id)
+                              ? tr('beobachtet')
+                              : tr('im Debug-Modus aufgedeckt'),
+                        ),
+                      ],
                       if (!exact)
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.only(top: 6),
                           child: Text(
-                            'Geschätzt. Ein Scout macht die Werte genau '
-                            '(Transfers → Beobachten lassen).',
+                            tr(
+                              'Geschätzt. Ein Scout macht die Werte genau (Transfers → Beobachten lassen).',
+                            ),
                             style: TextStyle(
                               fontSize: 12,
                               color: TeamColors.muted,
@@ -489,7 +545,7 @@ class RiderPage extends StatelessWidget {
                   flex: 4,
                   child: ListView(
                     children: [
-                      const Label('Zustand'),
+                      Label(tr('Zustand')),
                       const SizedBox(height: 4),
                       if (own) ...[
                         fact(
@@ -500,9 +556,9 @@ class RiderPage extends StatelessWidget {
                               : TeamColors.text,
                         ),
                         fact('Fitness', '${shape.fitness.round()}'),
-                        fact('Ermüdung', '${shape.fatigue.round()}'),
+                        fact(tr('Ermüdung'), '${shape.fatigue.round()}'),
                         fact(
-                          'Frische',
+                          tr('Frische'),
                           '${shape.freshness >= 0 ? '+' : ''}${shape.freshness.round()}',
                           color: shape.freshness < -30
                               ? TeamColors.red
@@ -524,8 +580,8 @@ class RiderPage extends StatelessWidget {
                             height: 44,
                             label: percent,
                           ),
-                          const Text(
-                            'Form im Saisonverlauf, Woche für Woche',
+                          Text(
+                            tr('Form im Saisonverlauf, Woche für Woche'),
                             style: TextStyle(
                               fontSize: 11,
                               color: TeamColors.muted,
@@ -534,60 +590,70 @@ class RiderPage extends StatelessWidget {
                           const SizedBox(height: 4),
                         ],
                       ],
-                      fact('Renntage ${career.year}', '${shape.raceDays}'),
+                      fact(
+                        tr('Renntage {0}', [career.year]),
+                        '${shape.raceDays}',
+                      ),
                       fact(
                         'Status',
                         injured
-                            ? 'fällt aus bis ${_d(shape.injuredUntil!)}'
+                            ? tr('fällt aus bis {0}', [_d(shape.injuredUntil!)])
                             : career.camps.campOf(r.id, career.today) != null
-                            ? 'im Trainingslager'
+                            ? tr('im Trainingslager')
                             : career.isBusy(r.id, career.today)
-                            ? 'im Rennen'
-                            : 'einsatzbereit',
+                            ? tr('im Rennen')
+                            : tr('einsatzbereit'),
                         color: injured ? TeamColors.red : null,
                       ),
                       const SizedBox(height: 12),
-                      const Label('Vertrag'),
+                      Label(tr('Vertrag')),
                       const SizedBox(height: 4),
                       fact(
-                        'Potenzial',
+                        tr('Potenzial'),
                         book.knowledge(r.id) < 0.6
                             ? '?'
                             : r.potential.toStringAsFixed(1),
                       ),
                       if (own && k != null)
-                        fact('Gehalt', '${euro(k.wage)} € im Jahr'),
+                        fact(tr('Gehalt'), tr('{0} € im Jahr', [euro(k.wage)])),
                       fact(
-                        'Marktwert',
+                        tr('Marktwert'),
                         exact
-                            ? '${euro(career.economy.marketWage(r))} € im Jahr'
-                            : 'unbekannt',
+                            ? tr('{0} € im Jahr', [
+                                euro(career.economy.marketWage(r)),
+                              ])
+                            : tr('unbekannt'),
                       ),
-                      if (k != null) fact('Läuft bis', '${k.endYear}'),
+                      if (k != null) fact(tr('Läuft bis'), '${k.endYear}'),
                       if (k?.nextTeam != null)
                         fact(
                           '${career.year + 1}',
                           k!.nextTeam == r.teamId
-                              ? 'verlängert bis ${k.nextEnd}'
-                              : 'wechselt zu ${career.teams[k.nextTeam]?.name ?? '?'}',
+                              ? tr('verlängert bis {0}', [k.nextEnd])
+                              : tr('wechselt zu {0}', [
+                                  career.teams[k.nextTeam]?.name ?? '?',
+                                ]),
                           color: TeamColors.gold,
                         ),
                       if (planned.isNotEmpty) ...[
                         const SizedBox(height: 12),
-                        const Label('Geplante Rennen'),
+                        Label(tr('Geplante Rennen')),
                         const SizedBox(height: 4),
                         for (final race in planned.take(8))
                           line(race.info.name, _d(race.start)),
                       ],
                       if (seasons.isNotEmpty) ...[
                         const SizedBox(height: 12),
-                        const Label('Laufbahn'),
+                        Label(tr('Laufbahn')),
                         const SizedBox(height: 4),
                         for (final x in seasons)
                           line(
                             '${x[0]} · ${x[1]}',
-                            '${(x[2] as num).round()} Punkte · ${x[3]} Siege · '
-                                '${x[4]} Renntage',
+                            tr('{0} Punkte · {1} Siege · {2} Renntage', [
+                              (x[2] as num).round(),
+                              x[3],
+                              x[4],
+                            ]),
                           ),
                       ],
                     ],
@@ -599,14 +665,16 @@ class RiderPage extends StatelessWidget {
                   child: ListView(
                     children: [
                       Label(
-                        'Saison ${career.year} · '
-                        '${(career.riderPoints[r.id] ?? 0).round()} Punkte · '
-                        '${career.winsOf(r.id, career.year)} Siege',
+                        tr('Saison {0} · {1} Punkte · {2} Siege', [
+                          career.year,
+                          (career.riderPoints[r.id] ?? 0).round(),
+                          career.winsOf(r.id, career.year),
+                        ]),
                       ),
                       const SizedBox(height: 4),
                       if (results.isEmpty)
-                        const Text(
-                          'Noch kein Rennen gefahren.',
+                        Text(
+                          tr('Noch kein Rennen gefahren.'),
                           style: TextStyle(color: TeamColors.muted),
                         ),
                       for (final x in results)
@@ -616,11 +684,11 @@ class RiderPage extends StatelessWidget {
                           color: x.good ? TeamColors.gold : null,
                         ),
                       const SizedBox(height: 12),
-                      Label('Erfolge · ${palmares.length}'),
+                      Label(tr('Erfolge · {0}', [palmares.length])),
                       const SizedBox(height: 4),
                       if (palmares.isEmpty)
-                        const Text(
-                          'Noch keine Siege in dieser Karriere.',
+                        Text(
+                          tr('Noch keine Siege in dieser Karriere.'),
                           style: TextStyle(color: TeamColors.muted),
                         ),
                       for (final p in palmares.take(40))

@@ -1,3 +1,4 @@
+import 'package:sim/sim.dart';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
@@ -15,7 +16,7 @@ class RadioPanel extends StatelessWidget {
     final c = state.colors;
     final race = r.race.race;
     final route = state.world.route(race.stages[r.stageIndex].id);
-    final director = r.race.ownDirector?.name ?? 'Teamwagen';
+    final director = r.race.ownDirector?.name ?? tr('Teamwagen');
 
     return ColoredBox(
       color: TeamColors.ground.withValues(alpha: 0.86),
@@ -41,7 +42,7 @@ class RadioPanel extends StatelessWidget {
                         borderRadius: BorderRadius.circular(3),
                       ),
                       child: Text(
-                        'FUNK',
+                        tr('FUNK'),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -54,7 +55,10 @@ class RadioPanel extends StatelessWidget {
                     Expanded(
                       child: Text(
                         race.isStageRace
-                            ? '${race.info.name} · Etappe ${r.stageIndex + 1}'
+                            ? tr('{0} · Etappe {1}', [
+                                race.info.name,
+                                r.stageIndex + 1,
+                              ])
                             : race.info.name,
                         style: const TextStyle(
                           fontSize: 18,
@@ -63,8 +67,10 @@ class RadioPanel extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'noch ${r.call.remainingKm.round()} von '
-                      '${route.raceKm.round()} km',
+                      tr('noch {0} von {1} km', [
+                        r.call.remainingKm.round(),
+                        route.raceKm.round(),
+                      ]),
                       style: const TextStyle(color: TeamColors.muted),
                     ),
                   ],
@@ -132,12 +138,11 @@ class RadioPanel extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Die erste Antwort lässt den Sportlichen Leiter '
-                        'nach Plan weiterfahren. Nach der letzten Rückfrage '
-                        'des Tages öffnet sich das Ergebnis. Der Funk lässt '
-                        'sich unter „Aufgabenverteilung" abschalten.',
+                        tr(
+                          'Die erste Antwort lässt den Sportlichen Leiter nach Plan weiterfahren. Nach der letzten Rückfrage des Tages öffnet sich das Ergebnis. Der Funk lässt sich unter „Aufgabenverteilung" abschalten.',
+                        ),
                         style: TextStyle(fontSize: 12, color: TeamColors.muted),
                       ),
                     ),

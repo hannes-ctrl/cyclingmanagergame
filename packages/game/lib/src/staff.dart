@@ -12,11 +12,17 @@ enum StaffRole {
   doctor('Arzt', 'Ärzte'),
   scout('Scout', 'Scouts');
 
-  const StaffRole(this.label, this.plural);
-  final String label;
+  const StaffRole(this._label, this._plural);
+  final String _label;
+
+  /// The label in the current language.
+  String get label => tr(_label);
 
   /// The label for more than one person.
-  final String plural;
+  final String _plural;
+
+  /// The label for more than one in the current language.
+  String get plural => tr(_plural);
 }
 
 /// What a sports director is particularly good at.
@@ -25,8 +31,11 @@ enum DirectorFocus {
   classics('Klassiker'),
   sprints('Sprintrennen');
 
-  const DirectorFocus(this.label);
-  final String label;
+  const DirectorFocus(this._label);
+  final String _label;
+
+  /// The label in the current language.
+  String get label => tr(_label);
 }
 
 /// A staff member. Values run from 1 to 20.
@@ -179,6 +188,9 @@ class StaffBook {
   int _best(int teamId, StaffRole role) =>
       of(teamId, role).fold(0, (best, s) => max(best, s.skill));
 
+  /// Debug switch of the app: every rider counts as fully known. Not saved.
+  bool revealAll = false;
+
   /// @param teamId Team id.
   /// @returns The factor on the riders' monthly development (around 1.0).
   double coachFactor(int teamId) {
@@ -266,9 +278,10 @@ class StaffBook {
   /// @returns null on success, otherwise the reason.
   String? hire(int staffId) {
     final s = all.where((x) => x.id == staffId).firstOrNull;
-    if (s == null || s.teamId != 0) return 'Nicht mehr zu haben.';
+    if (s == null || s.teamId != 0) return tr('Nicht mehr zu haben.');
     if (of(c.teamId, s.role).length >= limits[s.role]!) {
-      return 'Mehr als ${limits[s.role]} ${s.role.plural} sind nicht vorgesehen.';
+      return tr('Mehr als {0} {1} sind nicht vorgesehen.',
+          [limits[s.role], s.role.plural]);
     }
     s.teamId = c.teamId;
     return null;
@@ -280,12 +293,12 @@ class StaffBook {
   /// @returns null on success, otherwise the reason.
   String? fire(int staffId) {
     final s = all.where((x) => x.id == staffId).firstOrNull;
-    if (s == null || s.teamId != c.teamId) return 'Gehört nicht zum Team.';
+    if (s == null || s.teamId != c.teamId) return tr('Gehört nicht zum Team.');
     if (s.busyUntil?.isAfter(c.today) ?? false) {
-      return 'Er ist gerade bei einem Rennen.';
+      return tr('Er ist gerade bei einem Rennen.');
     }
     if (jobs.any((j) => j.scoutId == staffId)) {
-      return 'Er ist gerade auf Beobachtung.';
+      return tr('Er ist gerade auf Beobachtung.');
     }
     s
       ..teamId = 0
@@ -302,6 +315,7 @@ class StaffBook {
   /// @param riderId Id of the rider.
   /// @returns A value from 0 to 1; 1 means exact values are known.
   double knowledge(int riderId) {
+    if (revealAll) return 1;
     final r = c.riderById[riderId];
     if (r == null) return 1;
     if (r.teamId == c.teamId || scouted.contains(riderId)) return 1;
@@ -340,17 +354,17 @@ class StaffBook {
   /// @param riderId Id of the rider.
   /// @returns null if a scout is on his way, otherwise the reason.
   String? scout(int riderId) {
-    if (knowledge(riderId) >= 1) return 'Über ihn ist alles bekannt.';
+    if (knowledge(riderId) >= 1) return tr('Über ihn ist alles bekannt.');
     if (jobs.any((j) => j.riderId == riderId))
-      return 'Er wird schon beobachtet.';
+      return tr('Er wird schon beobachtet.');
     final idle = of(c.teamId, StaffRole.scout)
         .where((s) => !jobs.any((j) => j.scoutId == s.id))
         .toList()
       ..sort((a, b) => b.skill.compareTo(a.skill));
     if (idle.isEmpty) {
       return of(c.teamId, StaffRole.scout).isEmpty
-          ? 'Das Team hat keinen Scout.'
-          : 'Alle Scouts sind unterwegs.';
+          ? tr('Das Team hat keinen Scout.')
+          : tr('Alle Scouts sind unterwegs.');
     }
     final s = idle.first;
     // A good scout needs two weeks, a weak one five.
@@ -430,13 +444,24 @@ class StaffBook {
       c.inbox.add(Message(
         c.today,
         scoutName,
-        'Bericht zu ${r.name}',
-        '${c.fullName(r.id)} (${c.year - r.born ~/ 10000}, ${r.country}): '
-            'Berg ${a.mountain.round()}, Hügel ${a.hill.round()}, '
-            'Zeitfahren ${a.timeTrial.round()}, Sprint ${a.sprint.round()}, '
-            'Kopfsteinpflaster ${a.cobble.round()}, Flach ${a.flat.round()}. '
-            'Potenzial ${r.potential.toStringAsFixed(1)}. '
-            '${r.potential >= 5.5 && c.year - r.born ~/ 10000 < 24 ? 'Ein Talent, bei dem es sich lohnt, früh dran zu sein.' : 'Seine Werte sind jetzt in der Marktliste genau.'}',
+        tr('Bericht zu {0}', [r.name]),
+        tr(
+            '{0} ({1}, {2}): Berg {3}, Hügel {4}, Zeitfahren {5}, Sprint {6}, Kopfsteinpflaster {7}, Flach {8}. Potenzial {9}. {10}',
+            [
+              c.fullName(r.id),
+              c.year - r.born ~/ 10000,
+              r.country,
+              a.mountain.round(),
+              a.hill.round(),
+              a.timeTrial.round(),
+              a.sprint.round(),
+              a.cobble.round(),
+              a.flat.round(),
+              r.potential.toStringAsFixed(1),
+              r.potential >= 5.5 && c.year - r.born ~/ 10000 < 24
+                  ? tr('Ein Talent, bei dem es sich lohnt, früh dran zu sein.')
+                  : tr('Seine Werte sind jetzt in der Marktliste genau.')
+            ]),
       ));
     }
   }

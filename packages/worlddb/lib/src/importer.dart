@@ -380,3 +380,108 @@ SELECT s.IDstage AS id, s.fkIDrace AS race_id, s.gene_i_stage_number AS number,
 FROM raw_STA_stage s
 LEFT JOIN stage_route o ON o.stage_id = s.IDstage;
 ''';
+
+/// Adds the routes of earlier seasons to an existing world database, for the
+/// calibration against real results of those years. The files are named like
+/// the current ones with another year at the end (`top_tdf_05_2023`). Each
+/// gets an id above two million in the `stage_*` tables, and the table
+/// `stage_variant` says which race, stage number and year it belongs to.
+///
+/// @param db The world database.
+/// @param worlddbDir Folder of the WorldDB copy.
+/// @param years Seasons to add.
+/// @returns Number of routes added.
+int importVariants(Database db, String worlddbDir, List<int> years) {
+  final files = <String, _RouteFile>{};
+  for (final (dir, source) in [('GameStages', 'game'), ('Stages', 'mod')]) {
+    final d = Directory('$worlddbDir/$dir');
+    if (!d.existsSync()) continue;
+    for (final f in d.listSync().whereType<File>()) {
+      final name = f.uri.pathSegments.last.toLowerCase();
+      if (name.endsWith('.cds')) {
+        files[name.substring(0, name.length - 4)] = _RouteFile(f.path, source);
+      }
+    }
+  }
+  db.execute('''
+CREATE TABLE IF NOT EXISTS stage_variant (
+  race_id INTEGER NOT NULL, number INTEGER NOT NULL, year INTEGER NOT NULL,
+  stage_id INTEGER NOT NULL,
+  PRIMARY KEY (race_id, number, year)
+);
+DELETE FROM stage_variant;
+DELETE FROM stage_route WHERE stage_id >= 2000000;
+DELETE FROM stage_waypoint WHERE stage_id >= 2000000;
+DELETE FROM stage_climb WHERE stage_id >= 2000000;
+DELETE FROM stage_sector WHERE stage_id >= 2000000;
+''');
+  final route = db.prepare(
+      'INSERT INTO stage_route VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);');
+  final waypoint =
+      db.prepare('INSERT INTO stage_waypoint VALUES (?, ?, ?, ?, ?, ?);');
+  final climb =
+      db.prepare('INSERT INTO stage_climb VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);');
+  final sector =
+      db.prepare('INSERT INTO stage_sector VALUES (?, ?, ?, ?, ?, ?, ?);');
+  final link = db.prepare('INSERT INTO stage_variant VALUES (?, ?, ?, ?);');
+  var id = 2000000, added = 0;
+  for (final race in db.select(
+      'SELECT IDrace, gene_sz_filename, gene_i_number_stages FROM raw_STA_race')) {
+    final raceFile = (race['gene_sz_filename'] as String).toLowerCase();
+    final stageRace = (race['gene_i_number_stages'] as int) > 1;
+    for (final year in years) {
+      // Stage races of other years may have more or fewer stages than now.
+      for (var n = 1; n <= (stageRace ? 30 : 1); n++) {
+        final name = stageRace
+            ? '${raceFile}_${'$n'.padLeft(2, '0')}_$year'
+            : '${raceFile}_$year';
+        final file = files[name];
+        if (file == null) {
+          if (stageRace && n < 3) continue; // a missing first file is no end
+          break;
+        }
+        final StageFile s;
+        try {
+          s = StageFile.readFile(file.path);
+        } on FormatException {
+          continue;
+        }
+        id++;
+        final start = s.startKm ?? 0;
+        final profile = Float32List(s.profile.length * 2);
+        for (var i = 0; i < s.profile.length; i++) {
+          profile[i * 2] = s.profile[i].km;
+          profile[i * 2 + 1] = s.profile[i].altitude;
+        }
+        route.execute([
+          id, name, '$year', file.source, s.name, s.relief, s.raceDistanceKm,
+          s.lengthKm, start, s.elevationGainM, s.maxAltitudeM,
+          s.detailsDecoded ? 1 : 0, profile.buffer.asUint8List(), //
+        ]);
+        for (final (i, w) in s.waypoints.indexed) {
+          waypoint
+              .execute([id, i, w.km - start, w.type.name, w.detail, w.name]);
+        }
+        for (final (i, c) in s.climbs.indexed) {
+          climb.execute([
+            id, i, c.name, c.kind, c.fromKm - start, c.toKm - start, //
+            _finite(c.avgGradient), _finite(c.minGradient),
+            _finite(c.maxGradient),
+          ]);
+        }
+        for (final (i, x) in s.sectors.indexed) {
+          sector.execute([
+            id, i, x.name, x.cobbled ? 1 : 0, x.difficulty, //
+            x.fromKm - start, x.toKm - start,
+          ]);
+        }
+        link.execute([race['IDrace'], n, year, id]);
+        added++;
+      }
+    }
+  }
+  for (final st in [route, waypoint, climb, sector, link]) {
+    st.dispose();
+  }
+  return added;
+}

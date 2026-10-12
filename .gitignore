@@ -36,3 +36,4 @@ build/
 
 # Machine-specific toolchain paths
 /env.local.ps1
+/data/photos/

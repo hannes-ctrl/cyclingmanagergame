@@ -1,3 +1,5 @@
+import 'package:sim/sim.dart';
+
 /// Tier of a race, derived from the race class of the WorldDB.
 enum RaceTier {
   grandTour('Grand Tour', 13),
@@ -9,8 +11,11 @@ enum RaceTier {
   under23('U23', 0.3),
   championship('Meisterschaft', 0);
 
-  const RaceTier(this.label, this.factor);
-  final String label;
+  const RaceTier(this._label, this.factor);
+  final String _label;
+
+  /// The label in the current language.
+  String get label => tr(_label);
 
   /// Weight of the ranking points relative to a class 1 race.
   final double factor;

@@ -1,3 +1,4 @@
+import 'package:sim/sim.dart';
 import 'package:flutter/material.dart';
 import 'package:game/game.dart';
 
@@ -157,14 +158,14 @@ class _PlanScreenState extends State<PlanScreen> {
             children: [
               Expanded(
                 child: Text(
-                  'Klick auf ein Feld trägt den Fahrer für das Rennen ein. '
-                  'Beim Aufgebot schlägt der Sportliche Leiter eingetragene Fahrer zuerst vor. '
-                  'Die Zahl unter dem Rennen zeigt, wie viele eingetragen sind.',
+                  tr(
+                    'Klick auf ein Feld trägt den Fahrer für das Rennen ein. Beim Aufgebot schlägt der Sportliche Leiter eingetragene Fahrer zuerst vor. Die Zahl unter dem Rennen zeigt, wie viele eingetragen sind.',
+                  ),
                   style: const TextStyle(color: TeamColors.muted),
                 ),
               ),
               const SizedBox(width: 12),
-              const Text('Nur WorldTour', style: TextStyle(fontSize: 13)),
+              Text(tr('Nur WorldTour'), style: TextStyle(fontSize: 13)),
               Switch(
                 value: _onlyBig,
                 activeThumbColor: c.accent,
@@ -192,9 +193,9 @@ class _PlanScreenState extends State<PlanScreen> {
                               child: Padding(
                                 padding: const EdgeInsets.fromLTRB(10, 0, 8, 4),
                                 child: Row(
-                                  children: const [
-                                    Expanded(child: Label('Fahrer')),
-                                    Label('Tage'),
+                                  children: [
+                                    Expanded(child: Label(tr('Fahrer'))),
+                                    Label(tr('Tage')),
                                   ],
                                 ),
                               ),
@@ -265,9 +266,10 @@ class _PlanScreenState extends State<PlanScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Gelb: Grand Tour · Rot: Monument · Blau: WorldTour · Grau: kleinere Rennen. '
-            'Punkt: Rennen gefahren. Tage über 65 werden gelb, über 80 rot.',
+          Text(
+            tr(
+              'Gelb: Grand Tour · Rot: Monument · Blau: WorldTour · Grau: kleinere Rennen. Punkt: Rennen gefahren. Tage über 65 werden gelb, über 80 rot.',
+            ),
             style: TextStyle(fontSize: 12, color: TeamColors.muted),
           ),
         ],

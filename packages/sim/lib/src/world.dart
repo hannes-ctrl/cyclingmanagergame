@@ -253,6 +253,26 @@ class World {
               ),
           ];
 
+  /// Routes of earlier seasons, added by `worlddb variants`.
+  ///
+  /// @param raceId Id of the race.
+  /// @param year Season.
+  /// @returns Stage numbers of that season with the id of their route; empty
+  ///   if the database has none.
+  Map<int, int> variantStages(int raceId, int year) {
+    try {
+      return {
+        for (final r in _db.select(
+            'SELECT number, stage_id FROM stage_variant WHERE race_id = ? AND year = ?',
+            [raceId, year]))
+          r['number'] as int: r['stage_id'] as int,
+      };
+    } on Object {
+      // The table only exists once the variants were imported.
+      return const {};
+    }
+  }
+
   /// Looks up a stage of a race by its number.
   ///
   /// @param raceId Id of the race.

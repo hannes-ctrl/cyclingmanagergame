@@ -15,8 +15,11 @@ enum _Filter {
   applied('Bewerbungen'),
   all('Alle');
 
-  const _Filter(this.label);
-  final String label;
+  const _Filter(this._label);
+  final String _label;
+
+  /// The label in the current language.
+  String get label => tr(_label);
 }
 
 String _d(DateTime d) =>
@@ -135,19 +138,21 @@ class _PlannerScreenState extends State<PlannerScreen> {
     Widget? action(RaceEntry r, {bool large = false}) {
       final (label, onTap) = switch (status[r.info.id]!) {
         EntryStatus.entered => (
-          'Absagen',
-          () => act(r, 'decline', '${r.info.name}: abgesagt.'),
+          tr('Absagen'),
+          () => act(r, 'decline', tr('{0}: abgesagt.', [r.info.name])),
         ),
         EntryStatus.declined => (
-          'Wieder zusagen',
-          () => act(r, 'restore', '${r.info.name}: wieder gemeldet.'),
+          tr('Wieder zusagen'),
+          () => act(r, 'restore', tr('{0}: wieder gemeldet.', [r.info.name])),
         ),
         EntryStatus.open => (
-          'Bewerben',
+          tr('Bewerben'),
           () => act(
             r,
             'apply',
-            '${r.info.name}: Bewerbung ist raus, Antwort in zehn Tagen.',
+            tr('{0}: Bewerbung ist raus, Antwort in zehn Tagen.', [
+              r.info.name,
+            ]),
           ),
         ),
         _ => (null, null),
@@ -181,11 +186,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
     String chanceLabel(RaceEntry r) {
       final p = entries.chance(r);
+      if (s.debug) return '${(p * 100).round()} %';
       return p >= 0.7
-          ? 'gut'
+          ? tr('gut')
           : p >= 0.4
-          ? 'mittel'
-          : 'gering';
+          ? tr('mittel')
+          : tr('gering');
     }
 
     return Column(
@@ -199,16 +205,19 @@ class _PlannerScreenState extends State<PlannerScreen> {
           ),
           child: Row(
             children: [
-              tab('Rennen und Meldungen', false),
-              tab('Fahrer-Matrix', true),
+              tab(tr('Rennen und Meldungen'), false),
+              tab(tr('Fahrer-Matrix'), true),
               const Spacer(),
               Text(
-                '${entered.length} Rennen gemeldet · $raceDays Renntage'
-                '${pending == 0
-                    ? ''
-                    : pending == 1
-                    ? ' · 1 Bewerbung offen'
-                    : ' · $pending Bewerbungen offen'}',
+                tr('{0} Rennen gemeldet · {1} Renntage{2}', [
+                  entered.length,
+                  raceDays,
+                  pending == 0
+                      ? ''
+                      : pending == 1
+                      ? tr(' · 1 Bewerbung offen')
+                      : tr(' · {0} Bewerbungen offen', [pending]),
+                ]),
                 style: const TextStyle(color: TeamColors.muted),
               ),
             ],
@@ -230,12 +239,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
                       child: ListView(
                         children: [
                           SearchBox(
-                            hint: 'Rennen oder Land',
+                            hint: tr('Rennen oder Land'),
                             colors: c,
                             width: null,
                             onChanged: (v) => setState(() => _search = v),
                           ),
-                          const FilterHead('Meldung'),
+                          FilterHead(tr('Meldung')),
                           for (final f in _Filter.values)
                             FilterOption(
                               label: f.label,
@@ -243,9 +252,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
                               selected: _filter == f,
                               onTap: () => setState(() => _filter = f),
                             ),
-                          const FilterHead('Rennklasse'),
+                          FilterHead(tr('Rennklasse')),
                           FilterOption(
-                            label: 'Alle Klassen',
+                            label: tr('Alle Klassen'),
                             selected: _groups.isEmpty,
                             count: base.length,
                             onTap: () => setState(() => _groups = {}),
@@ -262,7 +271,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                                     : {..._groups, g},
                               ),
                             ),
-                          const FilterHead('Fahrer im Aufgebot'),
+                          FilterHead(tr('Fahrer im Aufgebot')),
                           DropdownButton<int?>(
                             value: _rider,
                             isExpanded: true,
@@ -275,9 +284,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
                               color: TeamColors.text,
                             ),
                             items: [
-                              const DropdownMenuItem(
+                              DropdownMenuItem(
                                 value: null,
-                                child: Text('Alle Fahrer'),
+                                child: Text(tr('Alle Fahrer')),
                               ),
                               for (final r in squad)
                                 DropdownMenuItem(
@@ -308,7 +317,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                                   setState(() => _selected = r.info.id),
                               columns: [
                                 Col(
-                                  'Datum',
+                                  tr('Datum'),
                                   104,
                                   (r, _) => cellText(
                                     r.isStageRace
@@ -330,13 +339,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
                                   ),
                                 ),
                                 Col(
-                                  'Rennen',
+                                  tr('Rennen'),
                                   230,
                                   (r, _) => cellText(r.info.name),
                                   sortKey: (r) => r.info.name,
                                 ),
                                 Col(
-                                  'Klasse',
+                                  tr('Klasse'),
                                   96,
                                   (r, _) => cellText(
                                     r.tier.label,
@@ -345,29 +354,31 @@ class _PlannerScreenState extends State<PlannerScreen> {
                                   sortKey: (r) => -r.tier.factor,
                                 ),
                                 Col(
-                                  'Land',
+                                  tr('Land'),
                                   70,
                                   (r, _) => flagCell(r.info.country),
                                   sortKey: (r) => r.info.country,
                                 ),
                                 Col(
-                                  'Tage',
+                                  tr('Tage'),
                                   44,
                                   (r, _) => cellText('${r.stages.length}'),
                                   numeric: true,
                                   sortKey: (r) => r.stages.length,
                                 ),
-                                Col('Meldung', 160, (r, _) {
+                                Col(tr('Meldung'), 160, (r, _) {
                                   final st = status[r.info.id]!;
                                   return cellText(
                                     st == EntryStatus.open
-                                        ? 'Wildcard: Chance ${chanceLabel(r)}'
+                                        ? tr('Wildcard: Chance {0}', [
+                                            chanceLabel(r),
+                                          ])
                                         : st.label,
                                     color: _statusColor(st),
                                   );
                                 }, sortKey: (r) => status[r.info.id]!.index),
                                 Col(
-                                  'Fahrer',
+                                  tr('Fahrer'),
                                   66,
                                   (r, _) => cellText(
                                     status[r.info.id]!.starts
@@ -430,12 +441,14 @@ class _Detail extends StatelessWidget {
   final Widget? action;
 
   static String _kind(SimRoute r) => r.kind != StageKind.road
-      ? (r.kind == StageKind.teamTimeTrial ? 'Teamzeitfahren' : 'Zeitfahren')
+      ? (r.kind == StageKind.teamTimeTrial
+            ? tr('Teamzeitfahren')
+            : tr('Zeitfahren'))
       : r.sprintStage
-      ? 'Flach'
+      ? tr('Flach')
       : r.selectivity > 2500
-      ? 'Berg'
-      : 'Hügelig';
+      ? tr('Berg')
+      : tr('Hügelig');
 
   @override
   Widget build(BuildContext context) {
@@ -463,27 +476,30 @@ class _Detail extends StatelessWidget {
 
     final squad = s.squad..sort((a, b) => fit(b).compareTo(fit(a)));
     final explain = switch (status) {
-      EntryStatus.mandatory =>
+      EntryStatus.mandatory => tr(
         'WorldTeams müssen alle WorldTour-Rennen fahren.',
-      EntryStatus.entered => 'Das Team ist eingeladen und startet.',
-      EntryStatus.declined =>
+      ),
+      EntryStatus.entered => tr('Das Team ist eingeladen und startet.'),
+      EntryStatus.declined => tr(
         'Abgesagt. Bis zum Vortag des Starts lässt sich das zurücknehmen.',
-      EntryStatus.open =>
-        'Nicht eingeladen. Eine Bewerbung muss ${Entries.deadlineDays} Tage '
-            'vor dem Start eingehen; der Veranstalter antwortet nach zehn '
-            'Tagen. Es zählen Stärke des Teams, Rang des Rennens und '
-            'Heimvorteil.',
-      EntryStatus.pending =>
-        'Die Bewerbung liegt beim Veranstalter. Antwort am '
-            '${_d(career.entries.applications[id]!.answer)}',
-      EntryStatus.accepted => 'Wildcard erhalten, das Team startet.',
-      EntryStatus.rejected => 'Der Veranstalter hat abgelehnt.',
-      EntryStatus.closed => 'Ohne uns: Der Meldeschluss ist vorbei.',
+      ),
+      EntryStatus.open => tr(
+        'Nicht eingeladen. Eine Bewerbung muss {0} Tage vor dem Start eingehen; der Veranstalter antwortet nach zehn Tagen. Es zählen Stärke des Teams, Rang des Rennens und Heimvorteil.',
+        [Entries.deadlineDays],
+      ),
+      EntryStatus.pending => tr(
+        'Die Bewerbung liegt beim Veranstalter. Antwort am {0}',
+        [_d(career.entries.applications[id]!.answer)],
+      ),
+      EntryStatus.accepted => tr('Wildcard erhalten, das Team startet.'),
+      EntryStatus.rejected => tr('Der Veranstalter hat abgelehnt.'),
+      EntryStatus.closed => tr('Ohne uns: Der Meldeschluss ist vorbei.'),
       EntryStatus.ineligible =>
         race.tier == RaceTier.championship
-            ? 'Meisterschaft: Es starten Nationalauswahlen oder alle Fahrer '
-                  'des Landes; das Team meldet nicht.'
-            : 'Mit unserer Lizenz dürfen wir hier nicht starten.',
+            ? tr(
+                'Meisterschaft: Es starten Nationalauswahlen oder alle Fahrer des Landes; das Team meldet nicht.',
+              )
+            : tr('Mit unserer Lizenz dürfen wir hier nicht starten.'),
     };
 
     return Panel(
@@ -509,7 +525,7 @@ class _Detail extends StatelessWidget {
                         Expanded(
                           child: Text(
                             '${race.tier.label} · '
-                            '${race.isStageRace ? '${_d(race.start)} bis ${_d(race.end)}' : _d(race.start)} · '
+                            '${race.isStageRace ? tr('{0} bis {1}', [_d(race.start), _d(race.end)]) : _d(race.start)} · '
                             '${km.round()} km',
                             style: const TextStyle(color: TeamColors.muted),
                           ),
@@ -551,10 +567,10 @@ class _Detail extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                const Label('Fahrer einplanen'),
+                Label(tr('Fahrer einplanen')),
                 const Spacer(),
                 Text(
-                  '${planned.length} von $size',
+                  tr('{0} von {1}', [planned.length, size]),
                   style: TextStyle(
                     fontSize: 12,
                     color: planned.length >= size
@@ -587,8 +603,8 @@ class _Detail extends StatelessWidget {
                           : TeamColors.muted,
                     ),
                   ),
-                  Col('Fahrer', 150, (r, _) => cellText(r.name)),
-                  Col('Eignung', 70, (r, _) {
+                  Col(tr('Fahrer'), 150, (r, _) => cellText(r.name)),
+                  Col(tr('Eignung'), 70, (r, _) {
                     final v = fit(r);
                     return cellText(
                       v.round().toString(),
@@ -596,7 +612,7 @@ class _Detail extends StatelessWidget {
                       bold: v >= 72,
                     );
                   }, numeric: true),
-                  Col('Frische', 64, (r, _) {
+                  Col(tr('Frische'), 64, (r, _) {
                     final f = career.shapeOf(r.id).freshness;
                     return cellText(
                       f.round().toString(),
@@ -604,7 +620,7 @@ class _Detail extends StatelessWidget {
                     );
                   }, numeric: true),
                   Col(
-                    'Renntage',
+                    tr('Renntage'),
                     84,
                     (r, _) => cellText(
                       '${career.shapeOf(r.id).raceDays}',

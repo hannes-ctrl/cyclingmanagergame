@@ -6,6 +6,10 @@ import 'package:sim/sim.dart';
 
 import 'pcs.dart';
 
+/// Season of the world database: its calendar carries the routes of this
+/// year, earlier years come from the route variants.
+const currentSeason = 2026;
+
 /// A real race with route and start list, as the simulation needs it.
 class CalibrationCase {
   CalibrationCase(this.label, this.route, this.riders, this.realOrder,
@@ -28,6 +32,11 @@ class CalibrationCase {
   /// Real gap in the general classification before the stage per rider id;
   /// empty for one-day races and first stages.
   final Map<int, double> gcGaps;
+
+  /// Riding times of all real finishers, sorted ascending, whether they are
+  /// in the world database or not. The shape of the real race is measured on
+  /// these, so that a winner who has since retired still counts.
+  List<double> allTimes = const [];
 
   /// How the real race was decided according to ProCyclingStats, if known.
   String? wonHow;
@@ -109,6 +118,7 @@ String normalizeName(String name) {
 Dataset loadDataset(World world, String resultsDir, int year,
     {Map<String, String> exclude = const {}}) {
   final notes = <String>[];
+  final variants = <int, Map<int, int>>{};
   final byName = <String, SimRider>{};
   final byLastInitial = <String, List<SimRider>>{};
   final tokenSets = <(Set<String>, SimRider)>[];
@@ -173,7 +183,8 @@ Dataset loadDataset(World world, String resultsDir, int year,
     final real = RealResult.fromJson(
         jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
     final label = file.uri.pathSegments.last.replaceAll('.json', '');
-    if (exclude[label] case final reason?) {
+    if (exclude[year == currentSeason ? label : '$year/$label']
+        case final reason?) {
       notes.add('$label: ausgeschlossen ($reason)');
       continue;
     }
@@ -199,16 +210,30 @@ Dataset loadDataset(World world, String resultsDir, int year,
     final number = real.page == 'result' || real.page == 'prologue'
         ? 1
         : int.parse(real.page.split('-').last) + offset;
-    final stage = world.stageNumber(real.raceId, number);
-    if (stage == null) {
-      notes.add('$label: keine Etappe $number in der Datenbank');
-      continue;
+    // The current season uses the routes of the calendar; earlier seasons
+    // the route files of their year.
+    final int routeId;
+    if (year == currentSeason) {
+      final stage = world.stageNumber(real.raceId, number);
+      if (stage == null) {
+        notes.add('$label: keine Etappe $number in der Datenbank');
+        continue;
+      }
+      if (stage.variant != '$year') {
+        notes.add('$label: Strecke nur im Jahrgang ${stage.variant}');
+        continue;
+      }
+      routeId = stage.id;
+    } else {
+      final id = (variants[real.raceId] ??=
+          world.variantStages(real.raceId, year))[number];
+      if (id == null) {
+        notes.add('$label: keine Strecke des Jahrgangs $year');
+        continue;
+      }
+      routeId = id;
     }
-    if (stage.variant != '$year') {
-      notes.add('$label: Strecke nur im Jahrgang ${stage.variant}');
-      continue;
-    }
-    final route = world.route(stage.id);
+    final route = world.route(routeId);
     if (route.kind == StageKind.teamTimeTrial) {
       notes.add('$label: Teamzeitfahren');
       continue;
@@ -233,14 +258,16 @@ Dataset loadDataset(World world, String resultsDir, int year,
       notes.add('$label: nur ${riders.length} Fahrer zugeordnet');
       continue;
     }
-    // A race is only scored if the real winner is in the field.
+    // Who won does not matter for the calibration, so the winner need not
+    // be in the database; the shape of the race comes from all finishers.
     final winner = real.rows.first;
-    if (match(winner.name)?.id != order.first) {
-      notes.add('$label: Sieger ${winner.name} nicht in der Datenbank');
-      continue;
-    }
+    final allTimes = [
+      for (final row in real.rows)
+        if (row.rank != null && row.timeS != null) row.timeS!,
+    ]..sort();
+    if (allTimes.isEmpty) continue;
     // Shortened or rerouted stages do not match the route in the database.
-    final kmh = route.raceKm / (times.first / 3600);
+    final kmh = route.raceKm / (allTimes.first / 3600);
     final plausible = route.kind == StageKind.road
         ? kmh > 30 && kmh < 53
         : kmh > 35 && kmh < 62;
@@ -249,9 +276,10 @@ Dataset loadDataset(World world, String resultsDir, int year,
           '$label: Schnitt ${kmh.toStringAsFixed(1)} km/h passt nicht zur Strecke');
       continue;
     }
-    cases.add(CalibrationCase(
-        label, route, riders, order, times, winner.inBreak, gcGaps)
-      ..wonHow = real.wonHow);
+    cases.add(CalibrationCase(year == currentSeason ? label : '$year/$label',
+        route, riders, order, times, winner.inBreak, gcGaps)
+      ..wonHow = real.wonHow
+      ..allTimes = allTimes);
   }
   notes.add('$unmatched von $rows Fahrern im Ziel nicht zugeordnet '
       '(${(100 * unmatched / max(rows, 1)).toStringAsFixed(1)} %)');

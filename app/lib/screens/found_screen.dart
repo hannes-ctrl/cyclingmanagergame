@@ -20,8 +20,11 @@ enum _Pool {
   under23('U23'),
   free('Vereinslos');
 
-  const _Pool(this.label);
-  final String label;
+  const _Pool(this._label);
+  final String _label;
+
+  /// The label in the current language.
+  String get label => tr(_label);
 }
 
 /// Opens the team builder: set name and colours and assemble the squad from
@@ -66,7 +69,8 @@ class _FoundScreenState extends State<FoundScreen> {
     _riders = world.riders()
       ..sort((a, b) => Economy.rating(b).compareTo(Economy.rating(a)));
     _names = {
-      for (final r in world.allRiders()) r.rider.id: '${r.last} ${r.first}',
+      for (final r in world.allRiders())
+        r.rider.id: '${r.first} ${r.last}'.trim(),
     };
     _teams = {for (final t in world.teams()) t.id: t};
     _rules = FoundingRules(world.teams(), _riders);
@@ -194,7 +198,7 @@ class _FoundScreenState extends State<FoundScreen> {
       ),
     );
 
-    String one(double v) => v.toStringAsFixed(1).replaceAll('.', ',');
+    String one(double v) => dec(v);
 
     return Scaffold(
       body: Column(
@@ -208,22 +212,22 @@ class _FoundScreenState extends State<FoundScreen> {
             ),
             child: Row(
               children: [
-                const Text(
-                  'Eigenes Team gründen',
+                Text(
+                  tr('Eigenes Team gründen'),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(width: 16),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Beginnt eine neue Karriere am 1. Januar. Gewählte Fahrer '
-                    'wechseln sofort; ihre alten Teams füllen aus den '
-                    'Vereinslosen auf.',
+                    tr(
+                      'Beginnt eine neue Karriere am 1. Januar. Gewählte Fahrer wechseln sofort; ihre alten Teams füllen aus den Vereinslosen auf.',
+                    ),
                     style: TextStyle(fontSize: 12, color: TeamColors.muted),
                   ),
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Abbrechen'),
+                  child: Text(tr('Abbrechen')),
                 ),
               ],
             ),
@@ -246,21 +250,11 @@ class _FoundScreenState extends State<FoundScreen> {
                               for (final p in _Pool.values)
                                 Padding(
                                   padding: const EdgeInsets.only(right: 6),
-                                  child: ChoiceChip(
-                                    label: Text(p.label),
+                                  child: Pill(
+                                    label: p.label,
                                     selected: _pool == p,
-                                    showCheckmark: false,
-                                    selectedColor: TeamColors.text,
-                                    backgroundColor: c.panel,
-                                    side: BorderSide(color: c.line),
-                                    labelStyle: TextStyle(
-                                      fontSize: 13,
-                                      color: _pool == p
-                                          ? TeamColors.ground
-                                          : TeamColors.text,
-                                    ),
-                                    onSelected: (_) =>
-                                        setState(() => _pool = p),
+                                    colors: c,
+                                    onTap: () => setState(() => _pool = p),
                                   ),
                                 ),
                               const Spacer(),
@@ -270,8 +264,10 @@ class _FoundScreenState extends State<FoundScreen> {
                                 child: TextField(
                                   key: const ValueKey('suche'),
                                   style: const TextStyle(fontSize: 13),
-                                  decoration: field('Name oder Teamkürzel …')
-                                      .copyWith(
+                                  decoration:
+                                      field(
+                                        tr('Name oder Teamkürzel …'),
+                                      ).copyWith(
                                         contentPadding: const EdgeInsets.all(8),
                                       ),
                                   onChanged: (v) =>
@@ -302,10 +298,10 @@ class _FoundScreenState extends State<FoundScreen> {
                                   ),
                                 ),
                                 Col(
-                                  'Fahrer',
+                                  tr('Fahrer'),
                                   190,
                                   (r, _) => cellText(_names[r.id] ?? r.name),
-                                  sortKey: (r) => _names[r.id] ?? r.name,
+                                  sortKey: (r) => r.lastName,
                                 ),
                                 Col(
                                   'Team',
@@ -320,26 +316,26 @@ class _FoundScreenState extends State<FoundScreen> {
                                   sortKey: (r) => r.team,
                                 ),
                                 Col(
-                                  'Land',
+                                  tr('Land'),
                                   70,
                                   (r, _) => flagCell(r.country),
                                   sortKey: (r) => r.country,
                                 ),
                                 Col(
-                                  'Alter',
+                                  tr('Alter'),
                                   54,
                                   (r, _) =>
                                       cellText('${year - r.born ~/ 10000}'),
                                   numeric: true,
                                   sortKey: (r) => -r.born,
                                 ),
-                                value('Stärke', Economy.rating),
+                                value(tr('Stärke'), Economy.rating),
                                 value('FL', (r) => r.attributes.flat),
-                                value('BG', (r) => r.attributes.mountain),
-                                value('HÜ', (r) => r.attributes.hill),
-                                value('ZF', (r) => r.attributes.timeTrial),
-                                value('KO', (r) => r.attributes.cobble),
-                                value('SP', (r) => r.attributes.sprint),
+                                value(tr('BG'), (r) => r.attributes.mountain),
+                                value(tr('HÜ'), (r) => r.attributes.hill),
+                                value(tr('ZF'), (r) => r.attributes.timeTrial),
+                                value(tr('KO'), (r) => r.attributes.cobble),
+                                value(tr('SP'), (r) => r.attributes.sprint),
                                 Col(
                                   'Pot.',
                                   44,
@@ -353,7 +349,7 @@ class _FoundScreenState extends State<FoundScreen> {
                                   sortKey: (r) => r.potential,
                                 ),
                                 Col(
-                                  'Gehalt',
+                                  tr('Gehalt'),
                                   76,
                                   (r, _) => cellText(euro(eco.marketWage(r))),
                                   numeric: true,
@@ -363,8 +359,10 @@ class _FoundScreenState extends State<FoundScreen> {
                             ),
                           ),
                           Text(
-                            '${rows.length} Fahrer · Klick wählt aus oder ab · '
-                            'Spaltenkopf sortiert',
+                            tr(
+                              '{0} Fahrer · Klick wählt aus oder ab · Spaltenkopf sortiert',
+                              [rows.length],
+                            ),
                             style: const TextStyle(
                               fontSize: 12,
                               color: TeamColors.muted,
@@ -392,7 +390,7 @@ class _FoundScreenState extends State<FoundScreen> {
                                   key: const ValueKey('name'),
                                   controller: _name,
                                   maxLength: 34,
-                                  decoration: field('Teamname'),
+                                  decoration: field(tr('Teamname')),
                                   onChanged: (_) => setState(() {}),
                                 ),
                               ),
@@ -402,7 +400,7 @@ class _FoundScreenState extends State<FoundScreen> {
                                   key: const ValueKey('kuerzel'),
                                   controller: _abbr,
                                   maxLength: 3,
-                                  decoration: field('Kürzel'),
+                                  decoration: field(tr('Kürzel')),
                                   onChanged: (_) => setState(() {}),
                                 ),
                               ),
@@ -436,17 +434,20 @@ class _FoundScreenState extends State<FoundScreen> {
                           ),
                           Divider(height: 20, color: c.line),
                           fact(
-                            'Fahrer',
-                            '${picked.length} (${FoundingRules.minRiders} bis '
-                                '${FoundingRules.maxRiders})',
+                            tr('Fahrer'),
+                            tr('{0} ({1} bis {2})', [
+                              picked.length,
+                              FoundingRules.minRiders,
+                              FoundingRules.maxRiders,
+                            ]),
                             color: enough ? TeamColors.green : TeamColors.gold,
                           ),
                           fact(
-                            'Stärke (Mittel der besten acht)',
+                            tr('Stärke (Mittel der besten acht)'),
                             picked.isEmpty ? '–' : one(strength),
                           ),
                           fact(
-                            'Lizenz',
+                            tr('Lizenz'),
                             FoundingRules.label(division),
                             color: division.startsWith('[1]')
                                 ? TeamColors.gold
@@ -455,26 +456,27 @@ class _FoundScreenState extends State<FoundScreen> {
                                 : TeamColors.text,
                           ),
                           Text(
-                            'WorldTeam ab ${one(_rules.worldTour)}, ProTeam ab '
-                            '${one(_rules.pro)}: so stark sind die '
-                            'schwächsten Teams dieser Lizenzen.',
+                            tr(
+                              'WorldTeam ab {0}, ProTeam ab {1}: so stark sind die schwächsten Teams dieser Lizenzen.',
+                              [one(_rules.worldTour), one(_rules.pro)],
+                            ),
                             style: const TextStyle(
                               fontSize: 12,
                               color: TeamColors.muted,
                             ),
                           ),
-                          fact('Gehälter im Jahr', '${euro(wages)} €'),
+                          fact(tr('Gehälter im Jahr'), '${euro(wages)} €'),
                           fact(
-                            'Sponsorengeld im Jahr',
+                            tr('Sponsorengeld im Jahr'),
                             '${euro(wages * 1.45 < 1000000 ? 1000000 : wages * 1.45)} €',
                           ),
                           Divider(height: 20, color: c.line),
-                          const Label('Kader'),
+                          Label(tr('Kader')),
                           const SizedBox(height: 4),
                           Expanded(
                             child: picked.isEmpty
-                                ? const Text(
-                                    'Wähle links mindestens 16 Fahrer.',
+                                ? Text(
+                                    tr('Wähle links mindestens 16 Fahrer.'),
                                     style: TextStyle(color: TeamColors.muted),
                                   )
                                 : ListView(
@@ -536,9 +538,10 @@ class _FoundScreenState extends State<FoundScreen> {
                                           );
                                           Navigator.pop(context);
                                         },
-                                  child: const Text(
-                                    'Ohne Auswahl: Continental-Team '
-                                    'aus Vereinslosen',
+                                  child: Text(
+                                    tr(
+                                      'Ohne Auswahl: Continental-Team aus Vereinslosen',
+                                    ),
                                     style: TextStyle(fontSize: 12),
                                   ),
                                 ),
@@ -562,7 +565,7 @@ class _FoundScreenState extends State<FoundScreen> {
                                         );
                                         Navigator.pop(context);
                                       },
-                                child: const Text('TEAM GRÜNDEN'),
+                                child: Text(tr('TEAM GRÜNDEN')),
                               ),
                             ],
                           ),

@@ -1,3 +1,4 @@
+import 'package:sim/sim.dart';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
@@ -6,7 +7,7 @@ import '../ui.dart';
 const _weekdays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
 String _long(DateTime d) =>
-    '${_weekdays[d.weekday - 1]}, ${d.day.toString().padLeft(2, '0')}.'
+    '${tr(_weekdays[d.weekday - 1])}, ${d.day.toString().padLeft(2, '0')}.'
     '${d.month.toString().padLeft(2, '0')}.${d.year}';
 
 /// Opens a small calendar to let the days run up to a chosen date.
@@ -73,10 +74,10 @@ class _SimulateDialogState extends State<_SimulateDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Simulieren bis …', style: headStyle(22)),
+              Text(tr('Simulieren bis …'), style: headStyle(22)),
               const SizedBox(height: 2),
               Text(
-                'Heute ist ${_long(s.career.today)}.',
+                tr('Heute ist {0}.', [_long(s.career.today)]),
                 style: const TextStyle(color: TeamColors.muted),
               ),
               Theme(
@@ -108,12 +109,13 @@ class _SimulateDialogState extends State<_SimulateDialog> {
                       checkColor: c.onAccent,
                       onChanged: (v) => setState(() => _auto = v ?? false),
                     ),
-                    const Expanded(
+                    Expanded(
                       child: Padding(
                         padding: EdgeInsets.only(top: 6),
                         child: Text(
-                          'Ohne Halt: Der Sportliche Leiter stellt bis dahin '
-                          'die Aufgebote auf und entscheidet im Rennen selbst.',
+                          tr(
+                            'Ohne Halt: Der Sportliche Leiter stellt bis dahin die Aufgebote auf und entscheidet im Rennen selbst.',
+                          ),
                         ),
                       ),
                     ),
@@ -121,11 +123,12 @@ class _SimulateDialogState extends State<_SimulateDialog> {
                 ),
               ),
               if (!_auto)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(left: 48, top: 2),
                   child: Text(
-                    'Sonst hält die Simulation an, sobald ein Aufgebot oder '
-                    'eine Funkantwort gebraucht wird.',
+                    tr(
+                      'Sonst hält die Simulation an, sobald ein Aufgebot oder eine Funkantwort gebraucht wird.',
+                    ),
                     style: TextStyle(fontSize: 12, color: TeamColors.muted),
                   ),
                 ),
@@ -134,7 +137,7 @@ class _SimulateDialogState extends State<_SimulateDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Abbrechen'),
+                    child: Text(tr('Abbrechen')),
                   ),
                   const Spacer(),
                   FilledButton(
@@ -156,8 +159,11 @@ class _SimulateDialogState extends State<_SimulateDialog> {
                             s.simulateUntil(_target, auto: _auto);
                           },
                     child: Text(
-                      'BIS ${_long(_target).substring(4, 10)} · '
-                      '$days ${days == 1 ? 'TAG' : 'TAGE'}',
+                      tr('BIS {0} · {1} {2}', [
+                        _long(_target).substring(4, 10),
+                        days,
+                        days == 1 ? tr('TAG') : tr('TAGE'),
+                      ]),
                       style: const TextStyle(
                         fontFamily: headFont,
                         fontSize: 15,

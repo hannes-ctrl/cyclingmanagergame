@@ -108,7 +108,7 @@ void main(List<String> args) {
     ..delegation.scouting = true;
   final dev = career.devTeam;
   print('\nNachwuchsteam: ${dev.team?.name} (${dev.squad.length} Fahrer); '
-      'Vorschläge: ${dev.candidates().take(3).map((t) => t.name).join(' | ')}');
+      '${dev.links.length} Partnerschaften');
   for (var y = 0; y < years; y++) {
     final watch = Stopwatch()..start();
     var promoted = false;

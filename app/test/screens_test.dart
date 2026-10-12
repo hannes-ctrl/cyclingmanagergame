@@ -10,11 +10,14 @@ import 'package:game/game.dart';
 import 'package:radmanager/app_state.dart';
 import 'package:radmanager/main.dart';
 import 'package:radmanager/settings.dart';
+import 'package:sim/sim.dart';
 
 void main() {
   final dataDir = AppState.findDataDir();
 
   setUpAll(() async {
+    // The screens are checked in German; one test below switches to English.
+    I18n.lang = Lang.de;
     // The app's own fonts and the icon font of the lucide package.
     Future<void> load(String family, List<String> paths) async {
       final loader = FontLoader(family);
@@ -97,6 +100,77 @@ void main() {
     await tester.tap(find.text('Hauptmenü'));
     await tester.pumpAndSettle();
     expect(find.text('FORTSETZEN'), findsOneWidget);
+  });
+
+  testWidgets('Debug und Fahrersuche', skip: dataDir == null, (tester) async {
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final state = AppState(dataDir!, persist: false);
+    final settings = AppSettings(dataDir, persist: false)..debug = true;
+    await tester.pumpWidget(RadmanagerApp(state: state, settings: settings));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Debug').first);
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/debug.png'),
+    );
+    // In debug mode every rider is known exactly: no ranges in the search.
+    await tester.tap(find.text('Fahrersuche').first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('–8'), findsNothing);
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/fahrersuche_debug.png'),
+    );
+    // Without debug mode the page is gone and other teams show ranges.
+    settings.debug = false;
+    await tester.pumpAndSettle();
+    expect(find.text('Debug'), findsNothing);
+    await tester.tap(find.text('Fahrersuche').first);
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/fahrersuche.png'),
+    );
+  });
+
+  testWidgets('Englisch', skip: dataDir == null, (tester) async {
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    I18n.lang = Lang.en;
+    addTearDown(() => I18n.lang = Lang.de);
+
+    final state = AppState(dataDir!, persist: false);
+    await tester.pumpWidget(RadmanagerApp(state: state));
+    await tester.pumpAndSettle();
+    expect(find.text('Home'), findsWidgets);
+    for (var i = 0; i < 4; i++) {
+      await tester.runAsync(state.next);
+      await tester.pumpAndSettle();
+      if (state.pending != null) break;
+    }
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/en_start.png'),
+    );
+    for (final (page, file) in [
+      ('Squad', 'en_squad'),
+      ('Race planner', 'en_planner'),
+      ('Inbox', 'en_inbox'),
+      ('Transfers', 'en_transfers'),
+      ('Finances and goals', 'en_finance'),
+    ]) {
+      await tester.tap(find.text(page).first);
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/$file.png'),
+      );
+    }
   });
 
   testWidgets('Kader und Rennbericht', skip: dataDir == null, (tester) async {

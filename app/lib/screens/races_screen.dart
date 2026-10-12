@@ -112,7 +112,7 @@ class _RacesScreenState extends State<RacesScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(10, 10, 10, 4),
                 child: SearchBox(
-                  hint: 'Rennen oder Land',
+                  hint: tr('Rennen oder Land'),
                   colors: c,
                   width: null,
                   onChanged: (v) => setState(() => _filter = v),
@@ -123,14 +123,14 @@ class _RacesScreenState extends State<RacesScreen> {
                 child: Row(
                   children: [
                     Pill(
-                      label: 'Alle Rennen',
+                      label: tr('Alle Rennen'),
                       selected: !_onlyOwn,
                       colors: c,
                       onTap: () => setState(() => _onlyOwn = false),
                     ),
                     const SizedBox(width: 6),
                     Pill(
-                      label: 'Nur unsere',
+                      label: tr('Nur unsere'),
                       selected: _onlyOwn,
                       colors: c,
                       onTap: () => setState(() => _onlyOwn = true),
@@ -146,7 +146,7 @@ class _RacesScreenState extends State<RacesScreen> {
                     if (e is String) {
                       return Padding(
                         padding: const EdgeInsets.fromLTRB(14, 12, 8, 4),
-                        child: Label('$e · ${byGroup[e]!.length}'),
+                        child: Label('${tr(e)} · ${byGroup[e]!.length}'),
                       );
                     }
                     final race = e as RaceInfo;
@@ -184,7 +184,7 @@ class _RacesScreenState extends State<RacesScreen> {
                               Padding(
                                 padding: const EdgeInsets.only(right: 6),
                                 child: Text(
-                                  p.finished ? 'beendet' : 'läuft',
+                                  p.finished ? tr('beendet') : tr('läuft'),
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: p.finished
@@ -212,7 +212,7 @@ class _RacesScreenState extends State<RacesScreen> {
         ),
         Expanded(
           child: _race == null
-              ? const Center(child: Text('Links ein Rennen wählen'))
+              ? Center(child: Text(tr('Links ein Rennen wählen')))
               : _RaceDetail(
                   key: ValueKey(_race!.id),
                   state: s,
@@ -273,9 +273,13 @@ class _RaceDetail extends StatelessWidget {
                         Flag(race.country, width: 18),
                         const SizedBox(width: 6),
                         Text(
-                          '${_groupOf(race)} · '
-                          '${stages.length > 1 ? '${stages.length} Etappen' : 'Eintagesrennen'} · '
-                          'ab ${_date(race.startDay, race.startMonth)}',
+                          tr('{0} · {1} · ab {2}', [
+                            tr(_groupOf(race)),
+                            stages.length > 1
+                                ? tr('{0} Etappen', [stages.length])
+                                : tr('Eintagesrennen'),
+                            _date(race.startDay, race.startMonth),
+                          ]),
                           style: const TextStyle(color: TeamColors.muted),
                         ),
                       ],
@@ -305,7 +309,7 @@ class _RaceDetail extends StatelessWidget {
                   onPressed: state.busy
                       ? null
                       : () => showWhatIfDialog(context, state, p, index),
-                  child: const Text('Was wäre wenn?'),
+                  child: Text(tr('Was wäre wenn?')),
                 ),
                 const SizedBox(width: 10),
               ],
@@ -328,7 +332,7 @@ class _RaceDetail extends StatelessWidget {
                   onPressed: state.busy
                       ? null
                       : () => showTacticsDialog(context, state, p),
-                  child: const Text('Taktik für die nächste Etappe'),
+                  child: Text(tr('Taktik für die nächste Etappe')),
                 ),
                 const SizedBox(width: 10),
               ],
@@ -387,7 +391,10 @@ class _RaceDetail extends StatelessWidget {
                     Expanded(
                       child: Text(
                         stages.length > 1
-                            ? 'Etappe ${stages[index].number} · ${route.name}'
+                            ? tr('Etappe {0} · {1}', [
+                                stages[index].number,
+                                route.name,
+                              ])
                             : route.name,
                         style: const TextStyle(
                           fontSize: 15,
@@ -396,12 +403,18 @@ class _RaceDetail extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '${route.raceKm.toStringAsFixed(1)} km · ${meters.round()} Hm · '
-                      '${switch (route.kind) {
-                        StageKind.road => route.sprintStage ? 'Flachetappe' : 'Straßenrennen',
-                        StageKind.timeTrial => 'Einzelzeitfahren',
-                        StageKind.teamTimeTrial => 'Teamzeitfahren',
-                      }}',
+                      tr('{0} km · {1} Hm · {2}', [
+                        route.raceKm.toStringAsFixed(1),
+                        meters.round(),
+                        switch (route.kind) {
+                          StageKind.road =>
+                            route.sprintStage
+                                ? tr('Flachetappe')
+                                : tr('Straßenrennen'),
+                          StageKind.timeTrial => tr('Einzelzeitfahren'),
+                          StageKind.teamTimeTrial => tr('Teamzeitfahren'),
+                        },
+                      ]),
                       style: const TextStyle(color: TeamColors.muted),
                     ),
                   ],
@@ -417,16 +430,17 @@ class _RaceDetail extends StatelessWidget {
                 ? Center(
                     child: Text(
                       busy
-                          ? 'Das Rennen wird gerechnet …'
-                          : 'Noch nicht gefahren. Ergebnis, Bericht und Wertungen '
-                                'erscheinen hier nach dem Rennen.',
+                          ? tr('Das Rennen wird gerechnet …')
+                          : tr(
+                              'Noch nicht gefahren. Ergebnis, Bericht und Wertungen erscheinen hier nach dem Rennen.',
+                            ),
                       style: const TextStyle(color: TeamColors.muted),
                     ),
                   )
                 : index >= run.result.stages.length
-                ? const Center(
+                ? Center(
                     child: Text(
-                      'Diese Etappe ist noch nicht gefahren.',
+                      tr('Diese Etappe ist noch nicht gefahren.'),
                       style: TextStyle(color: TeamColors.muted),
                     ),
                   )
@@ -447,8 +461,11 @@ enum _Tab {
   youth('Nachwuchs', Colors.white),
   teams('Teams', TeamColors.muted);
 
-  const _Tab(this.label, this.jersey);
-  final String label;
+  const _Tab(this._label, this.jersey);
+  final String _label;
+
+  /// The label in the current language.
+  String get label => tr(_label);
   final Color? jersey;
 }
 
@@ -458,8 +475,11 @@ enum _Side {
   course('Verlauf'),
   team('Unser Team');
 
-  const _Side(this.label);
-  final String label;
+  const _Side(this._label);
+  final String _label;
+
+  /// The label in the current language.
+  String get label => tr(_label);
 }
 
 /// Result of a stage: the course of the race on the left, the
@@ -506,7 +526,7 @@ class _ReportState extends State<_Report> {
       numeric: true,
     );
     Col<T> rider<T>(SimRider Function(T) of) =>
-        Col('Fahrer', 200, (r, _) => cellText(of(r).name));
+        Col(tr('Fahrer'), 200, (r, _) => cellText(of(r).name));
     Col<T> team<T>(SimRider Function(T) of) => Col(
       'Team',
       60,
@@ -523,7 +543,7 @@ class _ReportState extends State<_Report> {
           rider((p) => p.rider),
           team((p) => p.rider),
           Col(
-            'Zeit',
+            tr('Zeit'),
             90,
             (p, i) => cellText(
               i == 0
@@ -548,7 +568,7 @@ class _ReportState extends State<_Report> {
             rider((e) => e.rider),
             team((e) => e.rider),
             Col(
-              'Zeit',
+              tr('Zeit'),
               90,
               (e, i) => cellText(
                 i == 0 ? clock(e.timeS) : gap(e.timeS - rows.first.timeS),
@@ -566,7 +586,12 @@ class _ReportState extends State<_Report> {
           place(),
           rider((e) => e.rider),
           team((e) => e.rider),
-          Col('Punkte', 70, (e, _) => cellText('${e.points}'), numeric: true),
+          Col(
+            tr('Punkte'),
+            70,
+            (e, _) => cellText('${e.points}'),
+            numeric: true,
+          ),
         ],
       ),
       _Tab.teams => DenseTable<TeamEntry>(
@@ -583,7 +608,7 @@ class _ReportState extends State<_Report> {
             return cellText(name ?? e.team);
           }),
           Col(
-            'Zeit',
+            tr('Zeit'),
             100,
             (e, i) => cellText(
               i == 0
@@ -670,7 +695,7 @@ class _ReportState extends State<_Report> {
                       ],
                       if (side == _Side.course &&
                           result.timeline.length > 1) ...[
-                        const Label('Abstände im Rennen'),
+                        Label(tr('Abstände im Rennen')),
                         const SizedBox(height: 6),
                         RaceChart(
                           result: result,
@@ -687,7 +712,7 @@ class _ReportState extends State<_Report> {
                       ],
                       if (side == _Side.course) ...[
                         const SizedBox(height: 14),
-                        const Label('Ereignisse'),
+                        Label(tr('Ereignisse')),
                         const SizedBox(height: 4),
                       ],
                       if (side == _Side.course)
@@ -729,7 +754,7 @@ class _ReportState extends State<_Report> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (single)
-                  const Label('Ergebnis')
+                  Label(tr('Ergebnis'))
                 else
                   Wrap(
                     spacing: 6,

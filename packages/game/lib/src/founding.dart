@@ -67,5 +67,5 @@ class FoundingRules {
       ? 'WorldTeam'
       : division.startsWith('[2]')
           ? 'ProTeam'
-          : 'Continental-Team';
+          : tr('Continental-Team');
 }

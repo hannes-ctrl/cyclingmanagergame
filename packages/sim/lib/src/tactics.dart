@@ -1,3 +1,4 @@
+import 'i18n.dart';
 import 'model.dart';
 import 'stage_sim.dart' show suitability;
 
@@ -32,8 +33,11 @@ enum Role {
   /// Decides for himself as the race unfolds.
   freeRole('Freie Rolle');
 
-  const Role(this.label);
-  final String label;
+  const Role(this._label);
+  final String _label;
+
+  /// The label in the current language.
+  String get label => tr(_label);
 
   /// Riders who ride for themselves and may attack.
   bool get ridesForHimself =>

@@ -50,8 +50,17 @@ Future<void> main(List<String> argv) async {
   tuningFile.parent.createSync(recursive: true);
 
   final world = World('${root}world.sqlite');
-  final data = loadDataset(world, '${root}results/$year', year,
-      exclude: loadExclusions('${root}calibration/exclude.txt'));
+  // All seasons with stored results: the current one and those since 2021.
+  final exclude = loadExclusions('${root}calibration/exclude.txt');
+  final parts = [
+    for (var y = 2021; y <= year; y++)
+      if (Directory('${root}results/$y').existsSync())
+        loadDataset(world, '${root}results/$y', y, exclude: exclude),
+  ];
+  final data = Dataset(
+    [for (final p in parts) ...p.cases],
+    [for (final p in parts) ...p.notes],
+  );
   world.close();
   final byType = <String, int>{};
   for (final c in data.cases) {
@@ -147,14 +156,12 @@ void _report(Evaluation e) {
   stdout.writeln('\nGesamtfehler ${f(e.loss, 4)}  (kleiner ist besser)');
   stdout.writeln('  je Rennen ${f(e.caseLoss, 3)}: '
       'Renngestalt ${f(avg(e.scores.map((x) => x.shapeTerm)), 3)}, '
-      'Tempo ${f(avg(e.scores.map((x) => x.speedTerm)), 3)}, '
-      'Ausreißer ${f(avg(e.scores.map((x) => x.breakTerm)), 3)}, '
-      'Rennausgang ${f(avg(e.scores.map((x) => x.finishTerm)), 3)}'
+      'Tempo ${f(avg(e.scores.map((x) => x.speedTerm)), 3)}'
       ' (Renngestalt und Tempo zusammen je Rennen gedeckelt)');
   stdout.writeln('  Häufigkeiten je Renntyp ${f(e.frequencyLoss, 3)}\n');
   stdout.writeln(
       '                     Rennen   1. Gruppe      Abstand Pl. 10   Abstand Mitte    '
-      'Schnitt km/h     Ausreißersiege   Sieger in Top 3 / Top 10 (nur zur Info)');
+      'Schnitt km/h     Ausreißersiege und Sieger in Top 3 / Top 10 (beides nur zur Info)');
   stdout.writeln(
       '                              echt   Sim     echt    Sim      echt    Sim      '
       'echt   Sim      echt   Sim');
@@ -178,7 +185,7 @@ void _report(Evaluation e) {
   // How the race was decided: real field from ProCyclingStats against the
   // share of simulation runs.
   stdout.writeln(
-      '\nWie das Rennen entschieden wurde (echt / Simulation, Anteil in %):');
+      '\nGröße der Siegergruppe (echt / Simulation, Anteil in %):');
   stdout.writeln('                     Rennen   ${[
     for (final k in FinishKind.road) k.label.padRight(17)
   ].join()}Solo echt: Median km');
@@ -186,16 +193,14 @@ void _report(Evaluation e) {
     final s = e.scores
         .where((x) =>
             (type == 'alle' ? x.type != 'Zeitfahren' : x.type == type) &&
-            FinishKind.parse(x.wonHow) != null &&
+            x.realKind != null &&
             x.finishShares.isNotEmpty)
         .toList();
     if (s.isEmpty) continue;
     final cells = <String>[];
     for (var k = 0; k < FinishKind.road.length; k++) {
-      final real = s
-              .where((x) => FinishKind.parse(x.wonHow) == FinishKind.road[k])
-              .length /
-          s.length;
+      final real =
+          s.where((x) => x.realKind == FinishKind.road[k]).length / s.length;
       final sim = avg(s.map((x) => x.finishShares[k]));
       cells.add('${f(100 * real, 0).padLeft(3)} / ${f(100 * sim, 0).padLeft(3)}'
           .padRight(17));

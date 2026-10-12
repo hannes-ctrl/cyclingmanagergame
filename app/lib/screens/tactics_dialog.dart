@@ -3,6 +3,7 @@ import 'package:game/game.dart';
 import 'package:sim/sim.dart';
 
 import '../app_state.dart';
+import '../ui.dart';
 import '../widgets.dart';
 
 const _approachLabels = {
@@ -104,18 +105,11 @@ class _TacticsDialogState extends State<_TacticsDialog> {
           runSpacing: 6,
           children: [
             for (final e in labels.entries)
-              ChoiceChip(
-                label: Text(e.value),
+              Pill(
+                label: tr(e.value),
                 selected: e.key == current,
-                showCheckmark: false,
-                selectedColor: TeamColors.text,
-                backgroundColor: c.panel,
-                side: BorderSide(color: c.line),
-                labelStyle: TextStyle(
-                  fontSize: 13,
-                  color: e.key == current ? TeamColors.ground : TeamColors.text,
-                ),
-                onSelected: (_) => setState(() => onPick(e.key)),
+                colors: c,
+                onTap: () => setState(() => onPick(e.key)),
               ),
           ],
         ),
@@ -137,7 +131,7 @@ class _TacticsDialogState extends State<_TacticsDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Taktik ab Etappe ${p.stagesDone + 1}',
+                tr('Taktik ab Etappe {0}', [p.stagesDone + 1]),
                 style: const TextStyle(
                   fontSize: 19,
                   fontWeight: FontWeight.w600,
@@ -151,9 +145,10 @@ class _TacticsDialogState extends State<_TacticsDialog> {
               const SizedBox(height: 4),
               Text(
                 s.career.ownPlans.containsKey(raceId)
-                    ? 'Es gilt deine eigene Taktik.'
-                    : 'Bisher plant der Sportliche Leiter jede Etappe selbst. '
-                          'Das ist sein Vorschlag für die nächste.',
+                    ? tr('Es gilt deine eigene Taktik.')
+                    : tr(
+                        'Bisher plant der Sportliche Leiter jede Etappe selbst. Das ist sein Vorschlag für die nächste.',
+                      ),
                 style: const TextStyle(fontSize: 12, color: TeamColors.muted),
               ),
               const SizedBox(height: 10),
@@ -192,14 +187,14 @@ class _TacticsDialogState extends State<_TacticsDialog> {
                       ),
                     const SizedBox(height: 10),
                     choice(
-                      'Rennverlauf',
+                      tr('Rennverlauf'),
                       _approachLabels,
                       _approach,
                       (v) => _approach = v,
                     ),
                     const SizedBox(height: 8),
                     choice(
-                      'Ausreißergruppe',
+                      tr('Ausreißergruppe'),
                       _breakLabels,
                       _breakPolicy,
                       (v) => _breakPolicy = v,
@@ -213,7 +208,7 @@ class _TacticsDialogState extends State<_TacticsDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Abbrechen'),
+                    child: Text(tr('Abbrechen')),
                   ),
                   const SizedBox(width: 6),
                   OutlinedButton(
@@ -221,7 +216,7 @@ class _TacticsDialogState extends State<_TacticsDialog> {
                       s.setPlan(raceId, null);
                       Navigator.pop(context);
                     },
-                    child: const Text('Sportlicher Leiter entscheidet'),
+                    child: Text(tr('Sportlicher Leiter entscheidet')),
                   ),
                   const SizedBox(width: 6),
                   FilledButton(
@@ -240,7 +235,7 @@ class _TacticsDialogState extends State<_TacticsDialog> {
                       );
                       Navigator.pop(context);
                     },
-                    child: const Text('Übernehmen'),
+                    child: Text(tr('Übernehmen')),
                   ),
                 ],
               ),

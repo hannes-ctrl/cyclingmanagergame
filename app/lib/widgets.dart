@@ -22,13 +22,13 @@ String clock(double seconds) {
 /// @param v Amount in euros.
 /// @returns E.g. "1,25 Mio." or "180 T".
 String euro(num v) => v.abs() >= 1000000
-    ? '${(v / 1000000).toStringAsFixed(2).replaceAll('.', ',')} Mio.'
+    ? tr('{0} Mio.', [dec(v / 1000000, 2)])
     : '${(v / 1000).round()} T';
 
 /// @param seconds Gap to the first rider.
 /// @returns "gl. Zeit" (same time) or e.g. "+1:23".
 String gap(double seconds) =>
-    seconds.round() == 0 ? 'gl. Zeit' : '+${clock(seconds)}';
+    seconds.round() == 0 ? tr('gl. Zeit') : '+${clock(seconds)}';
 
 /// @param v A rider attribute.
 /// @returns Its colour: green from 72, yellow from 78, pale below 65.
@@ -635,4 +635,83 @@ class Sparkline extends StatelessWidget {
       ),
     ],
   );
+}
+
+/// Photo of a rider from the WorldDB's graphics pack, exported to
+/// `data/photos` by `worlddb photos`. Riders without one, such as generated
+/// young riders, show a neutral silhouette.
+class RiderPhoto extends StatelessWidget {
+  /// Creates a rider photo.
+  ///
+  /// @param dataDir The data folder of the app.
+  /// @param riderId Id of the rider; the file is named after it.
+  /// @param size Edge length in logical pixels.
+  const RiderPhoto({
+    super.key,
+    required this.dataDir,
+    required this.riderId,
+    this.size = 64,
+  });
+  final String dataDir;
+  final int riderId;
+  final double size;
+
+  // Whether a file exists, per path; checked once.
+  static final _exists = <String, bool>{};
+
+  @override
+  Widget build(BuildContext context) {
+    final path = '$dataDir/photos/$riderId.png';
+    final blank = Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: const Color(0xFF2B2745),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      clipBehavior: Clip.antiAlias,
+      // Head and shoulders, cut off by the frame.
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned(
+            top: size * 0.2,
+            child: Container(
+              width: size * 0.34,
+              height: size * 0.34,
+              decoration: const BoxDecoration(
+                color: Color(0xFF6E6894),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Positioned(
+            top: size * 0.62,
+            child: Container(
+              width: size * 0.72,
+              height: size * 0.72,
+              decoration: const BoxDecoration(
+                color: Color(0xFF6E6894),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (!_exists.putIfAbsent(path, () => File(path).existsSync())) {
+      return blank;
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: Image.file(
+        File(path),
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (_, _, _) => blank,
+      ),
+    );
+  }
 }

@@ -22,11 +22,19 @@ Future<void> main(List<String> args) async {
   var saved = 0, missing = 0;
   for (final entry in pcsSlugs.entries) {
     final stages = world.stages(entry.key);
+    // Earlier seasons: only races whose route of that year is in the
+    // database, with as many stages as it had then.
+    var count = stages.length;
+    if (year != currentSeason) {
+      final old = world.variantStages(entry.key, year);
+      if (old.isEmpty) continue;
+      count = old.keys.reduce((a, b) => a > b ? a : b);
+    }
     // One-day races have one page, stage races one per stage; some start with a
     // prologue that is not counted as a stage.
     final pages = stages.length == 1
         ? ['result']
-        : ['prologue', for (var i = 1; i <= stages.length; i++) 'stage-$i'];
+        : ['prologue', for (var i = 1; i <= count; i++) 'stage-$i'];
     for (final page in pages) {
       final html = await client.page(entry.value, year, page);
       final result =
