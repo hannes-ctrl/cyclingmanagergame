@@ -1,0 +1,46 @@
+name: radmanager
+description: "Radsport-Managerspiel"
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.5
+
+dependencies:
+  country_flags: ^4.1.2
+  fl_chart: ^1.2.0
+  flutter:
+    sdk: flutter
+  flutter_animate: ^4.5.2
+  flutter_localizations:
+    sdk: flutter
+  game:
+    path: ../packages/game
+  lucide_icons_flutter: ^3.1.25
+  sim:
+    path: ../packages/sim
+  window_manager: ^0.5.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: Barlow
+      fonts:
+        - asset: assets/fonts/Barlow-Regular.ttf
+        - asset: assets/fonts/Barlow-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Barlow-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Barlow-Bold.ttf
+          weight: 700
+    - family: Barlow Semi Condensed
+      fonts:
+        - asset: assets/fonts/BarlowSemiCondensed-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/BarlowSemiCondensed-Bold.ttf
+          weight: 700

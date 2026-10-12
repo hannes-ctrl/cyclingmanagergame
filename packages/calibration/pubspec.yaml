@@ -1,0 +1,12 @@
+name: calibration
+description: Holt echte Rennergebnisse und stellt die Simulation daran ein.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  sim:
+    path: ../sim
+  sqlite3: ^2.4.0

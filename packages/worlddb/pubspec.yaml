@@ -1,0 +1,9 @@
+name: worlddb
+description: Liest die Dateien der PCM-WorldDB (Datenbank .cdb, Etappen .cds).
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.5.0
+dependencies:
+  sqlite3: ^2.4.0

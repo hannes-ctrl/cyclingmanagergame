@@ -1,0 +1,4 @@
+# Rennen, die nicht in die Kalibrierung eingehen: Etikett, dann # und der Grund.
+# Das Etikett ist der Dateiname in data/results/<Jahr> ohne .json.
+vuelta-a-espana-stage-21      # Schlussetappe als Schaufahren, 30,5 km/h
+giro-d-italia-stage-21        # Schlussetappe als Schaufahren, 37,5 km/h

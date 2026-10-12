@@ -1,0 +1,38 @@
+# Third-party game data: not ours to redistribute, and 23 GB
+/worlddb/
+
+# Derived from the WorldDB or fetched from the web; rebuilt by the tools
+/data/world.sqlite
+/data/jerseys/
+/data/pcs_cache/
+/data/*.log
+
+# Save games
+/data/saves/
+/data/savegame.json
+
+# Build output
+/native/build/
+.dart_tool/
+build/
+*.iml
+
+# Screens rendered by the tests; they differ on every run
+/app/test/goldens/
+/app/test/failures/
+
+# Clone of https://github.com/zao/ooz (commit ff5aeb9), see native/build_ooz.sh
+/third_party/ooz/
+/data/logos/
+/data/settings.json
+
+# Real results fetched from ProCyclingStats (packages/calibration/bin/fetch_results.dart)
+/data/results/
+
+# Output of calibration runs; the tuning values themselves are tracked
+/data/calibration/log.txt
+/data/calibration/bericht*.txt
+/data/calibration/tuning_*.json
+
+# Machine-specific toolchain paths
+/env.local.ps1
