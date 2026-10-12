@@ -101,7 +101,7 @@ class _StartScreenState extends State<StartScreen> {
                 children: [
                   Text('RADMANAGER', style: headStyle(44)),
                   const Text(
-                    'Radsport-Managerspiel',
+                    'Radsport-Managerspiel · Version $appVersion',
                     style: TextStyle(color: TeamColors.muted),
                   ),
                   const SizedBox(height: 34),

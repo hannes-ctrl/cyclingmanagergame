@@ -4,7 +4,7 @@ A cycling team management game for Windows in the spirit of *Pro Cycling Manager
 
 The game runs on the community **WorldDB** for Pro Cycling Manager, so riders, teams, races and stage profiles are the real ones.
 
-> **Status:** private hobby project, playable end to end, not balanced. The interface is in German. Nothing in this repository is affiliated with Cyanide, Nacon, Sports Interactive or the UCI.
+> **Status:** version 0.1.0 alpha. A private hobby project, playable end to end, not balanced. The interface is in German. Nothing in this repository is affiliated with Cyanide, Nacon, Sports Interactive or the UCI.
 
 ## Features
 

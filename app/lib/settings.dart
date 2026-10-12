@@ -3,6 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+/// Version shown in the start menu; keep in step with pubspec.yaml.
+const appVersion = '0.1.0 alpha';
+
 /// Settings of the app that do not belong to a career: how big the interface
 /// is drawn, whether pages fade in and whether the window starts in full
 /// screen. Stored as `settings.json` in the data folder.
