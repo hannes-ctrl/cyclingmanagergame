@@ -165,8 +165,7 @@ Future<void> main(List<String> argv) async {
       for (final r in db.select(
           "SELECT IDcyclist, gene_sz_photo FROM raw_DYN_cyclist WHERE gene_sz_photo <> ''")) {
         ids
-            .putIfAbsent(
-                (r['gene_sz_photo'] as String).toLowerCase(), () => [])
+            .putIfAbsent((r['gene_sz_photo'] as String).toLowerCase(), () => [])
             .add(r['IDcyclist'] as int);
       }
       db.dispose();

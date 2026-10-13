@@ -120,13 +120,14 @@ class _SquadScreenState extends State<SquadScreen> {
       double Function(SimRider) of, {
       Color Function(double)? color,
       String Function(double)? text,
+      String Function(SimRider)? suffix,
     }) => Col(
       title,
       width,
       (r, _) {
         final v = of(r);
         return cellText(
-          text?.call(v) ?? v.round().toString(),
+          (text?.call(v) ?? v.round().toString()) + (suffix?.call(r) ?? ''),
           color: color?.call(v),
         );
       },
@@ -189,9 +190,11 @@ class _SquadScreenState extends State<SquadScreen> {
         age,
         number(
           'Form',
-          70,
+          86,
           (r) => shape(r).form,
           text: (v) => '${((v - 1) * 100).toStringAsFixed(1)} %',
+          // Where the form is heading since the last weekly record.
+          suffix: (r) => widget.state.formTrend(r.id),
           color: (v) => v >= 1.005
               ? TeamColors.gold
               : v >= 0.99
@@ -353,9 +356,11 @@ class _SquadScreenState extends State<SquadScreen> {
         ),
         number(
           'Form',
-          70,
+          86,
           (r) => shape(r).form,
           text: (v) => '${((v - 1) * 100).toStringAsFixed(1)} %',
+          // Where the form is heading since the last weekly record.
+          suffix: (r) => widget.state.formTrend(r.id),
         ),
         Col<SimRider>(tr('Letzter Erfolg'), 330, (r, _) {
           final last = career.palmares[r.id]?.lastOrNull;

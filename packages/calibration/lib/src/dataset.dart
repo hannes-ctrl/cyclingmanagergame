@@ -10,6 +10,11 @@ import 'pcs.dart';
 /// year, earlier years come from the route variants.
 const currentSeason = 2026;
 
+/// First season the calibration compares against. Of the fields before it
+/// the world database, which knows the riders of [currentSeason], covers
+/// too little (58 % of the finishers of 2021, 67 % of 2022).
+const firstSeason = 2023;
+
 /// A real race with route and start list, as the simulation needs it.
 class CalibrationCase {
   CalibrationCase(this.label, this.route, this.riders, this.realOrder,
@@ -41,10 +46,14 @@ class CalibrationCase {
   /// How the real race was decided according to ProCyclingStats, if known.
   String? wonHow;
 
+  /// Country and month of the race: the frame its weather is drawn from.
+  String country = '';
+  int month = 6;
+
   /// Rough classification for the report.
   String get type {
     if (route.kind != StageKind.road) return 'Zeitfahren';
-    if (route.segments.any((s) => s.cobble >= 4)) return 'Pflaster';
+    if (route.sectorRace) return 'Sektoren';
     if (route.selectivity < 600 && route.finishGrade < 0.03) return 'Flach';
     if (route.selectivity > 1500) return 'Berg';
     return 'Hügel';
@@ -166,6 +175,7 @@ Dataset loadDataset(World world, String resultsDir, int year,
   }
 
   final cases = <CalibrationCase>[];
+  final info = {for (final r in world.races()) r.id: r};
   var unmatched = 0, rows = 0;
   final files = Directory(resultsDir)
       .listSync()
@@ -279,7 +289,9 @@ Dataset loadDataset(World world, String resultsDir, int year,
     cases.add(CalibrationCase(year == currentSeason ? label : '$year/$label',
         route, riders, order, times, winner.inBreak, gcGaps)
       ..wonHow = real.wonHow
-      ..allTimes = allTimes);
+      ..allTimes = allTimes
+      ..country = info[real.raceId]?.country ?? ''
+      ..month = info[real.raceId]?.startMonth ?? 6);
   }
   notes.add('$unmatched von $rows Fahrern im Ziel nicht zugeordnet '
       '(${(100 * unmatched / max(rows, 1)).toStringAsFixed(1)} %)');

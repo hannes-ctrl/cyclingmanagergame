@@ -50,10 +50,10 @@ Future<void> main(List<String> argv) async {
   tuningFile.parent.createSync(recursive: true);
 
   final world = World('${root}world.sqlite');
-  // All seasons with stored results: the current one and those since 2021.
+  // All seasons with stored results from [firstSeason] on.
   final exclude = loadExclusions('${root}calibration/exclude.txt');
   final parts = [
-    for (var y = 2021; y <= year; y++)
+    for (var y = firstSeason; y <= year; y++)
       if (Directory('${root}results/$y').existsSync())
         loadDataset(world, '${root}results/$y', y, exclude: exclude),
   ];
@@ -152,16 +152,19 @@ void _report(Evaluation e) {
   /// @param x Values.
   /// @returns Their arithmetic mean.
   double avg(Iterable<double> x) => x.reduce((a, b) => a + b) / x.length;
-  final types = ['Flach', 'Hügel', 'Berg', 'Pflaster', 'Zeitfahren'];
+  final types = ['Flach', 'Hügel', 'Berg', 'Sektoren', 'Zeitfahren'];
   stdout.writeln('\nGesamtfehler ${f(e.loss, 4)}  (kleiner ist besser)');
   stdout.writeln('  je Rennen ${f(e.caseLoss, 3)}: '
       'Renngestalt ${f(avg(e.scores.map((x) => x.shapeTerm)), 3)}, '
-      'Tempo ${f(avg(e.scores.map((x) => x.speedTerm)), 3)}'
+      'Tempo ${f(avg(e.scores.map((x) => x.speedTerm)), 3)}, '
+      'Ausreißer ${f(avg(e.scores.map((x) => x.breakTerm)), 3)}'
       ' (Renngestalt und Tempo zusammen je Rennen gedeckelt)');
-  stdout.writeln('  Häufigkeiten je Renntyp ${f(e.frequencyLoss, 3)}\n');
+  stdout.writeln('  Häufigkeiten je Renntyp ${f(e.frequencyLoss, 3)}');
+  stdout.writeln('  Favoritensiege je Renntyp ${f(e.favouriteLoss, 3)}, '
+      'Gesamtwertung ${f(avg(e.scores.map((x) => x.gcTerm)), 3)} je Rennen\n');
   stdout.writeln(
       '                     Rennen   1. Gruppe      Abstand Pl. 10   Abstand Mitte    '
-      'Schnitt km/h     Ausreißersiege und Sieger in Top 3 / Top 10 (beides nur zur Info)');
+      'Schnitt km/h     Ausreißersiege   Sieger in Top 3 / Top 10 (nur zur Info)');
   stdout.writeln(
       '                              echt   Sim     echt    Sim      echt    Sim      '
       'echt   Sim      echt   Sim');
@@ -184,12 +187,11 @@ void _report(Evaluation e) {
   }
   // How the race was decided: real field from ProCyclingStats against the
   // share of simulation runs.
-  stdout.writeln(
-      '\nGröße der Siegergruppe (echt / Simulation, Anteil in %):');
+  stdout.writeln('\nGröße der Siegergruppe (echt / Simulation, Anteil in %):');
   stdout.writeln('                     Rennen   ${[
     for (final k in FinishKind.road) k.label.padRight(17)
   ].join()}Solo echt: Median km');
-  for (final type in ['Flach', 'Hügel', 'Berg', 'Pflaster', 'alle']) {
+  for (final type in ['Flach', 'Hügel', 'Berg', 'Sektoren', 'alle']) {
     final s = e.scores
         .where((x) =>
             (type == 'alle' ? x.type != 'Zeitfahren' : x.type == type) &&
@@ -236,6 +238,53 @@ void _report(Evaluation e) {
         '  ${r.key.padRight(34)} ${r.value.length.toString().padLeft(2)} Etappen   '
         '${clock(real).padLeft(7)} / ${clock(sim).padLeft(7)}   '
         'Faktor ${f(sim / (real == 0 ? 1 : real), 2)}');
+  }
+
+  // The fields of earlier seasons are covered less well by the database
+  // (see bin/seasons.dart); this shows whether they are matched worse.
+  stdout.writeln('\nJe Jahrgang, nur Straßenrennen (echt / Simulation):');
+  stdout.writeln('          Rennen   Fehler   Abstand Pl. 10      '
+      'Abstand Mitte      1. Gruppe');
+  final bySeason = <String, List<CaseScore>>{};
+  for (final x in e.scores) {
+    if (x.type == 'Zeitfahren') continue;
+    final season = RegExp(r'^\d{4}/').hasMatch(x.label)
+        ? x.label.substring(0, 4)
+        : '$currentSeason';
+    bySeason.putIfAbsent(season, () => []).add(x);
+  }
+  for (final season in bySeason.keys.toList()..sort()) {
+    final s = bySeason[season]!;
+    String pair(double Function(RaceShape) of) =>
+        '${clock(exp(avg(s.map((x) => of(x.real)))) - 1).padLeft(6)} / '
+        '${clock(exp(avg(s.map((x) => of(x.sim)))) - 1).padLeft(6)}';
+    stdout.writeln('  $season    ${'${s.length}'.padLeft(6)}   '
+        '${f(avg(s.map((x) => x.loss)), 2).padLeft(6)}   '
+        '${pair((r) => r.logGap10)}    ${pair((r) => r.logGapMedian)}    '
+        '${f(exp(avg(s.map((x) => x.real.logFirstGroup)))).padLeft(5)} / '
+        '${f(exp(avg(s.map((x) => x.sim.logFirstGroup)))).padLeft(5)}');
+  }
+
+  // How often one of the three riders best suited to the route wins.
+  stdout.writeln('\nSieg eines der drei Topfavoriten (echt / Simulation):');
+  for (final type in [...types, 'alle']) {
+    final s = e.scores
+        .where((x) =>
+            (type == 'alle' || x.type == type) && x.realFavourite != null)
+        .toList();
+    if (s.isEmpty) continue;
+    final real = s.where((x) => x.realFavourite!).length / s.length;
+    stdout.writeln('  ${type.padRight(20)} ${s.length.toString().padLeft(5)}   '
+        '${f(100 * real, 0).padLeft(3)} % / '
+        '${f(100 * avg(s.map((x) => x.simFavourite)), 0).padLeft(3)} %');
+  }
+  // Time the ten best of the general classification lose per stage.
+  final gc = e.scores.where((x) => x.realGcLoss != null).toList();
+  if (gc.isNotEmpty) {
+    stdout.writeln('\nZeitverlust der Top 10 der Gesamtwertung je Etappe, '
+        'Mittel über ${gc.length} Etappen (echt / Simulation): '
+        '${secs(avg(gc.map((x) => x.realGcLoss!)))} / '
+        '${secs(avg(gc.map((x) => x.simGcLoss!)))}');
   }
 
   final worst = [...e.scores]..sort((a, b) => b.loss.compareTo(a.loss));

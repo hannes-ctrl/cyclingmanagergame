@@ -35,11 +35,22 @@ class SimTuning {
     if (!file.existsSync()) return SimTuning();
     final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
     final values = (json['values'] ?? json) as Map<String, dynamic>;
+    // Values outside the permitted ranges (from a calibration before the
+    // ranges were narrowed to physical values) are pulled into them.
     return SimTuning({
       for (final e in values.entries)
         if (e.value is num) e.key: (e.value as num).toDouble(),
-    });
+    }).clamped();
   }
+
+  /// The same values, each pulled into its permitted range. Values from an
+  /// older calibration can lie outside ranges that have since been narrowed.
+  ///
+  /// @returns The clamped set.
+  SimTuning clamped() => SimTuning._([
+        for (var i = 0; i < params.length; i++)
+          _a[i].clamp(params[i].min, params[i].max).toDouble(),
+      ]);
 
   /// Values in the order of [params].
   final List<double> _a;
@@ -50,11 +61,11 @@ class SimTuning {
       };
 
   static const params = <TuningParam>[
-    TuningParam('thresholdWkg', 5.3, 4.8, 6.6,
+    TuningParam('thresholdWkg', 5.4, 5.0, 6.0,
         'Schwellenleistung in W/kg bei Fahrerwert 70'),
-    TuningParam('gainPerPoint', 0.013, 0.006, 0.02,
+    TuningParam('gainPerPoint', 0.012, 0.008, 0.016,
         'Leistungszuwachs je Punkt Fahrerwert'),
-    TuningParam('dayFormSigma', 0.012, 0.004, 0.03, 'Streuung der Tagesform'),
+    TuningParam('dayFormSigma', 0.008, 0.003, 0.015, 'Streuung der Tagesform'),
     TuningParam('energyPerHour', 0.2, 0.08, 0.35,
         'Verbrauch der Ausdauerreserve je Stunde an der Schwelle'),
     TuningParam('fatigueLoss', 0.18, 0.05, 0.35,
@@ -87,15 +98,15 @@ class SimTuning {
         'Anstrengung größerer Verfolgergruppen im Finale'),
     TuningParam(
         'droppedEffort', 0.85, 0.7, 0.95, 'Anstrengung abgehängter Gruppen'),
-    TuningParam('draftSmall', 0.72, 0.6, 0.9,
+    TuningParam('draftSmall', 0.7, 0.6, 0.8,
         'Restlicher Luftwiderstand im Windschatten, 2 bis 4 Fahrer'),
-    TuningParam('draftMedium', 0.62, 0.5, 0.8, 'dito, 5 bis 15 Fahrer'),
-    TuningParam('draftLarge', 0.55, 0.42, 0.7, 'dito, 16 bis 60 Fahrer'),
-    TuningParam('draftPeloton', 0.5, 0.3, 0.65, 'dito, großes Feld'),
+    TuningParam('draftMedium', 0.6, 0.5, 0.7, 'dito, 5 bis 15 Fahrer'),
+    TuningParam('draftLarge', 0.5, 0.4, 0.6, 'dito, 16 bis 60 Fahrer'),
+    TuningParam('draftPeloton', 0.42, 0.3, 0.5, 'dito, großes Feld'),
     TuningParam('cobbleDraftLoss', 0.17, 0.05, 0.2,
         'Verlust an Windschatten je Schwierigkeitsstufe Pflaster'),
     TuningParam('cobbleSqueeze', 30, 10, 80,
-        'So viele Fahrer kommen geschlossen durch einen schweren Sektor'),
+        'Position, ab der ein Fahrer im Sektor den vollen Nachteil der hinteren Reihen hat'),
     TuningParam('kickGain', 0.2, 0.0, 0.5,
         'Mehrleistung im Schlussanstieg bei voller Kurzzeitreserve'),
     TuningParam('sprintNoise', 2.5, 0.8, 5, 'Streuung im Sprint in Punkten'),
@@ -114,9 +125,31 @@ class SimTuning {
     TuningParam('cobbleEffort', 1.0, 1.0, 1.2,
         'Anstrengung der Spitze auf Pflastersektoren im Rennen'),
     TuningParam('cobbleMishap', 0.0, 0.0, 0.02,
-        'Defekt oder Sturz je Fahrer und Kilometer schweren Pflasters'),
-    TuningParam('gruppettoLimit', 0.1, 0.05, 0.2,
-        'Rückstand als Anteil der Fahrzeit, ab dem das Gruppetto Tempo macht'),
+        'Defekte und Stürze je Fahrer und Kilometer Pflaster der Stufe 3'),
+    TuningParam('gruppettoCutShare', 0.7, 0.4, 0.95,
+        'Anteil des Zeitlimits, ab dem das Gruppetto Tempo macht'),
+    TuningParam('fightEffort', 0.95, 0.85, 1.02,
+        'Anstrengung des Feldes, solange um die Fluchtgruppe gekämpft wird'),
+    TuningParam('breakStickRate', 0.06, 0.02, 0.25,
+        'Chance je Kilometer, dass an schweren Tagen eine Gruppe wegkommt'),
+    TuningParam('helperEmpty', 0.2, 0.05, 0.4,
+        'Ausdauerreserve, bei der ein Helfer nicht mehr führen kann'),
+    TuningParam('positionCost', 0.08, 0.0, 0.2,
+        'Mehranstrengung im Kampf um die Positionen vor Schlüsselstellen'),
+    TuningParam('echelonSize', 20, 10, 35,
+        'So viele Fahrer finden in der Windkante Schutz'),
+    TuningParam('echelonEffort', 1.0, 0.9, 1.1,
+        'Anstrengung des Teams, das im Seitenwind Druck macht'),
+    TuningParam('crashRate', 0.001, 0.0, 0.003,
+        'Stürze je Kilometer in einer Gruppe von 50 Fahrern'),
+    TuningParam('punctureRate', 0.0002, 0.0, 0.001,
+        'Reifenschäden je Fahrer und Kilometer auf Asphalt'),
+    TuningParam('longAttackRate', 0.03, 0.0, 0.15,
+        'Angriffe je Kilometer an Bergen vor dem Finale'),
+    TuningParam('flatAttackRate', 0.25, 0.0, 1.0,
+        'Faktor auf die Angriffslust abseits der Steigungen'),
+    TuningParam('tttDraft', 0.7, 0.55, 0.85,
+        'Restlicher Luftwiderstand in der Reihe des Mannschaftszeitfahrens'),
   ];
 
   /// Threshold power in W/kg at attribute 70.
@@ -221,9 +254,42 @@ class SimTuning {
   /// Effort of the gruppetto on mountain stages.
   double get gruppettoEffort => _a[33];
 
-  /// Gap, as a share of the riding time, from which the gruppetto rides hard
-  /// to stay inside the time limit.
-  double get gruppettoLimit => _a[36];
+  /// Share of the time limit from which the gruppetto rides hard to stay
+  /// inside it.
+  double get gruppettoCutShare => _a[36];
+
+  /// Effort of the field while the break of the day is being fought for.
+  double get fightEffort => _a[37];
+
+  /// Chance per kilometre that a move sticks on a hard day.
+  double get breakStickRate => _a[38];
+
+  /// Endurance reserve below which a helper can no longer ride on the front.
+  double get helperEmpty => _a[39];
+
+  /// Extra effort of the fight for position before key points.
+  double get positionCost => _a[40];
+
+  /// Number of riders who find shelter in an echelon.
+  double get echelonSize => _a[41];
+
+  /// Effort of the team that splits the field in the crosswind.
+  double get echelonEffort => _a[42];
+
+  /// Crashes per kilometre in a group of 50 riders.
+  double get crashRate => _a[43];
+
+  /// Punctures per rider and kilometre on tarmac.
+  double get punctureRate => _a[44];
+
+  /// Attacks per kilometre on climbs before the finale.
+  double get longAttackRate => _a[45];
+
+  /// Factor on the urge to attack away from the climbs.
+  double get flatAttackRate => _a[46];
+
+  /// Remaining drag in the line of a team time trial.
+  double get tttDraft => _a[47];
 
   /// Effort of the front on cobbled sectors while the race is on.
   double get cobbleEffort => _a[34];

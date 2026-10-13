@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:game/game.dart';
 import 'package:radmanager/app_state.dart';
+import 'package:sim/sim.dart';
 
 void main() {
   seasonTest();
@@ -28,6 +29,9 @@ void main() {
       // Make decisions of every kind so that loading has to replay them.
       a.setLoad(a.squad[0].id, TrainingLoad.high);
       a.setFocus(a.squad[1].id, TrainingFocus.timeTrial);
+      // Shortlist and a note have to survive the save as well.
+      a.toggleWatch(a.career.economy.market().first.id);
+      a.setNote(a.squad[2].id, 'Für die Klassiker einplanen');
       a.toggleProgram(a.career.ownRaces[3].info.id, a.squad[2].id);
       // Staff and scouting: hire, dismiss, have a rider watched.
       final staff = a.career.staff;
@@ -75,7 +79,17 @@ void main() {
           await a.confirmLineup(
             p,
             lineup,
-            plan: a.career.suggestPlan(p.routes.first, lineup, p.others),
+            // In turn: pin a leader and the approach and leave the rest to
+            // the sports director, or fix the complete plan.
+            wish: customLineups % 4 == 1
+                ? PlanWish(
+                    roles: {lineup.first.id: Role.leader},
+                    approach: Approach.control,
+                  )
+                : null,
+            plan: customLineups % 4 == 3
+                ? a.career.suggestPlan(p.routes.first, lineup, p.others)
+                : null,
             // Not the suggested director but the last free one.
             directorId: p.directors.lastOrNull?.id,
           );
@@ -118,7 +132,14 @@ void main() {
         a.career.shapeOf(a.squad[0].id).fitness,
       );
       expect(b.career.program, a.career.program);
-      expect(b.radio?.call.text, a.radio?.call.text);
+      // The loaded game looks for an open radio question at once; the
+      // original only does so on the next step, so ask its career directly.
+      expect(
+        b.radio?.call.text,
+        a.career.needsDecision != null
+            ? null
+            : a.career.nextRadioCall()?.call.text,
+      );
       expect(b.career.delegation.training, isTrue);
       expect(b.career.delegation.scouting, isTrue);
       expect(b.career.devTeam.teamId, a.career.devTeam.teamId);

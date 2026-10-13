@@ -7,6 +7,7 @@ import 'devteam.dart';
 import 'economy.dart';
 import 'entries.dart';
 import 'licence.dart';
+import 'planning.dart';
 import 'points.dart';
 import 'staff.dart';
 
@@ -94,6 +95,10 @@ class Delegation {
 
   /// The head scout chooses whom his people watch.
   bool scouting = false;
+
+  /// The sports director draws up the race programme of the season and
+  /// replaces riders who drop out.
+  bool planning = true;
 }
 
 /// Training focus: these attributes develop faster, the others more slowly.
@@ -178,21 +183,40 @@ class Message {
   final String subject;
   final String body;
 
-  /// Topic the inbox files the message under, derived from the sender.
-  String get topic {
+  /// The topics of the inbox, as their German keys.
+  static const topics = [
+    'Rennen',
+    'Medizin',
+    'Training und Nachwuchs',
+    'Verträge',
+    'Lizenz',
+    'Teamleitung',
+    'Scouting',
+  ];
+
+  /// Topic the inbox files the message under, derived from the sender; one
+  /// of [topics], whatever the language.
+  String get topicKey {
     // The sender was written in the language of the time.
     bool from_(List<String> senders) => senders.any((s) => isText(from, s));
-    if (from_(['Rennbericht', 'Sportlicher Leiter', 'Veranstalter'])) {
-      return tr('Rennen');
+    if (from_([
+      'Rennbericht',
+      'Sportlicher Leiter',
+      'Veranstalter',
+      'Saisonrückblick'
+    ])) {
+      return 'Rennen';
     }
-    if (from_(['Teamarzt'])) return tr('Medizin');
-    if (from_(['Trainer', 'Nachwuchsteam']))
-      return tr('Training und Nachwuchs');
-    if (from_(['Berater'])) return tr('Verträge');
-    if (from_(['UCI'])) return tr('Lizenz');
-    if (from_(['Teamleitung'])) return tr('Teamleitung');
+    if (from_(['Teamarzt'])) return 'Medizin';
+    if (from_(['Trainer', 'Nachwuchsteam'])) return 'Training und Nachwuchs';
+    if (from_(['Berater'])) return 'Verträge';
+    if (from_(['UCI'])) return 'Lizenz';
+    if (from_(['Teamleitung'])) return 'Teamleitung';
     return 'Scouting';
   }
+
+  /// The topic in the current language.
+  String get topic => topicKey == 'Scouting' ? 'Scouting' : tr(topicKey);
 
   /// Race the message belongs to, for the jump to the race report.
   final int? raceId;
@@ -540,6 +564,285 @@ class Career {
   /// director plans every stage himself.
   final ownPlans = <int, TeamPlan>{};
 
+  /// Topics (keys of [Message.topics]) the player does not want messages
+  /// about.
+  final mutedTopics = <String>{};
+
+  /// Whether three or more messages of one topic on one day arrive as a
+  /// single summary.
+  var inboxDigest = true;
+
+  /// Applies the player's inbox settings to the messages of the day: drops
+  /// those of muted topics and folds many of one topic into a summary.
+  ///
+  /// @param from Index of the first message written today.
+  void _tidyInbox(int from) {
+    if (from >= inbox.length) return;
+    final fresh = inbox.sublist(from);
+    inbox.removeRange(from, inbox.length);
+    fresh.removeWhere((m) => mutedTopics.contains(m.topicKey));
+    if (!inboxDigest) {
+      inbox.addAll(fresh);
+      return;
+    }
+    final byTopic = <String, List<Message>>{};
+    for (final m in fresh) {
+      byTopic.putIfAbsent(m.topicKey, () => []).add(m);
+    }
+    for (final list in byTopic.values) {
+      if (list.length < 3) {
+        inbox.addAll(list);
+        continue;
+      }
+      final first = list.first;
+      inbox.add(Message(
+        first.date,
+        first.from,
+        tr('{0}: {1} Meldungen', [first.topic, list.length]),
+        [for (final m in list) '${m.subject}\n${m.body}'].join('\n\n'),
+        raceId: list.map((m) => m.raceId).whereType<int>().firstOrNull,
+      ));
+    }
+  }
+
+  /// Names the best of the season in a message: the rider with the most
+  /// points, the best rider aged 23 or younger, the rider with the most
+  /// wins and the best team. Runs before the rankings start over.
+  void _awards() {
+    if (riderPoints.isEmpty) return;
+    SimRider? best(Iterable<SimRider> of, num Function(SimRider) by) {
+      SimRider? top;
+      for (final r in of) {
+        if (by(r) > 0 && (top == null || by(r) > by(top))) top = r;
+      }
+      return top;
+    }
+
+    final all = riderById.values;
+    num points(SimRider r) => riderPoints[r.id] ?? 0;
+    final rider = best(all, points);
+    final young = best(all.where((r) => year - r.born ~/ 10000 <= 23), points);
+    final winner = best(all, (r) => winsOf(r.id, year));
+    final team = (teamPoints.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value)))
+        .firstOrNull;
+    String of(SimRider? r) => r == null
+        ? '–'
+        : '${fullName(r.id)} (${teams[r.teamId]?.name ?? r.team})';
+    final lines = [
+      tr('Fahrer des Jahres: {0}, {1} Punkte',
+          [of(rider), rider == null ? 0 : points(rider).round()]),
+      tr('Bester Nachwuchsfahrer: {0}', [of(young)]),
+      tr('Die meisten Siege: {0}, {1} Siege',
+          [of(winner), winner == null ? 0 : winsOf(winner.id, year)]),
+      if (team != null)
+        tr('Team des Jahres: {0}, {1} Punkte',
+            [teams[team.key]?.name ?? '', team.value.round()]),
+    ];
+    if (archive.isNotEmpty) {
+      archive.last['awards'] = {
+        'rider': rider?.id,
+        'young': young?.id,
+        'wins': winner?.id,
+        'team': team?.key,
+      };
+    }
+    inbox.add(Message(
+      today,
+      tr('Saisonrückblick'),
+      tr('Die Besten der Saison {0}', [year]),
+      lines.join('\n'),
+    ));
+  }
+
+  /// The sports director's planner for the race programme.
+  late final planner = SeasonPlanner(this);
+
+  /// Races of the player's team that can still be planned: they have not
+  /// started and their line-up is not picked by a federation.
+  List<RaceEntry> get _plannable => [
+        for (final r in ownRaces)
+          if (r.start.isAfter(today) &&
+              r.tier != RaceTier.championship &&
+              !progress.containsKey(r.info.id))
+            r,
+      ];
+
+  /// Lets the sports director plan the season: every race of the player's
+  /// team that has no programme yet gets one.
+  ///
+  /// @param replace Whether to plan all coming races anew, discarding what
+  ///   is pencilled in for them.
+  /// @returns The number of races planned.
+  int planSeason({bool replace = false}) {
+    final races = _plannable;
+    if (replace) {
+      for (final r in races) {
+        program.remove(r.info.id);
+      }
+    }
+    final open = [
+      for (final r in races)
+        if (!program.containsKey(r.info.id)) r,
+    ];
+    if (open.isEmpty) return 0;
+    final planned = planner.plan(
+      squads[teamId] ?? const [],
+      open,
+      fixed: program,
+      all: [
+        for (final r in ownRaces)
+          if (r.tier != RaceTier.championship) r,
+      ],
+    );
+    program.addAll(planned);
+    planner.saveWeights();
+    return planned.length;
+  }
+
+  /// The season plan as the sports director reports it.
+  ///
+  /// @returns Races and race days planned, and the mean and the highest
+  ///   number of race days per rider.
+  ({int races, int days, double mean, int most}) programSummary() {
+    final perRider = <int, int>{};
+    var races = 0, days = 0;
+    for (final r in ownRaces) {
+      final riders = program[r.info.id];
+      if (riders == null || riders.isEmpty) continue;
+      races++;
+      days += r.stages.length;
+      for (final id in riders) {
+        perRider[id] = (perRider[id] ?? 0) + r.stages.length;
+      }
+    }
+    final squad = squads[teamId]?.length ?? 0;
+    return (
+      races: races,
+      days: days,
+      mean: squad == 0 ? 0 : perRider.values.fold(0, (a, b) => a + b) / squad,
+      most: perRider.values.fold(0, (a, b) => a > b ? a : b),
+    );
+  }
+
+  /// Season plans of the other teams: riders per race id, by team id. Every
+  /// team's sports director plans like the player's.
+  final teamPrograms = <int, Map<int, Set<int>>>{};
+
+  /// Lets the sports directors of the other teams plan their seasons, once
+  /// per season. Races that have started are left alone.
+  void _planOthers() {
+    if (teamPrograms.isNotEmpty) return;
+    final byTeam = <int, List<RaceEntry>>{};
+    for (final race in calendar) {
+      if (race.tier == RaceTier.championship ||
+          !race.start.isAfter(today) ||
+          progress.containsKey(race.info.id)) {
+        continue;
+      }
+      for (final team in _field(race)) {
+        if (team != teamId) byTeam.putIfAbsent(team, () => []).add(race);
+      }
+    }
+    for (final team in byTeam.keys.toList()..sort()) {
+      final squad = squads[team] ?? const <SimRider>[];
+      if (squad.length < 4) continue;
+      teamPrograms[team] = planner.plan(squad, byTeam[team]!, teamId: team);
+    }
+    planner.saveWeights();
+  }
+
+  /// Plans what is still open: the seasons of the other teams, and, if the
+  /// sports director is in charge of the programme, the player's own, at
+  /// the start of a season everything, later the races the team is newly
+  /// invited to.
+  void ensureProgram() {
+    _planOthers();
+    if (!delegation.planning) return;
+    final first = program.isEmpty;
+    final planned = planSeason();
+    if (planned == 0 || !first) return;
+    final sum = programSummary();
+    inbox.add(Message(
+      today,
+      tr('Sportlicher Leiter'),
+      tr('Der Saisonplan steht'),
+      tr('Ich habe {0} Rennen mit {1} Renntagen verplant, die wichtigsten zuerst. Im Schnitt kommt jeder Fahrer auf {2} Renntage, keiner auf mehr als {3}. Im Rennplaner kannst du jeden Einsatz ändern.',
+          [sum.races, sum.days, sum.mean.round(), sum.most]),
+    ));
+  }
+
+  /// A rider of the player's team is out until [until]: the sports director
+  /// takes him out of the races he would miss and names a replacement.
+  ///
+  /// @param r The rider.
+  /// @param until First day he can race again.
+  void replaceInProgram(SimRider r, DateTime until) {
+    if (!delegation.planning) return;
+    final squad = squads[teamId] ?? const <SimRider>[];
+    final all = [
+      for (final x in ownRaces)
+        if (x.tier != RaceTier.championship) x,
+    ];
+    final lines = <String>[];
+    for (final race in _plannable) {
+      final riders = program[race.info.id];
+      if (riders == null || !riders.contains(r.id)) continue;
+      if (!race.start.isBefore(until)) continue;
+      riders.remove(r.id);
+      final stand = planner.substitute(squad, race, program, all);
+      if (stand != null) riders.add(stand.id);
+      lines.add(stand == null
+          ? tr('{0}: kein Ersatz frei', [race.info.name])
+          : tr('{0}: {1} rückt nach', [race.info.name, stand.name]));
+    }
+    if (lines.isEmpty) return;
+    inbox.add(Message(
+      today,
+      tr('Sportlicher Leiter'),
+      tr('Ersatz für {0}', [r.name]),
+      tr('{0} fehlt in Rennen, für die er eingeplant war. {1}.',
+          [r.name, lines.join('; ')]),
+    ));
+  }
+
+  /// Riders of the season plan who are pencilled in for two races that run
+  /// at the same time. Races that have started are left out.
+  ///
+  /// @returns One entry per rider and pair of overlapping races.
+  List<({SimRider rider, RaceEntry first, RaceEntry second})> programClashes() {
+    final races = [
+      for (final r in ownRaces)
+        if (r.start.isAfter(today) && (program[r.info.id]?.isNotEmpty ?? false))
+          r,
+    ]..sort((a, b) => a.start.compareTo(b.start));
+    final out = <({SimRider rider, RaceEntry first, RaceEntry second})>[];
+    for (var i = 0; i < races.length; i++) {
+      for (var k = i + 1; k < races.length; k++) {
+        if (races[k].start.isAfter(races[i].end)) break;
+        for (final id in program[races[i].info.id]!) {
+          if (!program[races[k].info.id]!.contains(id)) continue;
+          final rider = riderById[id];
+          if (rider != null) {
+            out.add((rider: rider, first: races[i], second: races[k]));
+          }
+        }
+      }
+    }
+    return out;
+  }
+
+  /// The shortlist: riders the player keeps an eye on. He gets a message
+  /// when one of them becomes available or signs somewhere.
+  final watch = <int>{};
+
+  /// The player's own notes on riders, by rider id.
+  final notes = <int, String>{};
+
+  /// What the player has pinned down per race id; the sports director plans
+  /// the rest for every stage. A complete plan in [ownPlans] comes first.
+  final ownWishes = <int, PlanWish>{};
+
   /// Physical condition per rider id.
   final shape = <int, RiderShape>{};
 
@@ -621,14 +924,35 @@ class Career {
   ///
   /// @param pending The waiting race.
   /// @param lineup Own riders, in the order they were picked.
-  /// @param plan Tactics for the whole race; without it the sports director
-  ///   decides every stage himself.
+  /// @param plan Complete tactics for the whole race.
+  /// @param wish What the player pins down; the sports director decides the
+  ///   rest for every stage. Without [plan] and [wish] he decides everything.
   /// @param directorId Sports director to send; without it the best free one.
   void confirm(PendingRace pending, List<SimRider> lineup,
-      {TeamPlan? plan, int? directorId}) {
+      {TeamPlan? plan, PlanWish? wish, int? directorId}) {
     final id = pending.race.info.id;
     if (plan != null) ownPlans[id] = plan;
+    if (wish != null && !wish.isEmpty) ownWishes[id] = wish;
     _launch(pending, lineup, directorId: directorId);
+  }
+
+  // --- Weather ----------------------------------------------------------------
+
+  /// Seed a race of this season is simulated with.
+  int _raceSeed(int raceId) => seed * 104729 + raceId;
+
+  /// Weather of the next stage of a race: of its first stage before the
+  /// start, of today's stage while it is running.
+  ///
+  /// @param race The race.
+  /// @returns The weather, or null once the race is over.
+  Weather? weatherOf(RaceEntry race) {
+    final p = progress[race.info.id];
+    if (p == null) {
+      return StageRaceRun.firstWeather(
+          _raceSeed(race.info.id), race.start.month, race.info.country);
+    }
+    return p.finished ? null : p.run.nextWeather;
   }
 
   // --- Radio ------------------------------------------------------------------
@@ -636,11 +960,27 @@ class Career {
   /// The player's answers for today's stage per race id.
   final _radio = <int, Map<RadioKind, int>>{};
 
+  /// The player's tactics for the next stage of a race: his complete plan,
+  /// or his wishes laid over what the sports director plans for that stage.
+  ///
   /// @param raceId Id of a race.
-  /// @returns The player's plan for it as a one-entry map, or an empty map.
-  Map<int, TeamPlan> _plansFor(int raceId) {
+  /// @param route The stage.
+  /// @returns The plan as a one-entry map, or an empty map if the sports
+  ///   director decides everything.
+  Map<int, TeamPlan> _plansFor(int raceId, SimRoute route) {
     final plan = ownPlans[raceId];
-    return plan == null ? const {} : {teamId: plan};
+    if (plan != null) return {teamId: plan};
+    final wish = ownWishes[raceId];
+    final p = progress[raceId];
+    if (wish == null || p == null) return const {};
+    final auto = autoPlans(route, p.run.riders, gcGaps: p.run.gcGaps)[teamId];
+    if (auto == null) return const {};
+    return {
+      teamId: wish.applyTo(auto, route, {
+        for (final r in p.run.riders)
+          if (r.teamId == teamId) r.id,
+      }),
+    };
   }
 
   /// Finds the next question from one of today's races that the player has
@@ -661,9 +1001,10 @@ class Career {
       if (p == null || p.finished) continue;
       if (!p.run.riders.any((r) => r.teamId == teamId)) continue;
       final index = p.stagesDone;
+      final route = world.route(race.stages[index].id);
       final result = p.run.preview(
-        world.route(race.stages[index].id),
-        plans: _plansFor(id),
+        route,
+        plans: _plansFor(id, route),
         directorSkills: p.directorSkills,
         radioTeam: teamId,
         radio: _radio[id] ?? const {},
@@ -757,6 +1098,8 @@ class Career {
   ///
   /// @returns What was ridden today.
   DayReport advance() {
+    final inboxBefore = inbox.length;
+    ensureProgram();
     for (var p = needsDecision; p != null; p = needsDecision) {
       confirm(p, p.suggestedLineup);
     }
@@ -772,15 +1115,24 @@ class Career {
       final p = progress[id];
       if (p == null || p.finished) continue;
       final index = p.stagesDone;
+      final route = world.route(race.stages[index].id);
       final result = p.run.nextStage(
-        world.route(race.stages[index].id),
-        plans: _plansFor(id),
+        route,
+        plans: _plansFor(id, route),
         directorSkills: p.directorSkills,
         radioTeam: teamId,
         radio: _radio.remove(id) ?? const {},
       );
       ridden.add((race: p, stageIndex: index, result: result));
       _credit(p, index, result);
+    }
+    // A stage race without a stage today has a rest day.
+    for (final p in progress.values) {
+      if (p.finished || p.stagesDone == 0) continue;
+      if (ridden.any((r) => identical(r.race, p))) continue;
+      if (date.isAfter(p.race.start) && date.isBefore(p.race.end)) {
+        p.run.restDay();
+      }
     }
     _trainAndRecover(ridden);
     _incidents(ridden);
@@ -795,6 +1147,7 @@ class Career {
     camps.daily();
     entries.daily();
     if (delegation.scouting && today.month >= 6) staff.scoutOnOwn();
+    _tidyInbox(inboxBefore);
     today = today.add(const Duration(days: 1));
     return DayReport(date, ridden);
   }
@@ -846,6 +1199,7 @@ class Career {
       final abandons = race != null && !race.finished;
       if (abandons) race.run.withdraw(r.id);
       if (r.teamId != teamId) return;
+      replaceInProgram(r, until);
       final day = until.day.toString().padLeft(2, '0');
       final month = until.month.toString().padLeft(2, '0');
       inbox.add(Message(
@@ -862,29 +1216,62 @@ class Career {
       ));
     }
 
+    // Crashes, illness and the time limit come from the simulation of the
+    // stage itself.
     final racing = <int>{};
     for (final day in ridden) {
-      final cobbles = world
-          .route(day.race.race.stages[day.stageIndex].id)
-          .segments
-          .any((s) => s.cobble >= 3);
       for (final p in day.result.placings) {
         racing.add(p.rider.id);
-        if (_rng.nextDouble() >= (cobbles ? 0.008 : 0.004)) continue;
-        final x = _rng.nextDouble();
-        if (x < 0.7) {
-          sideline(
-              p.rider, 3 + _rng.nextInt(8), tr('Prellungen nach einem Sturz'),
-              race: day.race);
-        } else if (x < 0.95) {
-          sideline(p.rider, 14 + _rng.nextInt(29),
-              tr('Bruch nach einem Sturz, die Operation verlief gut'),
-              race: day.race);
-        } else {
-          sideline(p.rider, 60 + _rng.nextInt(61),
-              tr('Schwerer Sturz mit mehreren Brüchen'),
-              race: day.race);
+      }
+      for (final a in day.result.abandons) {
+        racing.add(a.rider.id);
+        switch (a.reason) {
+          case AbandonReason.crash:
+            sideline(
+                a.rider,
+                a.days,
+                a.days >= 30
+                    ? tr('Schwerer Sturz mit mehreren Brüchen')
+                    : a.days >= 14
+                        ? tr(
+                            'Bruch nach einem Sturz, die Operation verlief gut')
+                        : tr('Prellungen nach einem Sturz'),
+                race: day.race);
+          case AbandonReason.illness:
+            sideline(a.rider, a.days, tr('Infekt, einige Tage Pause'),
+                race: day.race);
+          case AbandonReason.timeCut:
+            if (a.rider.teamId != teamId) continue;
+            inbox.add(Message(
+              today,
+              tr('Sportlicher Leiter'),
+              tr('{0} außerhalb der Karenzzeit', [a.rider.name]),
+              tr('{0} kam außerhalb der Karenzzeit ins Ziel und ist nicht mehr im Rennen.',
+                  [a.rider.name]),
+              raceId: day.race.race.info.id,
+            ));
         }
+      }
+      for (final e in day.result.injuries.entries) {
+        final r = day.result.placings
+            .where((p) => p.rider.id == e.key)
+            .firstOrNull
+            ?.rider;
+        if (r == null || r.teamId != teamId) continue;
+        inbox.add(Message(
+          today,
+          tr('Teamarzt'),
+          tr('{0} ist gestürzt', [r.name]),
+          e.value.formLoss >= 0.02
+              ? tr(
+                  '{0} ist gestürzt und hat sich ins Ziel gekämpft. Die nächsten Tage wird er Schmerzen haben.',
+                  [
+                      r.name
+                    ])
+              : tr('{0} ist gestürzt, aber ohne ernste Folgen davongekommen.',
+                  [r.name]),
+          raceId: day.race.race.info.id,
+        ));
       }
     }
     for (final r in riderById.values) {
@@ -1053,6 +1440,7 @@ class Career {
   /// over, riders keep their development.
   void startNextSeason() {
     _archiveSeason();
+    _awards();
     economy.closeSeason();
     licences.closeSeason();
     final ranking = teamPoints.entries.toList()
@@ -1070,7 +1458,9 @@ class Career {
     riderPoints.clear();
     teamPoints.clear();
     ownPlans.clear();
+    ownWishes.clear();
     program.clear();
+    teamPrograms.clear();
     _pending.clear();
     _skipped.clear();
     _busyUntil.clear();
@@ -1092,6 +1482,7 @@ class Career {
     _strength.clear();
     _buildCalendar();
     _ownRaces = null;
+    planner.reset();
     economy.openSeason();
     inbox.add(Message(
       today,
@@ -1293,7 +1684,20 @@ class Career {
         continue;
       }
       if (available.length < 4) continue;
-      others.addAll(_bestLineup(available, routes, size));
+      // Whoever the team's sports director planned for the race and is fit
+      // to start; the best-suited of the others fill the gaps.
+      final planned = teamPrograms[team]?[race.info.id] ?? const <int>{};
+      final lineup = [
+        for (final r in available)
+          if (planned.contains(r.id)) r,
+      ].take(size).toList();
+      if (lineup.length < size) {
+        lineup.addAll(_bestLineup([
+          for (final r in available)
+            if (!planned.contains(r.id)) r,
+        ], routes, size - lineup.length));
+      }
+      others.addAll(lineup);
     }
     // Own suggestion: first the riders pencilled in in the season plan, then
     // fill up with the best-suited.
@@ -1389,11 +1793,13 @@ class Career {
       race,
       riders,
       StageRaceRun(riders,
-          seed: seed * 104729 + id,
+          seed: _raceSeed(id),
           year: year,
           tuning: tuning,
           scheme: world.scheme(id),
           oneDay: !race.isStageRace,
+          month: race.start.month,
+          country: race.info.country,
           baseForm: {
             for (final r in riders)
               r.id: shapeOf(r.id).form *
@@ -1614,7 +2020,8 @@ class Career {
       r.id, r.name, r.teamId, r.team, r.born, r.potential, r.country, //
       r.contractEnd, a.flat, a.mountain, a.mediumMountain, a.hill,
       a.timeTrial, a.prologue, a.cobble, a.sprint, a.acceleration, a.downhill,
-      a.endurance, a.resistance, a.recovery, a.breakaway,
+      a.endurance, a.resistance, a.recovery, a.breakaway, //
+      r.weightKg, r.heightCm,
     ];
   }
 
@@ -1645,6 +2052,9 @@ class Career {
         recovery: d(20),
         breakaway: d(21),
       ),
+      // Saves before version 0.3.0 hold no weight and height.
+      weightKg: j.length > 22 ? d(22) : 0,
+      heightCm: j.length > 23 ? d(23) : 0,
     );
   }
 
@@ -1712,7 +2122,14 @@ class Career {
           [_ms(m.date), m.from, m.subject, m.body, m.raceId, m.read],
       ],
       'ownPlans': ints<TeamPlan>(ownPlans, (p) => p.toJson()),
+      'ownWishes': ints<PlanWish>(ownWishes, (w) => w.toJson()),
       'program': ints<Set<int>>(program, (s) => s.toList()),
+      'teamPrograms': ints<Map<int, Set<int>>>(
+          teamPrograms, (m) => ints<Set<int>>(m, (s) => s.toList())),
+      'watch': watch.toList(),
+      'muted': mutedTopics.toList(),
+      'digest': inboxDigest,
+      'notes': ints<String>(notes, (s) => s),
       'shape': ints<RiderShape>(
           shape,
           (s) => [
@@ -1734,6 +2151,7 @@ class Career {
       'radio': ints<Map<RadioKind, int>>(
           _radio, (m) => {for (final e in m.entries) e.key.name: e.value}),
       'delegation': {
+        'planning': delegation.planning,
         'lineups': delegation.lineups,
         'radio': delegation.radio.name,
         'training': delegation.training,
@@ -1823,9 +2241,35 @@ class Career {
       ..clear()
       ..addAll(ints(
           'ownPlans', (v) => TeamPlan.fromJson(v as Map<String, dynamic>)));
+    ownWishes
+      ..clear()
+      ..addAll(j['ownWishes'] == null
+          ? const {}
+          : ints('ownWishes',
+              (v) => PlanWish.fromJson(v as Map<String, dynamic>)));
     program
       ..clear()
       ..addAll(ints('program', (v) => (v as List).cast<int>().toSet()));
+    teamPrograms.clear();
+    if (j['teamPrograms'] case final Map<String, dynamic> saved) {
+      for (final e in saved.entries) {
+        teamPrograms[int.parse(e.key)] = {
+          for (final x in (e.value as Map<String, dynamic>).entries)
+            int.parse(x.key): (x.value as List).cast<int>().toSet(),
+        };
+      }
+    }
+    watch
+      ..clear()
+      ..addAll((j['watch'] as List? ?? const []).cast<int>());
+    mutedTopics
+      ..clear()
+      ..addAll((j['muted'] as List? ?? const []).cast<String>());
+    inboxDigest = j['digest'] as bool? ?? true;
+    notes
+      ..clear()
+      ..addAll(
+          j['notes'] == null ? const {} : ints('notes', (v) => v as String));
     shape
       ..clear()
       ..addAll(ints('shape', (v) {
@@ -1862,7 +2306,8 @@ class Career {
       ..lineups = dj['lineups'] as bool
       ..radio = RadioMode.values.byName(dj['radio'] as String)
       ..training = dj['training'] as bool
-      ..scouting = dj['scouting'] as bool;
+      ..scouting = dj['scouting'] as bool
+      ..planning = dj['planning'] as bool? ?? true;
     titles
       ..clear()
       ..addAll([

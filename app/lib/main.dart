@@ -2,7 +2,9 @@ import 'package:sim/sim.dart';
 
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -29,6 +31,7 @@ import 'screens/search_screen.dart';
 import 'screens/squad_screen.dart';
 import 'screens/staff_screen.dart';
 import 'screens/start_screen.dart';
+import 'screens/team_screen.dart';
 import 'screens/transfers_screen.dart';
 import 'settings.dart';
 import 'ui.dart';
@@ -201,6 +204,13 @@ class RadmanagerApp extends StatelessWidget {
     return MaterialApp(
       title: 'Radmanager',
       debugShowCheckedModeBanner: false,
+      // The arrow keys belong to lists and to the rider page. By default
+      // they would also move the focus from button to button, and Enter
+      // would then press whatever it landed on.
+      shortcuts: {
+        for (final e in WidgetsApp.defaultShortcuts.entries)
+          if (e.value is! DirectionalFocusIntent) e.key: e.value,
+      },
       locale: Locale(I18n.lang.name),
       supportedLocales: const [Locale('en'), Locale('de')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
@@ -333,9 +343,128 @@ class Shell extends StatefulWidget {
   State<Shell> createState() => _ShellState();
 }
 
+/// A place the player has been: page, view inside it and open rider.
+typedef _Place = ({_Page page, String? sub, int? rider, int? team});
+
 /// State of the shell: selected page and whether race preparation is shown.
 class _ShellState extends State<Shell> {
   var _page = _Page.home;
+
+  // History of the places visited, for back and forward.
+  final _back = <_Place>[];
+  final _forward = <_Place>[];
+  _Place? _here;
+  var _moving = false;
+
+  /// Notes where the player is now. A change that did not come from back
+  /// or forward adds the place left to the history.
+  ///
+  /// @param now Page, view and rider currently shown.
+  void _track(_Place now) {
+    final s = widget.state;
+    if (_here != null && now != _here && !_moving && !s.riderStepped) {
+      _back.add(_here!);
+      if (_back.length > 60) _back.removeAt(0);
+      _forward.clear();
+    }
+    _moving = false;
+    s.riderStepped = false;
+    _here = now;
+  }
+
+  /// Shows a place from the history.
+  void _show(_Place p) => setState(() {
+    _moving = true;
+    _page = p.page;
+    _sub = p.sub;
+    _showPrep = false;
+    widget.state.riderPage = p.rider;
+    widget.state.teamPage = p.team;
+  });
+
+  void _goBack() {
+    if (_back.isEmpty || _here == null) return;
+    _forward.add(_here!);
+    _show(_back.removeLast());
+  }
+
+  void _goForward() {
+    if (_forward.isEmpty || _here == null) return;
+    _back.add(_here!);
+    _show(_forward.removeLast());
+  }
+
+  /// What the continue button does at the moment, or null while it is off.
+  VoidCallback? get _continue {
+    final s = widget.state;
+    if (s.busy || s.radio != null) return null;
+    if (s.career.seasonOver) return s.nextSeason;
+    if (s.pending != null) return () => setState(() => _showPrep = true);
+    return s.next;
+  }
+
+  /// Keyboard shortcuts of the shell. They rest while a dialog is open and
+  /// while the player is typing.
+  ///
+  /// @param e The key event.
+  /// @returns Whether the key was used.
+  bool _onKey(KeyEvent e) {
+    if (e is! KeyDownEvent || !mounted) return false;
+    if (!(ModalRoute.of(context)?.isCurrent ?? true)) return false;
+    final s = widget.state;
+    final key = e.logicalKey;
+    final keys = HardwareKeyboard.instance;
+    if (keys.isControlPressed && key == LogicalKeyboardKey.keyF) {
+      setState(() {
+        _page = _Page.search;
+        _sub = null;
+        _showPrep = false;
+        s.riderPage = null;
+        s.teamPage = null;
+      });
+      return true;
+    }
+    final focus = FocusManager.instance.primaryFocus;
+    final typing =
+        focus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
+    if (typing) return false;
+    if (key == LogicalKeyboardKey.escape ||
+        keys.isAltPressed && key == LogicalKeyboardKey.arrowLeft) {
+      _goBack();
+      return true;
+    }
+    if (keys.isAltPressed && key == LogicalKeyboardKey.arrowRight) {
+      _goForward();
+      return true;
+    }
+    if (key == LogicalKeyboardKey.space) {
+      _continue?.call();
+      return true;
+    }
+    // In a list the arrow keys move the cursor and Enter opens the row.
+    if (s.riderPage == null && !_showPrep && DenseTable.handleKey(key)) {
+      return true;
+    }
+    if (s.riderPage != null && !_showPrep) {
+      if (key == LogicalKeyboardKey.arrowLeft ||
+          key == LogicalKeyboardKey.arrowUp) {
+        s.stepRider(-1);
+        return true;
+      }
+      if (key == LogicalKeyboardKey.arrowRight ||
+          key == LogicalKeyboardKey.arrowDown) {
+        s.stepRider(1);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKey);
+    super.dispose();
+  }
 
   /// View to open inside the selected page, e.g. a tab of the squad.
   String? _sub;
@@ -350,6 +479,7 @@ class _ShellState extends State<Shell> {
     super.initState();
     // Replay the saved state as soon as the window is up.
     WidgetsBinding.instance.addPostFrameCallback((_) => widget.state.restore());
+    HardwareKeyboard.instance.addHandler(_onKey);
   }
 
   void _openRace(int id) => setState(() {
@@ -357,6 +487,74 @@ class _ShellState extends State<Shell> {
     _page = _Page.races;
     _showPrep = false;
   });
+
+  // Pages visited in this career stay alive, so that their filters, sorting
+  // and scroll position are still there on return. Only the page in front
+  // is rebuilt; the others keep the widget of their last visit.
+  final _alive = <_Page, Widget>{};
+  Object? _careerSeen;
+  var _epoch = 0;
+
+  /// @param s Application state.
+  /// @returns All pages visited so far, the selected one visible unless a
+  ///   rider or team page lies on top.
+  List<Widget> _pages(AppState s) {
+    if (!identical(_careerSeen, s.career)) {
+      // Another career: nothing of the old pages applies any more.
+      _careerSeen = s.career;
+      _alive.clear();
+      _epoch++;
+    }
+    final covered = s.riderPage != null || s.teamPage != null;
+    _alive[_page] = _screen(_page, s)
+        .animate(key: ValueKey(_page))
+        .fadeIn(duration: widget.settings.animations ? 140.ms : Duration.zero);
+    return [
+      for (final e in _alive.entries)
+        KeyedSubtree(
+          key: ValueKey('page-$_epoch-${e.key.name}'),
+          child: Offstage(
+            offstage: e.key != _page || covered,
+            child: TickerMode(
+              enabled: e.key == _page && !covered,
+              child: e.value,
+            ),
+          ),
+        ),
+    ];
+  }
+
+  /// @param page A page of the sidebar.
+  /// @param s Application state.
+  /// @returns Its screen.
+  Widget _screen(_Page page, AppState s) => switch (page) {
+    _Page.home => HomeScreen(
+      state: s,
+      onOpenRace: _openRace,
+      onInbox: () => setState(() => _page = _Page.inbox),
+      onNavigate: (target) => setState(() {
+        // "page" or "page:view".
+        final parts = target.split(':');
+        _page = _Page.values.byName(parts[0]);
+        _sub = parts.length > 1 ? parts[1] : null;
+      }),
+    ),
+    _Page.inbox => InboxScreen(state: s, onOpenRace: _openRace),
+    _Page.squad => SquadScreen(key: ValueKey(_sub), state: s, view: _sub),
+    _Page.races => RacesScreen(state: s),
+    _Page.rankings => RankingsScreen(state: s),
+    _Page.planner => PlannerScreen(state: s),
+    _Page.transfers => TransfersScreen(state: s),
+    _Page.search => SearchScreen(state: s),
+    _Page.debug => DebugScreen(state: s),
+    _Page.finance => FinanceScreen(state: s),
+    _Page.staff => StaffScreen(state: s),
+    _Page.dev => DevScreen(state: s),
+    _Page.camps => CampsScreen(state: s),
+    _Page.calendar => CalendarScreen(state: s, onOpenRace: _openRace),
+    _Page.delegation => DelegationScreen(state: s),
+    _Page.saves => SavesScreen(state: s),
+  };
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -380,11 +578,13 @@ class _ShellState extends State<Shell> {
       if (s.jumpToRace) {
         s.jumpToRace = false;
         s.riderPage = null;
+        s.teamPage = null;
         _page = _Page.races;
         _showPrep = false;
       }
       final prep = _showPrep ? pending : null;
       final loading = s.loading;
+      _track((page: _page, sub: _sub, rider: s.riderPage, team: s.teamPage));
       // What comes next is shown beside the date.
       final next = career.ownRaces
           .where(
@@ -395,262 +595,267 @@ class _ShellState extends State<Shell> {
           .firstOrNull;
       final days = next?.start.difference(career.today).inDays;
       return Scaffold(
-        body: Row(
-          children: [
-            _Sidebar(
-              state: s,
-              page: prep != null ? null : _page,
-              onMenu: widget.onMenu,
-              onPage: (p) => setState(() {
-                _page = p;
-                _sub = null;
-                _showPrep = false;
-                s.riderPage = null;
-              }),
-            ),
-            Expanded(
-              child: Column(
-                children: [
-                  Container(
-                    height: 58,
-                    padding: const EdgeInsets.only(left: 18),
-                    decoration: BoxDecoration(
-                      color: c.panel2,
-                      border: Border(bottom: BorderSide(color: c.line)),
-                    ),
-                    child: Row(
-                      children: [
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              prep != null
-                                  ? tr('Rennvorbereitung')
-                                  : s.riderPage != null
-                                  ? tr('Fahrerprofil')
-                                  : _page == _Page.finance
-                                  ? tr('Finanzen')
-                                  : _page.label,
-                              style: headStyle(23),
-                            ),
-                            Text(
-                              '${s.team.name} · '
-                              '${career.licences.of(s.team.id).label}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: TeamColors.muted,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const Spacer(),
-                        if (s.debug)
-                          Container(
-                            margin: const EdgeInsets.only(right: 16),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: TeamColors.gold),
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: Text(
-                              'DEBUG · Seed ${career.seed}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: TeamColors.gold,
-                              ),
-                            ),
+        // The back and forward buttons of the mouse.
+        body: Listener(
+          onPointerDown: (e) {
+            if (e.buttons & kBackMouseButton != 0) _goBack();
+            if (e.buttons & kForwardMouseButton != 0) _goForward();
+          },
+          // A button clicked with the mouse must not keep the focus:
+          // otherwise the space bar would press it again instead of
+          // continuing. Text fields keep theirs.
+          onPointerUp: (_) => Future.microtask(() {
+            final focus = FocusManager.instance.primaryFocus;
+            if (focus == null || focus is FocusScopeNode) return;
+            if (focus.context?.findAncestorWidgetOfExactType<EditableText>() ==
+                null) {
+              focus.unfocus();
+            }
+          }),
+          child: Row(
+            children: [
+              _Sidebar(
+                state: s,
+                page: prep != null ? null : _page,
+                onMenu: widget.onMenu,
+                onPage: (p) => setState(() {
+                  _page = p;
+                  _sub = null;
+                  _showPrep = false;
+                  s.riderPage = null;
+                  s.teamPage = null;
+                }),
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    Container(
+                      height: 58,
+                      padding: const EdgeInsets.only(left: 6),
+                      decoration: BoxDecoration(
+                        color: c.panel2,
+                        border: Border(bottom: BorderSide(color: c.line)),
+                      ),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            tooltip: tr('Zurück (Alt+←, Esc)'),
+                            visualDensity: VisualDensity.compact,
+                            onPressed: _back.isEmpty ? null : _goBack,
+                            icon: const Icon(LucideIcons.arrowLeft, size: 18),
                           ),
-                        if (next != null && !career.seasonOver)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 18),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  tr('NÄCHSTES RENNEN'),
-                                  style: TextStyle(
-                                    fontSize: 10.5,
-                                    letterSpacing: 0.8,
-                                    color: TeamColors.muted,
-                                  ),
-                                ),
-                                Text(
-                                  '${next.info.name} · '
-                                  '${days == 0
-                                      ? tr('heute')
-                                      : days == 1
-                                      ? tr('morgen')
-                                      : tr('in {0} Tagen', [days])}',
-                                  style: const TextStyle(fontSize: 13),
-                                ),
-                              ],
-                            ),
+                          IconButton(
+                            tooltip: tr('Vor (Alt+→)'),
+                            visualDensity: VisualDensity.compact,
+                            onPressed: _forward.isEmpty ? null : _goForward,
+                            icon: const Icon(LucideIcons.arrowRight, size: 18),
                           ),
-                        Container(width: 1, height: 34, color: c.line),
-                        // The date opens a small calendar to simulate up
-                        // to a chosen day.
-                        Tooltip(
-                          message: tr('Bis zu einem Datum simulieren'),
-                          child: InkWell(
-                            onTap: s.busy || career.seasonOver
-                                ? null
-                                : () => showSimulateDialog(context, s),
-                            child: Container(
-                              height: double.infinity,
+                          const SizedBox(width: 8),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                prep != null
+                                    ? tr('Rennvorbereitung')
+                                    : s.riderPage != null
+                                    ? tr('Fahrerprofil')
+                                    : s.teamPage != null
+                                    ? tr('Teamprofil')
+                                    : _page == _Page.finance
+                                    ? tr('Finanzen')
+                                    : _page.label,
+                                style: headStyle(23),
+                              ),
+                              Text(
+                                '${s.team.name} · '
+                                '${career.licences.of(s.team.id).label}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: TeamColors.muted,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Spacer(),
+                          if (s.debug)
+                            Container(
+                              margin: const EdgeInsets.only(right: 16),
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
+                                horizontal: 8,
+                                vertical: 3,
                               ),
-                              child: Row(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: TeamColors.gold),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                              child: Text(
+                                'DEBUG · Seed ${career.seed}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: TeamColors.gold,
+                                ),
+                              ),
+                            ),
+                          if (next != null && !career.seasonOver)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 18),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  const Icon(
-                                    LucideIcons.calendarClock,
-                                    size: 17,
-                                    color: TeamColors.muted,
-                                  ),
-                                  const SizedBox(width: 8),
                                   Text(
-                                    career.seasonOver
-                                        ? tr('Saison {0} beendet', [
-                                            career.year,
-                                          ])
-                                        : _longDate(career.today),
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      fontFeatures: [
-                                        FontFeature.tabularFigures(),
-                                      ],
+                                    tr('NÄCHSTES RENNEN'),
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      letterSpacing: 0.8,
+                                      color: TeamColors.muted,
                                     ),
                                   ),
+                                  Text(
+                                    '${next.info.name} · '
+                                    '${days == 0
+                                        ? tr('heute')
+                                        : days == 1
+                                        ? tr('morgen')
+                                        : tr('in {0} Tagen', [days])}',
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          Container(width: 1, height: 34, color: c.line),
+                          // The date opens a small calendar to simulate up
+                          // to a chosen day.
+                          Tooltip(
+                            message: tr('Bis zu einem Datum simulieren'),
+                            child: InkWell(
+                              onTap: s.busy || career.seasonOver
+                                  ? null
+                                  : () => showSimulateDialog(context, s),
+                              child: Container(
+                                height: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      LucideIcons.calendarClock,
+                                      size: 17,
+                                      color: TeamColors.muted,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      career.seasonOver
+                                          ? tr('Saison {0} beendet', [
+                                              career.year,
+                                            ])
+                                          : _longDate(career.today),
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        fontFeatures: [
+                                          FontFeature.tabularFigures(),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            height: double.infinity,
+                            child: FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: c.accent,
+                                foregroundColor: c.onAccent,
+                                disabledBackgroundColor: c.panel,
+                                shape: const RoundedRectangleBorder(),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 26,
+                                ),
+                              ),
+                              onPressed: _continue,
+                              child: Row(
+                                children: [
+                                  Text(
+                                    loading != null
+                                        ? tr('LÄDT {0} %', [
+                                            (loading * 100).round(),
+                                          ])
+                                        : s.busy
+                                        ? tr('LÄUFT …')
+                                        : s.radio != null
+                                        ? tr('FUNK …')
+                                        : career.seasonOver
+                                        ? tr('NEUE SAISON')
+                                        : pending != null
+                                        ? tr('ZUM AUFGEBOT')
+                                        : tr('WEITER'),
+                                    style: const TextStyle(
+                                      fontFamily: headFont,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.8,
+                                    ),
+                                  ),
+                                  if (!s.busy && s.radio == null) ...[
+                                    const SizedBox(width: 6),
+                                    const Icon(
+                                      LucideIcons.arrowRight,
+                                      size: 18,
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
                           ),
-                        ),
-                        SizedBox(
-                          height: double.infinity,
-                          child: FilledButton(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: c.accent,
-                              foregroundColor: c.onAccent,
-                              disabledBackgroundColor: c.panel,
-                              shape: const RoundedRectangleBorder(),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 26,
-                              ),
-                            ),
-                            onPressed: s.busy || s.radio != null
-                                ? null
-                                : career.seasonOver
-                                ? s.nextSeason
-                                : pending != null
-                                ? () => setState(() => _showPrep = true)
-                                : s.next,
-                            child: Row(
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: s.radio != null && !s.busy
+                          ? RadioPanel(state: s)
+                          : prep != null
+                          ? PrepScreen(
+                              key: ValueKey(prep.race.info.id),
+                              state: s,
+                              pending: prep,
+                            )
+                          // The page stays alive under the rider page, so that
+                          // its filters, sorting and scroll position are still
+                          // there on the way back.
+                          : Stack(
+                              fit: StackFit.expand,
                               children: [
-                                Text(
-                                  loading != null
-                                      ? tr('LÄDT {0} %', [
-                                          (loading * 100).round(),
-                                        ])
-                                      : s.busy
-                                      ? tr('LÄUFT …')
-                                      : s.radio != null
-                                      ? tr('FUNK …')
-                                      : career.seasonOver
-                                      ? tr('NEUE SAISON')
-                                      : pending != null
-                                      ? tr('ZUM AUFGEBOT')
-                                      : tr('WEITER'),
-                                  style: const TextStyle(
-                                    fontFamily: headFont,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.8,
+                                ..._pages(s),
+                                if (s.teamPage != null && s.riderPage == null)
+                                  Positioned.fill(
+                                    child: TeamPage(
+                                      key: ValueKey('team-${s.teamPage}'),
+                                      state: s,
+                                      teamId: s.teamPage!,
+                                    ),
                                   ),
-                                ),
-                                if (!s.busy && s.radio == null) ...[
-                                  const SizedBox(width: 6),
-                                  const Icon(LucideIcons.arrowRight, size: 18),
-                                ],
+                                if (s.riderPage != null)
+                                  Positioned.fill(
+                                    child: RiderPage(
+                                      key: ValueKey(s.riderPage),
+                                      state: s,
+                                      riderId: s.riderPage!,
+                                      page: true,
+                                    ),
+                                  ),
                               ],
                             ),
-                          ),
-                        ),
-                      ],
                     ),
-                  ),
-                  Expanded(
-                    child: s.radio != null && !s.busy
-                        ? RadioPanel(state: s)
-                        : s.riderPage != null && prep == null
-                        ? RiderPage(
-                            key: ValueKey(s.riderPage),
-                            state: s,
-                            riderId: s.riderPage!,
-                            page: true,
-                          )
-                        : prep != null
-                        ? PrepScreen(
-                            key: ValueKey(prep.race.info.id),
-                            state: s,
-                            pending: prep,
-                          )
-                        : (switch (_page) {
-                                _Page.home => HomeScreen(
-                                  state: s,
-                                  onOpenRace: _openRace,
-                                  onInbox: () =>
-                                      setState(() => _page = _Page.inbox),
-                                  onNavigate: (target) => setState(() {
-                                    // "page" or "page:view".
-                                    final parts = target.split(':');
-                                    _page = _Page.values.byName(parts[0]);
-                                    _sub = parts.length > 1 ? parts[1] : null;
-                                  }),
-                                ),
-                                _Page.inbox => InboxScreen(
-                                  state: s,
-                                  onOpenRace: _openRace,
-                                ),
-                                _Page.squad => SquadScreen(
-                                  key: ValueKey(_sub),
-                                  state: s,
-                                  view: _sub,
-                                ),
-                                _Page.races => RacesScreen(state: s),
-                                _Page.rankings => RankingsScreen(state: s),
-                                _Page.planner => PlannerScreen(state: s),
-                                _Page.transfers => TransfersScreen(state: s),
-                                _Page.search => SearchScreen(state: s),
-                                _Page.debug => DebugScreen(state: s),
-                                _Page.finance => FinanceScreen(state: s),
-                                _Page.staff => StaffScreen(state: s),
-                                _Page.dev => DevScreen(state: s),
-                                _Page.camps => CampsScreen(state: s),
-                                _Page.calendar => CalendarScreen(
-                                  state: s,
-                                  onOpenRace: _openRace,
-                                ),
-                                _Page.delegation => DelegationScreen(state: s),
-                                _Page.saves => SavesScreen(state: s),
-                              })
-                              .animate(key: ValueKey(_page))
-                              .fadeIn(
-                                duration: widget.settings.animations
-                                    ? 140.ms
-                                    : Duration.zero,
-                              ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     },

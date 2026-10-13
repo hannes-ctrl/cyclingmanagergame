@@ -74,6 +74,7 @@ class _SearchScreenState extends State<SearchScreen> {
   String? _attribute;
   var _minimum = 70.0;
   var _expiring = false;
+  var _watched = false;
 
   /// @param r A rider.
   /// @returns The level of his team, one of [_levels].
@@ -129,7 +130,9 @@ class _SearchScreenState extends State<SearchScreen> {
                     book.knowledge(r.id) >= 0.6 && r.potential >= _potential) &&
                 (pick == null ||
                     known(r, pick.$2, pick.$3(r.attributes)) >= _minimum) &&
-                (!_expiring || (eco.contracts[r.id]?.endYear ?? 9999) <= year))
+                (!_expiring ||
+                    (eco.contracts[r.id]?.endYear ?? 9999) <= year) &&
+                (!_watched || career.watch.contains(r.id)))
               r,
         ]..sort(
           (a, b) => known(
@@ -331,6 +334,12 @@ class _SearchScreenState extends State<SearchScreen> {
                             : _types.add(t),
                       ),
                     ),
+                  FilterHead(tr('Beobachtung')),
+                  FilterOption(
+                    label: tr('Nur Beobachtungsliste'),
+                    selected: _watched,
+                    onTap: () => setState(() => _watched = !_watched),
+                  ),
                   FilterHead(tr('Vertrag')),
                   FilterOption(
                     label: tr('Vertrag läuft aus'),

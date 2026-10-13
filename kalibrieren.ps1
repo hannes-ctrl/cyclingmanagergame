@@ -29,7 +29,7 @@ if (-not (Get-Command $dart -ErrorAction SilentlyContinue)) {
 Set-Location "$PSScriptRoot\packages\calibration"
 
 # Fetch new results of all seasons; pages loaded before come from the cache.
-foreach ($year in 2021..2026) {
+foreach ($year in 2023..2026) {
     & $dart run bin/fetch_results.dart $year | Select-Object -Last 1
 }
 

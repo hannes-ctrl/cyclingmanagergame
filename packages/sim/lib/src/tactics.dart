@@ -153,6 +153,89 @@ class TeamPlan {
       );
 }
 
+/// What the player pins down for a race: roles of single riders and, if he
+/// wants, the approach and the breakaway policy. Everything he leaves open
+/// the sports director decides anew for every stage.
+class PlanWish {
+  /// Creates a wish.
+  const PlanWish({this.roles = const {}, this.approach, this.breakPolicy});
+
+  /// Pinned role per rider id.
+  final Map<int, Role> roles;
+
+  /// Pinned approach, or null to leave it to the sports director.
+  final Approach? approach;
+
+  /// Pinned breakaway policy, or null to leave it to the sports director.
+  final BreakPolicy? breakPolicy;
+
+  /// Whether nothing is pinned.
+  bool get isEmpty => roles.isEmpty && approach == null && breakPolicy == null;
+
+  /// Lays the wishes over the plan the sports director drew up for a stage.
+  ///
+  /// A pinned sprinter is a protected rider on a stage that does not end in
+  /// a sprint, and a pinned lead-out man an ordinary helper. If the player
+  /// pins a leader or a sprinter, the rider the director had in that place
+  /// becomes co-leader or lead-out man.
+  ///
+  /// @param auto The director's plan for the stage.
+  /// @param route The stage.
+  /// @param present Ids of the team's riders still in the race.
+  /// @returns The plan the team rides with.
+  TeamPlan applyTo(TeamPlan auto, SimRoute route, Set<int> present) {
+    final out = {...auto.roles};
+    for (final e in roles.entries) {
+      if (!present.contains(e.key)) continue;
+      var role = e.value;
+      if (!route.sprintStage && route.kind == StageKind.road) {
+        if (role == Role.sprinter) role = Role.protected;
+        if (role == Role.leadOut) role = Role.domestique;
+      }
+      out[e.key] = role;
+    }
+    for (final unique in [Role.leader, Role.sprinter]) {
+      final pinned = out.entries
+          .where((e) => e.value == unique && roles.containsKey(e.key))
+          .isNotEmpty;
+      if (!pinned) continue;
+      for (final id in out.keys.toList()) {
+        if (out[id] == unique && !roles.containsKey(id)) {
+          out[id] = unique == Role.leader ? Role.coLeader : Role.leadOut;
+        }
+      }
+    }
+    return TeamPlan(
+      roles: out,
+      approach: approach ?? auto.approach,
+      breakPolicy: breakPolicy ?? auto.breakPolicy,
+      directorSkill: auto.directorSkill,
+    );
+  }
+
+  /// @returns The wish as a JSON-encodable map.
+  Map<String, dynamic> toJson() => {
+        'roles': {for (final e in roles.entries) '${e.key}': e.value.name},
+        if (approach != null) 'approach': approach!.name,
+        if (breakPolicy != null) 'breakPolicy': breakPolicy!.name,
+      };
+
+  /// @param j A map written by [toJson].
+  /// @returns The wish.
+  static PlanWish fromJson(Map<String, dynamic> j) => PlanWish(
+        roles: {
+          for (final e in (j['roles'] as Map<String, dynamic>).entries)
+            int.parse(e.key): Role.values.byName(e.value as String),
+        },
+        approach: j['approach'] == null
+            ? null
+            : Approach.values.byName(j['approach'] as String),
+        breakPolicy: j['breakPolicy'] == null
+            ? null
+            : BreakPolicy.values.byName(j['breakPolicy'] as String),
+      );
+}
+
 /// Plans for all teams as a sensible sports director would draw them up
 /// without instructions. The player later replaces his own team's plan.
 ///

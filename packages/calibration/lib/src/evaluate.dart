@@ -74,11 +74,31 @@ class CaseScore {
       this.wonHow,
       this.shapeTerm = 0,
       this.speedTerm = 0,
-      this.realKind});
+      this.breakTerm = 0,
+      this.gcTerm = 0,
+      this.realKind,
+      this.realFavourite,
+      this.simFavourite = 0,
+      this.realGcLoss,
+      this.simGcLoss});
 
   /// Parts of [loss], already weighted, for the report.
   final double shapeTerm;
   final double speedTerm;
+  final double breakTerm;
+  final double gcTerm;
+
+  /// Whether the real winner was one of the three riders best suited to the
+  /// route among those in the database; null if he is not in it.
+  final bool? realFavourite;
+
+  /// Share of the simulation runs won by one of those three riders.
+  final double simFavourite;
+
+  /// Mean time the ten best riders of the general classification lost on
+  /// the stage winner, as log(1 + seconds); null without a classification.
+  final double? realGcLoss;
+  final double? simGcLoss;
 
   /// Size class of the real winner's group, counted over all finishers;
   /// null for time trials.
@@ -107,20 +127,22 @@ class CaseScore {
 
 /// Weights of the error terms.
 ///
-/// Only the dynamics of a race count, measured by four figures: the size of
+/// Only the dynamics of a race count, measured by five figures: the size of
 /// the winner's group, the gap of tenth place, the gap of the middle of the
-/// field and the average speed. Who wins, and whether he comes from the
-/// breakaway, does not enter the error at all: the best riders do not start
+/// field, the average speed, and whether the early breakaway won. Which
+/// rider wins does not enter the error at all: the best riders do not start
 /// everywhere, and crashes, injuries and form of the day decide a single
-/// real result. Those figures are still printed, for information.
+/// real result. His placing is still printed, for information.
 ///
 /// Two kinds of terms exist. Per race: how far the simulated race is from
-/// the real one in the four figures. Per race type: how far the simulated
-/// *frequency* of each size class of the winner's group (solo, duo, small
-/// group, bunch) is from the real one. The second kind keeps the search
-/// from giving up on rare outcomes, which a per-race error alone tolerates.
+/// the real one in those figures. Per race type: how far the simulated
+/// *frequencies* are from the real ones, of breakaway wins and of each size
+/// class of the winner's group (solo, duo, small group, bunch). The second
+/// kind keeps the search from giving up on rare outcomes, which a per-race
+/// error alone tolerates.
 const _wShape = 0.5;
 const _wSpeed = 400.0;
+const _wBreak = 2.0;
 
 /// Upper limit for shape plus speed error of one race. Stages that were
 /// neutralised, shortened or ridden as a parade cannot be matched and must
@@ -129,6 +151,14 @@ const _caseCap = 8.0;
 
 /// Weight of the per-type frequency terms.
 const _wFrequency = 60.0;
+
+/// Weight of the per-type term for how often a top favourite wins. Small: a
+/// single real result says little, only the frequency over many races counts.
+const _wFavourite = 20.0;
+
+/// Weight of the time the leaders of the general classification lose on a
+/// stage. It decides how far apart a stage race ends.
+const _wGc = 0.3;
 
 /// Simulates one race several times and compares it with the real result.
 ///
@@ -148,20 +178,58 @@ CaseScore scoreCase(CalibrationCase c, SimTuning tuning, int runs, int seed) {
   final winner = c.realOrder.first;
   final shapes = <RaceShape>[];
   var rankSum = 0.0, top3 = 0, top10 = 0;
+  // The three riders best suited to the route.
+  final bySuitability = [...c.riders]..sort((a, b) =>
+      suitability(c.route, b.attributes)
+          .compareTo(suitability(c.route, a.attributes)));
+  final favourites = {for (final r in bySuitability.take(3)) r.id};
+  var favouriteWins = 0;
+  // The ten best of the general classification before the stage.
+  final gcTop = (c.gcGaps.entries.toList()
+        ..sort((a, b) => a.value.compareTo(b.value)))
+      .take(10)
+      .map((e) => e.key)
+      .toSet();
+  final realAt = {
+    for (var i = 0; i < c.realOrder.length; i++) c.realOrder[i]: c.realTimes[i],
+  };
+  final gcReal = [
+    for (final id in gcTop)
+      if (realAt[id] != null) log(1 + realAt[id]! - c.realTimes.first),
+  ];
+  final realGcLoss = gcReal.length >= 5
+      ? gcReal.reduce((a, b) => a + b) / gcReal.length
+      : null;
+  var simGcSum = 0.0;
   final finishes = List.filled(FinishKind.road.length, 0);
   for (var r = 0; r < runs; r++) {
     // The seed depends on the race and the run, not on the tuning values, so
     // every setting sees the same random numbers.
+    // The real weather of the day is not known; each run draws one for the
+    // country and the month of the race, as a career does.
     final result = simulateStage(c.route, c.riders,
         seed: seed + 7919 * r + c.label.hashCode % 100000,
         tuning: tuning,
-        gcGaps: c.gcGaps);
+        gcGaps: c.gcGaps,
+        month: c.month,
+        country: c.country);
     shapes.add(RaceShape.of([for (final p in result.placings) p.timeS],
         c.route.raceKm, result.breakSurvived));
     final firstGroup = result.placings
         .where((p) => p.group == result.placings.first.group)
         .length;
     finishes[FinishKind.road.indexOf(FinishKind.ofGroup(firstGroup))]++;
+    if (favourites.contains(result.placings.first.rider.id)) favouriteWins++;
+    if (realGcLoss != null) {
+      final at = {for (final p in result.placings) p.rider.id: p.timeS};
+      final losses = [
+        for (final id in gcTop)
+          if (at[id] != null) log(1 + at[id]! - result.winnerTimeS),
+      ];
+      if (losses.isNotEmpty) {
+        simGcSum += losses.reduce((a, b) => a + b) / losses.length;
+      }
+    }
     for (var i = 0; i < result.placings.length; i++) {
       final id = result.placings[i].rider.id;
       if (top5.contains(id)) rankSum += log(i + 1);
@@ -183,16 +251,29 @@ CaseScore scoreCase(CalibrationCase c, SimTuning tuning, int runs, int seed) {
           sq(sim.logGap10 - real.logGap10) +
           sq(sim.logGapMedian - real.logGapMedian));
   final speedTerm = _wSpeed * sq(sim.speedKmh / real.speedKmh - 1);
+  final simGcLoss = realGcLoss == null ? null : simGcSum / runs;
+  final gcTerm = realGcLoss == null ? 0.0 : _wGc * sq(simGcLoss! - realGcLoss);
+  // Whether the break of the day won: the real race says yes or no, the
+  // simulation gives the share of its runs.
+  final breakTerm = road ? _wBreak * sq(sim.breakWin - real.breakWin) : 0.0;
   final shares = [for (final n in finishes) n / runs];
-  final capped = min(_caseCap, shapeTerm + speedTerm);
-  final loss = capped;
+  final capped = min(_caseCap, shapeTerm + speedTerm + gcTerm);
+  final loss = capped + breakTerm;
   return CaseScore(
       c.label, c.type, real, sim, rankTerm, top3 / runs, top10 / runs, loss,
       finishShares: shares,
       wonHow: c.wonHow,
       realKind: road ? FinishKind.ofGroup(realGroup) : null,
       shapeTerm: shapeTerm,
-      speedTerm: speedTerm);
+      speedTerm: speedTerm,
+      breakTerm: breakTerm,
+      gcTerm: gcTerm,
+      realFavourite: c.riders.any((r) => r.id == winner)
+          ? favourites.contains(winner)
+          : null,
+      simFavourite: favouriteWins / runs,
+      realGcLoss: realGcLoss,
+      simGcLoss: simGcLoss);
 }
 
 /// Scores of all races for one tuning set.
@@ -204,8 +285,9 @@ class Evaluation {
   double get caseLoss =>
       scores.map((s) => s.loss).reduce((a, b) => a + b) / scores.length;
 
-  /// Error of the frequencies per race type: how often the winner's group
-  /// falls into each size class, simulation against reality.
+  /// Error of the frequencies per race type: how often a breakaway wins and
+  /// how often the winner's group falls into each size class, simulation
+  /// against reality.
   /// Types with fewer than four races are left out as too noisy.
   double get frequencyLoss {
     final byType = <String, List<CaseScore>>{};
@@ -214,10 +296,11 @@ class Evaluation {
     }
     double sq(double x) => x * x;
     double mean(Iterable<double> x) => x.reduce((a, b) => a + b) / x.length;
-    var sum = 0.0, weight = 0;
+    var sum = 0.0, weight = 0.0;
     for (final list in byType.values) {
       if (list.length < 4) continue;
-      var term = 0.0;
+      var term = sq(mean(list.map((s) => s.sim.breakWin)) -
+          mean(list.map((s) => s.real.breakWin)));
       final known = [
         for (final s in list)
           if (s.realKind != null && s.finishShares.isNotEmpty) s,
@@ -229,14 +312,38 @@ class Evaluation {
                   known.length);
         }
       }
-      sum += term * list.length;
-      weight += list.length;
+      // Weighted with the square root of the number of races, so that a
+      // rare type such as the sector races is not sacrificed to the common ones.
+      final w = sqrt(list.length);
+      sum += term * w;
+      weight += w;
     }
     return weight == 0 ? 0 : _wFrequency * sum / weight;
   }
 
+  /// Error of how often a top favourite wins, per race type: simulation
+  /// against reality. Types with fewer than six known winners are left out.
+  double get favouriteLoss {
+    final byType = <String, List<CaseScore>>{};
+    for (final s in scores) {
+      if (s.realFavourite != null) {
+        byType.putIfAbsent(s.type, () => []).add(s);
+      }
+    }
+    var sum = 0.0, weight = 0;
+    for (final list in byType.values) {
+      if (list.length < 6) continue;
+      final real = list.where((s) => s.realFavourite!).length / list.length;
+      final sim =
+          list.map((s) => s.simFavourite).reduce((a, b) => a + b) / list.length;
+      sum += (sim - real) * (sim - real) * list.length;
+      weight += list.length;
+    }
+    return weight == 0 ? 0 : _wFavourite * sum / weight;
+  }
+
   /// Total error; lower is better.
-  double get loss => caseLoss + frequencyLoss;
+  double get loss => caseLoss + frequencyLoss + favouriteLoss;
 }
 
 /// Scores a tuning set over all races, spread across several cores.
@@ -309,8 +416,12 @@ Future<Map<String, double>> optimize(
       sqrt(-2 * log_(max(rng.nextDouble(), 1e-12))) *
       cos(2 * pi * rng.nextDouble());
 
-  // Parameters added since the start values were stored take their default.
-  var best = {for (final p in params) p.name: start[p.name] ?? p.standard};
+  // Parameters added since the start values were stored take their default;
+  // values outside a range that has since been narrowed are pulled into it.
+  var best = {
+    for (final p in params)
+      p.name: (start[p.name] ?? p.standard).clamp(p.min, p.max).toDouble(),
+  };
   var evalSeed = seed;
   var bestLoss = (await evaluate(cases, best, runs: runs, seed: evalSeed)).loss;
   // A candidate must also win on a second set of random numbers. Without
@@ -339,7 +450,9 @@ Future<Map<String, double>> optimize(
     final changed = <String>[];
     while (changed.isEmpty) {
       for (final p in params) {
-        if (rng.nextDouble() > 0.2) continue;
+        // About three parameters at a time: with a few hundred attempts per
+        // night, a step in ten directions at once is almost never better.
+        if (rng.nextDouble() > 3 / params.length) continue;
         final span = p.max - p.min;
         candidate[p.name] =
             (best[p.name]! + sigma * span * gauss()).clamp(p.min, p.max);

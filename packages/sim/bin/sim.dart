@@ -215,10 +215,17 @@ bool _check() {
       Iterable.generate(a.placings.length).every((i) =>
           a.placings[i].rider.id == b.placings[i].rider.id &&
           a.placings[i].timeS == b.placings[i].timeS));
-  expect('alle Fahrer im Ziel', a.placings.length == riders.length);
-  expect('jeder Fahrer genau einmal',
-      a.placings.map((p) => p.rider.id).toSet().length == riders.length);
+  expect('jeder Fahrer im Ziel oder ausgeschieden',
+      a.placings.length + a.abandons.length == riders.length);
+  expect(
+      'jeder Fahrer genau einmal',
+      {
+            ...a.placings.map((p) => p.rider.id),
+            ...a.abandons.map((x) => x.rider.id)
+          }.length ==
+          riders.length);
   final kmh = mountain.raceKm / (a.winnerTimeS / 3600);
+  expect('Segmente von 200 m', mountain.segments.first.lengthM == 200);
   expect('Bergetappe: Schnitt zwischen 28 und 38 km/h', kmh > 28 && kmh < 38,
       kmh.toStringAsFixed(1));
 

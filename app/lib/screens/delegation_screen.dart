@@ -200,6 +200,17 @@ class DelegationScreen extends StatelessWidget {
                 ),
                 Divider(height: 1, color: c.line),
                 row(
+                  tr('Saisonplan'),
+                  tr('Sportlicher Leiter'),
+                  tr('Du planst selbst, welcher Fahrer welches Rennen fährt.'),
+                  tr(
+                    'Der Sportliche Leiter plant zu Saisonbeginn alle Rennen, die wichtigsten zuerst und gleichmäßig über den Kader, und ersetzt Fahrer, die ausfallen. Du kannst jeden Einsatz im Rennplaner ändern.',
+                  ),
+                  d.planning,
+                  (v) => s.delegate('planning', v),
+                ),
+                Divider(height: 1, color: c.line),
+                row(
                   tr('Vertragsverlängerungen'),
                   tr('Teamleitung'),
                   tr('Auslaufende Verträge verhandelst du selbst.'),

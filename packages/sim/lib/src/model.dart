@@ -1,4 +1,5 @@
 import 'trace.dart';
+import 'weather.dart';
 
 /// Rider attributes on the PCM scale (roughly 50 to 85).
 class Attributes {
@@ -72,6 +73,8 @@ class SimRider {
     this.potential = 4,
     this.country = '',
     this.contractEnd = 0,
+    this.weightKg = 0,
+    this.heightCm = 0,
   });
 
   final int id;
@@ -97,6 +100,19 @@ class SimRider {
   /// Last contract year according to the WorldDB, 0 if unknown.
   final int contractEnd;
 
+  /// Body weight in kg from the WorldDB, 0 if unknown.
+  final double weightKg;
+
+  /// Height in cm from the WorldDB, 0 if unknown.
+  final double heightCm;
+
+  /// Body weight the physics works with; 70 kg if unknown or implausible.
+  double get massKg => weightKg >= 45 && weightKg <= 100 ? weightKg : 70;
+
+  /// Height the physics works with; 1.80 m if unknown or implausible.
+  double get heightM =>
+      heightCm >= 150 && heightCm <= 210 ? heightCm / 100 : 1.8;
+
   /// The same rider with different attributes.
   ///
   /// @param a New attributes.
@@ -111,6 +127,8 @@ class SimRider {
         potential: potential,
         country: country,
         contractEnd: contractEnd,
+        weightKg: weightKg,
+        heightCm: heightCm,
       );
 
   /// The same rider at another team.
@@ -128,6 +146,8 @@ class SimRider {
         potential: potential,
         country: country,
         contractEnd: contractEnd,
+        weightKg: weightKg,
+        heightCm: heightCm,
       );
 }
 
@@ -141,6 +161,7 @@ class Segment {
     this.cobble = 0,
     this.unpaved = 0,
     this.climbKm = 0,
+    this.altitudeM = 0,
   });
 
   /// Race kilometre at the start of the segment.
@@ -158,6 +179,13 @@ class Segment {
 
   /// Length of the climb the segment belongs to, 0 outside of climbs.
   double climbKm;
+
+  /// Difficulty of the surface whatever its kind, 0 = tarmac. Cobbles and
+  /// unpaved roads share one scale here; their rolling resistance differs.
+  int get rough => cobble > 0 ? cobble : unpaved;
+
+  /// Altitude in the middle of the segment in metres.
+  final double altitudeM;
 }
 
 /// Kind of stage: road race, individual or team time trial.
@@ -197,29 +225,55 @@ class SimRoute {
   final double startAltitudeM;
 
   /// Whether the stage is expected to end in a bunch sprint.
-  bool get sprintStage => selectivity < 600 && finishGrade < 0.03;
+  late final bool sprintStage =
+      !sectorRace && selectivity < 600 && finishGrade < 0.03;
+
+  /// Kilometres of cobbles and unpaved road, each weighted with its
+  /// difficulty (unpaved counts 60 %).
+  late final double sectorLoad = () {
+    var sum = 0.0;
+    for (final s in segments) {
+      sum += (s.cobble + 0.6 * s.unpaved) * s.lengthM / 1000;
+    }
+    return sum;
+  }();
+
+  /// Whether the sectors decide the race: a cobbled classic, a gravel race
+  /// or a stage over many sectors. Such races are simulated with the sector
+  /// model (the group as a line, splits by position, wear from the surface).
+  late final bool sectorRace = kind == StageKind.road && sectorLoad >= 25;
 
   /// Mean gradient of the last 1.5 km.
-  double get finishGrade {
+  late final double finishGrade = () {
     var rise = 0.0, length = 0.0;
     for (final s in segments.reversed) {
       rise += s.grade * s.lengthM;
       length += s.lengthM;
       if (length >= 1500) break;
     }
-    return length == 0 ? 0 : rise / length;
-  }
+    return length == 0 ? 0.0 : rise / length;
+  }();
 
   /// Metres of climbing above 3 % gradient plus a surcharge for cobbles.
-  /// A rough measure of how much the route pulls the field apart.
-  double get selectivity {
-    var sum = 0.0;
+  /// A rough measure of how much the route pulls the field apart. The
+  /// gradient is taken over pieces of about 500 m, so that the measure does
+  /// not depend on the segment length.
+  late final double selectivity = () {
+    var sum = 0.0, rise = 0.0, length = 0.0;
     for (final s in segments) {
-      if (s.grade > 0.03) sum += (s.grade - 0.03) * s.lengthM;
+      rise += s.grade * s.lengthM;
+      length += s.lengthM;
+      if (length >= 499) {
+        final grade = rise / length;
+        if (grade > 0.03) sum += (grade - 0.03) * length;
+        rise = 0;
+        length = 0;
+      }
       sum += s.cobble * s.lengthM * 0.004;
     }
+    if (length > 0 && rise / length > 0.03) sum += rise - 0.03 * length;
     return sum;
-  }
+  }();
 }
 
 /// One rider's finishing time and group.
@@ -257,6 +311,11 @@ class RadioCall {
 
   /// Possible instructions; the first always means: stick to the plan.
   final List<String> options;
+
+  /// What the sports director would do himself. This is what happens when
+  /// the question is not answered, and what every other team does in the
+  /// same situation.
+  int suggested = 0;
 }
 
 /// Kind of a race event, used for reports.
@@ -268,7 +327,41 @@ enum EventType {
   dropped,
   points,
   finish,
-  gruppetto
+  gruppetto,
+  // Added in 0.3.0; the index is stored in saves, so new values go last.
+  weather,
+  crash,
+  puncture,
+  echelon,
+  abandon,
+  timeCut,
+}
+
+/// Why a rider left the race.
+enum AbandonReason { crash, illness, timeCut }
+
+/// A rider who did not finish a stage, or was taken out of the race after it.
+class Abandon {
+  Abandon(this.rider, this.km, this.reason, [this.days = 0]);
+  final SimRider rider;
+
+  /// Race kilometre at which he stopped.
+  final double km;
+  final AbandonReason reason;
+
+  /// Days he is out after a crash or illness, 0 for the time limit.
+  final int days;
+}
+
+/// A rider who crashed and carries on, hurt.
+class Injury {
+  Injury(this.formLoss, this.energyLoss);
+
+  /// Share of power he loses in the next days.
+  final double formLoss;
+
+  /// Share of the endurance reserve the crash cost him.
+  final double energyLoss;
 }
 
 /// Something that happened during the stage, with the kilometre it happened at.
@@ -304,6 +397,15 @@ class StageResult {
 
   /// What each rider did, by rider id; empty like [timeline].
   Map<int, RiderTrace> traces = const {};
+
+  /// Riders who did not finish; they have no placing.
+  List<Abandon> abandons = const [];
+
+  /// Riders who crashed and finished hurt, by rider id.
+  Map<int, Injury> injuries = const {};
+
+  /// Weather of the day; null for results stored before it was simulated.
+  Weather? weather;
 
   /// Finishing time of the winner in seconds.
   double get winnerTimeS => placings.first.timeS;

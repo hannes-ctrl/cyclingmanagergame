@@ -88,16 +88,9 @@ class TeamColors {
       Color(0xFF000000 | (int.tryParse(rrggbb, radix: 16) ?? 0x33206E));
 }
 
-/// Result of a race with its routes, from the career or from a trial run.
+/// Result of a race of the career with its routes.
 class RaceRun {
-  RaceRun(
-    this.race,
-    this.stages,
-    this.routes,
-    this.riders,
-    this.result, {
-    required this.trial,
-  });
+  RaceRun(this.race, this.stages, this.routes, this.riders, this.result);
   final RaceInfo race;
   final List<StageInfo> stages;
   final List<SimRoute> routes;
@@ -105,9 +98,6 @@ class RaceRun {
 
   /// For stage races in progress this only holds the stages ridden so far.
   final StageRaceResult result;
-
-  /// true: computed outside the career, counts for nothing.
-  final bool trial;
 }
 
 /// A named save game in the `saves` folder.
@@ -156,6 +146,7 @@ class AppState extends ChangeNotifier {
         orElse: () => teams.first,
       ),
       seed: saved?.seed,
+      plan: saved?.state == null,
     );
     if (saved?.state case final state?) {
       career.restore(state, saved!.races);
@@ -243,11 +234,121 @@ class AppState extends ChangeNotifier {
   /// Rider whose page is open on top of the selected screen, or null.
   int? riderPage;
 
+  /// Shows the report of a race, closing whatever lies on top.
+  ///
+  /// @param raceId Id of the race.
+  void showRace(int raceId) {
+    focusRace = raceId;
+    jumpToRace = true;
+    notifyListeners();
+  }
+
+  /// Where a rider's form is heading: compares his current form with the
+  /// last weekly record.
+  ///
+  /// @param riderId Id of a rider of the player's team.
+  /// @returns ' ↗', ' ↘' or ' →'; empty without a record.
+  String formTrend(int riderId) {
+    final log = career.formLog[riderId];
+    if (log == null || log.isEmpty) return '';
+    final change = career.shapeOf(riderId).form - log.last[1];
+    return change > 0.003
+        ? ' ↗'
+        : change < -0.003
+        ? ' ↘'
+        : ' →';
+  }
+
+  /// Team whose page is open on top of the selected screen, or null.
+  int? teamPage;
+
+  /// Opens the page of a team.
+  ///
+  /// @param id Id of the team.
+  void openTeam(int id) {
+    teamPage = id;
+    riderPage = null;
+    notifyListeners();
+  }
+
+  /// Closes the team page.
+  void closeTeam() {
+    teamPage = null;
+    notifyListeners();
+  }
+
+  /// Rider the open rider page is compared with, or null.
+  int? compareWith;
+
+  /// Remembers a rider for comparison, or forgets him.
+  ///
+  /// @param id Id of the rider, or null to end the comparison.
+  void compare(int? id) {
+    compareWith = id;
+    notifyListeners();
+  }
+
+  /// Lets the sports director plan all coming races anew.
+  ///
+  /// @returns The number of races planned.
+  int replanSeason() {
+    final n = career.planSeason(replace: true);
+    _save();
+    notifyListeners();
+    return n;
+  }
+
+  /// Puts a rider on the shortlist or takes him off it.
+  ///
+  /// @param id Id of the rider.
+  void toggleWatch(int id) {
+    if (!career.watch.remove(id)) career.watch.add(id);
+    _save();
+    notifyListeners();
+  }
+
+  /// Stores the player's note on a rider; an empty note removes it.
+  ///
+  /// @param id Id of the rider.
+  /// @param text The note.
+  void setNote(int id, String text) {
+    if (text.trim().isEmpty) {
+      career.notes.remove(id);
+    } else {
+      career.notes[id] = text;
+    }
+    _save();
+  }
+
+  /// Riders the open rider page steps through with the arrow keys: the
+  /// list he was opened from.
+  List<int> riderList = const [];
+
+  /// Set when the rider page moved to a neighbour in [riderList]; the shell
+  /// then does not add a step to its history.
+  bool riderStepped = false;
+
   /// Opens the page of a rider.
   ///
   /// @param id Id of the rider.
-  void openRider(int id) {
+  /// @param among Ids of the list he is opened from, in its order. Without
+  ///   it a rider of the own squad steps through the squad.
+  void openRider(int id, {List<int>? among}) {
     riderPage = id;
+    final own = [for (final r in squad) r.id];
+    riderList = among ?? (own.contains(id) ? own : const []);
+    notifyListeners();
+  }
+
+  /// Moves the rider page to a neighbour in the list it was opened from.
+  ///
+  /// @param delta -1 for the rider before, 1 for the one after.
+  void stepRider(int delta) {
+    final at = riderList.indexOf(riderPage ?? -1);
+    final to = at + delta;
+    if (at < 0 || to < 0 || to >= riderList.length) return;
+    riderPage = riderList[to];
+    riderStepped = true;
     notifyListeners();
   }
 
@@ -290,6 +391,7 @@ class AppState extends ChangeNotifier {
       if (radio != null) break;
       career.advance();
       _days++;
+      _autoSave();
       notifyListeners();
       await Future<void>.delayed(Duration.zero);
     }
@@ -310,6 +412,43 @@ class AppState extends ChangeNotifier {
   /// @param m The message.
   void deleteMessage(Message m) {
     career.inbox.remove(m);
+    _save();
+    notifyListeners();
+  }
+
+  /// Removes all messages of a topic, or of every topic, read or not.
+  ///
+  /// @param topic The topic, or null for all.
+  void deleteAll(String? topic) {
+    career.inbox.removeWhere((m) => topic == null || m.topic == topic);
+    _save();
+    notifyListeners();
+  }
+
+  /// Marks all messages of a topic, or of every topic, as read.
+  ///
+  /// @param topic The topic, or null for all.
+  void markAllRead(String? topic) {
+    for (final m in career.inbox) {
+      if (topic == null || m.topic == topic) m.read = true;
+    }
+    _save();
+    notifyListeners();
+  }
+
+  /// Switches the messages of a topic on or off.
+  ///
+  /// @param key Key of the topic, one of [Message.topics].
+  /// @param on Whether its messages are delivered.
+  void setTopic(String key, bool on) {
+    on ? career.mutedTopics.remove(key) : career.mutedTopics.add(key);
+    _save();
+    notifyListeners();
+  }
+
+  /// Switches the daily summaries of the inbox on or off.
+  void setDigest(bool on) {
+    career.inboxDigest = on;
     _save();
     notifyListeners();
   }
@@ -335,8 +474,6 @@ class AppState extends ChangeNotifier {
   final _log = <Map<String, dynamic>>[];
   var _replayDays = 0;
   final _routes = <int, List<SimRoute>>{};
-  final _trials = <int, RaceRun>{};
-  final simulating = <int>{};
 
   /// Looks for the data folder next to the executable or in the folders above.
   ///
@@ -362,7 +499,7 @@ class AppState extends ChangeNotifier {
   ///
   /// @param t The player's team.
   /// @param seed Seed of the career; random if omitted.
-  void _newCareer(TeamInfo t, {int? seed}) {
+  void _newCareer(TeamInfo t, {int? seed, bool plan = true}) {
     team = t;
     colors = TeamColors(TeamColors.parse(t.color), TeamColors.parse(t.color2));
     career = Career(
@@ -380,8 +517,10 @@ class AppState extends ChangeNotifier {
     _days = 0;
     radio = null;
     _decisions.clear();
-    _trials.clear();
     _raceCache.clear();
+    // The sports director plans the season before the first day; a loaded
+    // game brings its plan along.
+    if (plan) career.ensureProgram();
   }
 
   /// Team founded by the player, if the career runs with one.
@@ -631,6 +770,31 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
+  /// Number of automatic saves kept.
+  static const autoSaves = 4;
+
+  /// Writes an automatic save every Monday of the game. The oldest of the
+  /// [autoSaves] files is overwritten, so the player can go back up to four
+  /// weeks. Called after a day has been played.
+  void _autoSave() {
+    if (!persist || loading != null) return;
+    if (career.today.weekday != DateTime.monday) return;
+    final slot =
+        career.today.difference(DateTime.utc(2000)).inDays ~/ 7 % autoSaves;
+    try {
+      _savesDir.createSync(recursive: true);
+      File('${_savesDir.path}/auto-${slot + 1}.rmsave').writeAsStringSync(
+        _saveText(tr('Automatisch · {0}', [_dayText(career.today)])),
+      );
+    } on FileSystemException {
+      // A full disk or a locked file must not stop the game.
+    }
+  }
+
+  static String _dayText(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}.'
+      '${d.month.toString().padLeft(2, '0')}.${d.year}';
+
   /// Loads a named save. It becomes the running state; the previous one is
   /// lost unless it was saved under a name.
   ///
@@ -673,6 +837,7 @@ class AppState extends ChangeNotifier {
       _applySavedDecisions();
       career.advance();
       _days++;
+      _autoSave();
       if (_days % 5 == 0) {
         notifyListeners();
         await Future<void>.delayed(Duration.zero);
@@ -714,6 +879,7 @@ class AppState extends ChangeNotifier {
       if (radio != null) break;
       career.advance();
       _days++;
+      _autoSave();
       notifyListeners();
       // Give the user interface room so that the date keeps moving.
       await Future<void>.delayed(Duration.zero);
@@ -755,7 +921,19 @@ class AppState extends ChangeNotifier {
         if (plan == null) {
           career.ownPlans.remove(e['race']);
         } else {
+          // A complete plan replaces the pins.
+          career.ownWishes.remove(e['race']);
           career.ownPlans[e['race'] as int] = planFromJson(plan);
+        }
+      case 'wish':
+        // A wish replaces whatever applied before; null hands everything
+        // back to the sports director.
+        final wish = e['wish'] as Map<String, dynamic>?;
+        career.ownPlans.remove(e['race']);
+        if (wish == null) {
+          career.ownWishes.remove(e['race']);
+        } else {
+          career.ownWishes[e['race'] as int] = PlanWish.fromJson(wish);
         }
       case 'offer':
         career.economy.offer(
@@ -786,6 +964,10 @@ class AppState extends ChangeNotifier {
             d.training = e['value'] as bool;
           case 'scouting':
             d.scouting = e['value'] as bool;
+          case 'planning':
+            d.planning = e['value'] as bool;
+            // Taking the job on means planning what is still open.
+            career.ensureProgram();
           case 'radio':
             d.radio = RadioMode.values.byName(e['value'] as String);
         }
@@ -863,6 +1045,25 @@ class AppState extends ChangeNotifier {
   /// @param focus New focus.
   void setFocus(int riderId, TrainingFocus focus) =>
       _record({'type': 'focus', 'rider': riderId, 'focus': focus.name});
+
+  /// Pins roles and instructions for the remaining stages of a running
+  /// race; the sports director plans the rest stage by stage.
+  ///
+  /// @param raceId Id of the race.
+  /// @param wish What is pinned; null hands everything back to the sports
+  ///   director.
+  void setWish(int raceId, PlanWish? wish) {
+    _record({
+      'type': 'wish',
+      'race': raceId,
+      'wish': wish == null || wish.isEmpty ? null : wish.toJson(),
+    });
+    // With different tactics the stage unfolds differently: ask again.
+    if (radio != null) {
+      _refreshRadio();
+      notifyListeners();
+    }
+  }
 
   /// Sets the team's tactics for the remaining stages of a running race.
   ///
@@ -1170,14 +1371,22 @@ class AppState extends ChangeNotifier {
     PendingRace race,
     List<SimRider> lineup, {
     TeamPlan? plan,
+    PlanWish? wish,
     int? directorId,
   }) async {
     _decisions[_raceKey(race.race.info.id)] = {
       'riders': [for (final r in lineup) r.id],
       'plan': ?(plan == null ? null : planToJson(plan)),
+      'wish': ?wish?.toJson(),
       'director': ?directorId,
     };
-    career.confirm(race, lineup, plan: plan, directorId: directorId);
+    career.confirm(
+      race,
+      lineup,
+      plan: plan,
+      wish: wish,
+      directorId: directorId,
+    );
     radio = null;
     _save();
     notifyListeners();
@@ -1203,10 +1412,12 @@ class AppState extends ChangeNotifier {
         for (final id in (saved['riders'] as List).cast<int>()) ?byId[id],
       ];
       final plan = saved['plan'] as Map<String, dynamic>?;
+      final wish = saved['wish'] as Map<String, dynamic>?;
       career.confirm(
         p,
         lineup,
         plan: plan == null ? null : planFromJson(plan),
+        wish: wish == null ? null : PlanWish.fromJson(wish),
         directorId: saved['director'] as int?,
       );
     }
@@ -1239,7 +1450,8 @@ class AppState extends ChangeNotifier {
   }
 
   /// @param race A race.
-  /// @returns Its result from the career, otherwise a trial run, otherwise null.
+  /// @returns Its result from the career, otherwise a preview run, otherwise
+  ///   null.
   RaceRun? runOf(RaceInfo race) {
     final p = career.progress[race.id];
     if (p != null && p.stagesDone > 0) {
@@ -1249,46 +1461,36 @@ class AppState extends ChangeNotifier {
         routesOf(race),
         p.riders,
         p.run.result,
-        trial: false,
       );
     }
-    return _trials[race.id];
+    return _previews[race.id];
   }
 
-  /// Simulates a race outside the career, in a separate isolate so that the
-  /// user interface stays responsive.
+  // Races simulated outside the career. Nothing in the app starts one any
+  // more; the screen tests use it to render a complete race report without
+  // playing a season.
+  final _previews = <int, RaceRun>{};
+
+  /// Simulates a race outside the career, in a separate isolate. The result
+  /// counts for nothing and is shown until the career has ridden the race.
   ///
   /// @param race The race.
-  /// @returns A future that completes when the trial run is available.
-  Future<void> simulateTrial(RaceInfo race) async {
-    if (simulating.contains(race.id)) return;
-    simulating.add(race.id);
-    notifyListeners();
-    try {
-      final routes = routesOf(race);
-      final riders = world.startList(race.id);
-      final values = tuning.toMap();
-      final seed = DateTime.now().millisecondsSinceEpoch % 1000000000;
-      final result = await Isolate.run(
-        () => simulateStageRace(
-          routes,
-          riders,
-          seed: seed,
-          tuning: SimTuning(values),
-        ),
-      );
-      _trials[race.id] = RaceRun(
-        race,
-        stagesOf(race),
+  /// @returns A future that completes when the result is available.
+  Future<void> simulatePreview(RaceInfo race) async {
+    final routes = routesOf(race);
+    final riders = world.startList(race.id);
+    final values = tuning.toMap();
+    final seed = DateTime.now().millisecondsSinceEpoch % 1000000000;
+    final result = await Isolate.run(
+      () => simulateStageRace(
         routes,
         riders,
-        result,
-        trial: true,
-      );
-    } finally {
-      simulating.remove(race.id);
-      notifyListeners();
-    }
+        seed: seed,
+        tuning: SimTuning(values),
+      ),
+    );
+    _previews[race.id] = RaceRun(race, stagesOf(race), routes, riders, result);
+    notifyListeners();
   }
 }
 

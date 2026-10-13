@@ -43,16 +43,45 @@ class _InboxScreenState extends State<InboxScreen> {
       for (final m in all)
         if (_topic == null || m.topic == _topic) m,
     ];
-    if (messages.isEmpty) {
-      return Center(
-        child: Text(
-          s.busy
-              ? tr('Die Tage laufen …')
-              : tr(
-                  'Noch keine Nachrichten. „Weiter" lässt die Saison laufen, bis etwas dein Team betrifft.',
-                ),
-          style: const TextStyle(color: TeamColors.muted),
+    // Which topics arrive at all, and whether busy days are summarised.
+    final settings = PopupMenuButton<String>(
+      tooltip: tr('Einstellungen des Postfachs'),
+      icon: const Icon(LucideIcons.settings, size: 18),
+      color: c.panel2,
+      onSelected: (key) => key == 'digest'
+          ? s.setDigest(!s.career.inboxDigest)
+          : s.setTopic(key, s.career.mutedTopics.contains(key)),
+      itemBuilder: (context) => [
+        PopupMenuItem(enabled: false, child: Text(tr('Diese Themen erhalten'))),
+        for (final key in Message.topics)
+          CheckedPopupMenuItem(
+            value: key,
+            checked: !s.career.mutedTopics.contains(key),
+            child: Text(key == 'Scouting' ? key : tr(key)),
+          ),
+        const PopupMenuDivider(),
+        CheckedPopupMenuItem(
+          value: 'digest',
+          checked: s.career.inboxDigest,
+          child: Text(tr('Ab drei Meldungen je Thema und Tag zusammenfassen')),
         ),
+      ],
+    );
+    if (messages.isEmpty) {
+      return Stack(
+        children: [
+          Center(
+            child: Text(
+              s.busy
+                  ? tr('Die Tage laufen …')
+                  : tr(
+                      'Noch keine Nachrichten. „Weiter" lässt die Saison laufen, bis etwas dein Team betrifft.',
+                    ),
+              style: const TextStyle(color: TeamColors.muted),
+            ),
+          ),
+          Positioned(top: 12, right: 12, child: settings),
+        ],
       );
     }
     final selected = messages.contains(_selected) ? _selected! : messages.first;
@@ -87,6 +116,11 @@ class _InboxScreenState extends State<InboxScreen> {
                 ),
               ),
               TextButton.icon(
+                onPressed: s.busy ? null : () => s.markAllRead(_topic),
+                icon: const Icon(LucideIcons.checkCheck, size: 16),
+                label: Text(tr('Alle gelesen')),
+              ),
+              TextButton.icon(
                 onPressed: s.busy ? null : () => s.deleteRead(_topic),
                 icon: const Icon(LucideIcons.trash2, size: 16),
                 label: Text(
@@ -95,6 +129,48 @@ class _InboxScreenState extends State<InboxScreen> {
                       : tr('Gelesene in „{0}" löschen', [_topic]),
                 ),
               ),
+              TextButton.icon(
+                onPressed: s.busy
+                    ? null
+                    : () async {
+                        // Unread messages go too, so ask once.
+                        final unread = messages.where((m) => !m.read).length;
+                        final sure =
+                            unread <= 1 ||
+                            await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    content: Text(
+                                      tr(
+                                        '{0} Nachrichten löschen, davon {1} ungelesen?',
+                                        [messages.length, unread],
+                                      ),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: Text(tr('Abbrechen')),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        child: Text(tr('Alle löschen')),
+                                      ),
+                                    ],
+                                  ),
+                                ) ==
+                                true;
+                        if (sure) s.deleteAll(_topic);
+                      },
+                icon: const Icon(LucideIcons.trash, size: 16),
+                label: Text(
+                  _topic == null
+                      ? tr('Alle löschen')
+                      : tr('Alle in „{0}" löschen', [_topic]),
+                ),
+              ),
+              settings,
             ],
           ),
           const SizedBox(height: 10),

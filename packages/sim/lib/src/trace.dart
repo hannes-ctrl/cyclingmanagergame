@@ -38,7 +38,8 @@ class RaceSample {
 /// What one rider did during a stage, for the race report.
 class RiderTrace {
   RiderTrace(this.role, this.inBreak, this.lostKm, this.frontKm, this.energy,
-      this.gruppetto);
+      this.gruppetto,
+      [this.incident = RiderIncident.none]);
 
   /// His role in the team's plan.
   final Role role;
@@ -59,9 +60,12 @@ class RiderTrace {
   /// Whether he finished in the gruppetto.
   final bool gruppetto;
 
+  /// Worst mishap of his day.
+  final RiderIncident incident;
+
   /// @returns The trace as a compact list.
   List<Object?> toJson() =>
-      [role.index, inBreak, lostKm, frontKm, energy, gruppetto];
+      [role.index, inBreak, lostKm, frontKm, energy, gruppetto, incident.index];
 
   /// @param j A list written by [toJson].
   /// @returns The trace.
@@ -71,5 +75,9 @@ class RiderTrace {
       (j[2] as num?)?.toDouble(),
       (j[3] as num).toDouble(),
       (j[4] as num).toDouble(),
-      j[5] as bool);
+      j[5] as bool,
+      j.length > 6 ? RiderIncident.values[j[6] as int] : RiderIncident.none);
 }
+
+/// Mishaps a rider can have during a stage, mildest first.
+enum RiderIncident { none, puncture, crash }

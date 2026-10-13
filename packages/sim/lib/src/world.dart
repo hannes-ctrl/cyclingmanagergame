@@ -65,7 +65,10 @@ class StageInfo {
 
 /// Read-only access to the world database (`data/world.sqlite`).
 class World {
-  World(String path) : _db = _open(path);
+  World(this.path) : _db = _open(path);
+
+  /// Path of the database file.
+  final String path;
 
   final Database _db;
 
@@ -334,8 +337,21 @@ class World {
           sprints.add(RoutePoint(km, w['name'] as String, 0));
       }
     }
+    final climbs = <ClimbSpan>[];
+    try {
+      for (final c in _db.select(
+          'SELECT from_race_km, to_race_km, max_gradient FROM stage_climb '
+          'WHERE stage_id = ? AND kind = 0',
+          [stageId])) {
+        climbs.add(ClimbSpan(c['from_race_km'] as double,
+            c['to_race_km'] as double, (c['max_gradient'] as double) / 100));
+      }
+    } on SqliteException {
+      // Databases imported before climbs were stored.
+    }
     return buildRoute(
       name: r['name'] as String,
+      climbs: climbs,
       kind: kind,
       raceKm: raceKm,
       profile: profile,
@@ -404,6 +420,8 @@ class World {
       potential: (r['potential'] as num?)?.toDouble() ?? 4,
       country: (r['country'] as String?) ?? '',
       contractEnd: (r['contract_end'] as int?) ?? 0,
+      weightKg: (r['weight_kg'] as num?)?.toDouble() ?? 0,
+      heightCm: (r['height_cm'] as num?)?.toDouble() ?? 0,
       attributes: Attributes(
         flat: v('flat'),
         mountain: v('mountain'),

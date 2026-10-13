@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'i18n.dart';
+
 import 'model.dart';
 import 'rng.dart';
 import 'scheme.dart';
@@ -7,6 +9,7 @@ import 'stage_sim.dart';
 import 'tactics.dart';
 import 'trace.dart';
 import 'tuning.dart';
+import 'weather.dart';
 
 /// A rider with his overall time.
 class TimeEntry {
@@ -61,9 +64,11 @@ class StageRaceResult {
 /// A stage race in progress: every stage is simulated on its own, while the
 /// classifications and the riders' fatigue carry over.
 ///
-/// Part of the fatigue stays between stages; how much depends on the
-/// recovery attribute. Form drifts slightly from day to day around the
-/// previous day's value. Abandons and the time limit are still missing.
+/// Part of the fatigue stays between stages: a hard day costs more than an
+/// easy one, and a rider with good recovery wins more of it back overnight
+/// and on rest days. Form drifts slightly from day to day around the
+/// previous day's value; a crash costs form for some days. Riders who crash
+/// out, fall ill or finish outside the time limit leave the race.
 class StageRaceRun {
   /// Starts a race.
   ///
@@ -74,13 +79,17 @@ class StageRaceRun {
   /// @param baseForm Form each rider brings into the race, by rider id.
   /// @param scheme Points, mountain points and bonus seconds of the race.
   /// @param oneDay Whether this is a one-day race.
+  /// @param month Month of the race, for the weather.
+  /// @param country Country of the race, for the weather.
   StageRaceRun(List<SimRider> riders,
       {required int seed,
       this.year = 2026,
       this.tuning,
       this.baseForm = const {},
       this.scheme = PointsScheme.standard,
-      this.oneDay = false})
+      this.oneDay = false,
+      this.month = 7,
+      this.country = ''})
       : riders = [...riders],
         _rng = Rng(seed) {
     _nextSeed = _rng.nextInt(1 << 31);
@@ -125,6 +134,13 @@ class StageRaceRun {
   /// Whether this is a one-day race (decides the finish type).
   final bool oneDay;
 
+  /// Month and country of the race, for the weather.
+  final int month;
+  final String country;
+
+  /// Chance per rider and stage that he falls ill and gives up.
+  static const illnessPerStage = 0.001;
+
   final total = <int, double>{};
   final points = <int, int>{};
   final mountain = <int, int>{};
@@ -135,6 +151,20 @@ class StageRaceRun {
   final results = <StageResult>[];
   final standings = <Standings>[];
 
+  /// Weather of the next stage. It follows from the seed of the stage, so
+  /// it is known before the stage is ridden.
+  Weather get nextWeather =>
+      Weather.draw(Random(_nextSeed * 31 + 7), month, country);
+
+  /// Weather of the first stage of a race that has not been started yet.
+  ///
+  /// @param seed Seed the race will be started with.
+  /// @param month Month of the race.
+  /// @param country Country of the race.
+  /// @returns The weather its first stage will have.
+  static Weather firstWeather(int seed, int month, String country) =>
+      Weather.draw(Random(Rng(seed).nextInt(1 << 31) * 31 + 7), month, country);
+
   /// Everything simulated so far.
   StageRaceResult get result => StageRaceResult(results, standings);
 
@@ -143,6 +173,10 @@ class StageRaceRun {
     final best = total.values.reduce(min);
     return {for (final e in total.entries) e.key: e.value - best};
   }
+
+  /// Gaps in the general classification as they stand before the next
+  /// stage; empty before the first.
+  Map<int, double> get gcGaps => results.isEmpty ? const {} : _gapsBefore();
 
   // Seed of the next stage, drawn in advance so that a preview sees the same
   // run as the stage that counts later.
@@ -198,6 +232,9 @@ class StageRaceRun {
         radioTeam: radioTeam,
         radio: radio ?? s.radio,
         askRadio: askRadio,
+        month: month,
+        country: country,
+        illness: oneDay ? 0 : illnessPerStage,
       );
 
   /// Simulates the next stage as a trial that does not count.
@@ -277,6 +314,7 @@ class StageRaceRun {
     final snapshot = _snapshot(plans, directorSkills, radio);
     _before.add(snapshot);
     final result = _simulate(route, snapshot, radioTeam: radioTeam);
+    _timeCut(route, result);
     results.add(result);
     _classify(route, result);
     _recover(route, result);
@@ -349,6 +387,10 @@ class StageRaceRun {
       }
     }
 
+    // Riders who crashed out, fell ill or missed the time limit leave the race.
+    for (final a in result.abandons) {
+      if (total.containsKey(a.rider.id)) withdraw(a.rider.id);
+    }
     final general = [for (final r in riders) TimeEntry(r, total[r.id]!)]
       ..sort((a, b) => a.timeS.compareTo(b.timeS));
     List<PointsEntry> ranking(Map<int, int> table) => [
@@ -372,7 +414,57 @@ class StageRaceRun {
     ));
   }
 
+  /// Takes the riders out who finished outside the time limit. When more
+  /// than a fifth of the field is outside, the jury lets them all stay.
+  /// One-day races have no time limit.
+  ///
+  /// @param route The stage.
+  /// @param result Its result; the riders are added to its abandons.
+  void _timeCut(SimRoute route, StageResult result) {
+    if (oneDay || result.placings.isEmpty) return;
+    final winner = result.placings.first.timeS;
+    final share = timeLimitShare(route, route.raceKm / (winner / 3600));
+    if (share <= 0) return;
+    final limit = (winner * (1 + share)).roundToDouble();
+    final outside = [
+      for (final p in result.placings)
+        if (p.timeS.roundToDouble() > limit) p.rider,
+    ];
+    if (outside.isEmpty) return;
+    if (outside.length > result.placings.length * 0.2) {
+      result.events.add(RaceEvent(
+          route.raceKm,
+          EventType.timeCut,
+          tr('{0} Fahrer kommen außerhalb der Karenzzeit an und werden begnadigt',
+              [outside.length])));
+      return;
+    }
+    result.abandons = [
+      ...result.abandons,
+      for (final r in outside) Abandon(r, route.raceKm, AbandonReason.timeCut),
+    ];
+    final names = outside.take(6).map((r) => r.name).join(', ');
+    result.events.add(RaceEvent(
+        route.raceKm,
+        EventType.timeCut,
+        outside.length > 6
+            ? tr('Außerhalb der Karenzzeit: {0} und {1} weitere',
+                [names, outside.length - 6])
+            : tr('Außerhalb der Karenzzeit: {0}', [names])));
+  }
+
+  /// Share of the fatigue a rider wins back overnight.
+  ///
+  /// @param r The rider.
+  /// @returns 0.12 to 0.5; about 0.3 at a recovery attribute of 70.
+  static double _recoveryRate(SimRider r) =>
+      (0.3 * (1 + 0.04 * (r.attributes.recovery - 70))).clamp(0.12, 0.5);
+
   /// Carries fatigue and form over to the next day.
+  ///
+  /// The fatigue grows with what a rider spent on the day and shrinks by a
+  /// share that depends on his recovery attribute, so it levels off at a
+  /// value of its own for every rider instead of a common ceiling.
   ///
   /// @param route The stage.
   /// @param result Its result.
@@ -381,12 +473,32 @@ class StageRaceRun {
     final hours = result.winnerTimeS / 3600;
     for (final p in result.placings) {
       final id = p.rider.id;
-      // A hard day costs reserve, good recovery wins more of it back.
-      final load = 0.012 * hours * (road ? 1 : 0.5);
-      final recovered = 0.035 * (1 + 0.03 * (p.rider.attributes.recovery - 70));
-      debt[id] = (debt[id]! + load - recovered * 0.3).clamp(0.0, 0.35);
+      if (!debt.containsKey(id)) continue;
+      final trace = result.traces[id];
+      final spent = trace != null
+          ? max(0.0, 1 - debt[id]! - trace.energy)
+          : 0.3 * hours * (road ? 1 : 0.8);
+      final hurt = result.injuries[id];
+      debt[id] = (debt[id]! * (1 - _recoveryRate(p.rider)) +
+              0.1 * spent +
+              0.5 * (hurt?.energyLoss ?? 0))
+          .clamp(0.0, 0.5);
+      form[id] = (1 +
+              0.6 * (form[id]! - 1) +
+              0.004 * _gauss(_rng) -
+              (hurt?.formLoss ?? 0))
+          .clamp(0.93, 1.03);
+    }
+  }
+
+  /// A rest day: the riders recover more than overnight, and some of them
+  /// do not find their legs on the day after.
+  void restDay() {
+    for (final r in riders) {
+      final id = r.id;
+      debt[id] = (debt[id]! * (1 - 1.6 * _recoveryRate(r))).clamp(0.0, 0.5);
       form[id] =
-          (1 + 0.6 * (form[id]! - 1) + 0.004 * _gauss(_rng)).clamp(0.97, 1.03);
+          (1 + 0.6 * (form[id]! - 1) + 0.008 * _gauss(_rng)).clamp(0.93, 1.03);
     }
   }
 
@@ -405,6 +517,8 @@ class StageRaceRun {
         'next': _nextSeed,
         'year': year,
         'oneDay': oneDay,
+        'month': month,
+        'country': country,
         'riders': [for (final r in riders) ref(r)],
         'baseForm': {for (final e in baseForm.entries) '${e.key}': e.value},
         'debt': {for (final e in debt.entries) '${e.key}': e.value},
@@ -448,6 +562,14 @@ class StageRaceRun {
       ],
       'break': r.breakSurvived,
       'line': [for (final x in r.timeline) x.toJson()],
+      'out': [
+        for (final a in r.abandons) [at[a.rider], a.km, a.reason.index, a.days],
+      ],
+      'hurt': {
+        for (final e in r.injuries.entries)
+          '${e.key}': [e.value.formLoss, e.value.energyLoss],
+      },
+      if (r.weather != null) 'wx': r.weather!.toJson(),
       'trace': {
         for (final e in r.traces.entries) '${e.key}': e.value.toJson(),
       },
@@ -480,6 +602,8 @@ class StageRaceRun {
       tuning: tuning,
       scheme: scheme,
       oneDay: j['oneDay'] as bool,
+      month: j['month'] as int? ?? 7,
+      country: j['country'] as String? ?? '',
       baseForm: {
         for (final e in (j['baseForm'] as Map<String, dynamic>).entries)
           int.parse(e.key): (e.value as num).toDouble(),
@@ -556,7 +680,20 @@ class StageRaceRun {
           for (final e
               in (s['trace'] as Map<String, dynamic>? ?? const {}).entries)
             int.parse(e.key): RiderTrace.fromJson(e.value as List),
-        };
+        }
+        ..abandons = [
+          for (final a in s['out'] as List? ?? const [])
+            Abandon(riders[(a as List)[0] as int], (a[1] as num).toDouble(),
+                AbandonReason.values[a[2] as int], a[3] as int),
+        ]
+        ..injuries = {
+          for (final e
+              in (s['hurt'] as Map<String, dynamic>? ?? const {}).entries)
+            int.parse(e.key): Injury(((e.value as List)[0] as num).toDouble(),
+                (e.value[1] as num).toDouble()),
+        }
+        ..weather =
+            s['wx'] == null ? null : Weather.fromJson(s['wx'] as List<dynamic>);
       run.results.add(result);
       run._classify(routeOf(i), result);
     }
@@ -599,6 +736,8 @@ class _Snapshot {
 /// @param plansFor Returns, per stage, the tactics of the teams that should
 ///   not follow the automatic plan.
 /// @param tuning Tuning values.
+/// @param month Month of the race, for the weather.
+/// @param country Country of the race, for the weather.
 /// @returns Stage results and classifications.
 StageRaceResult simulateStageRace(
   List<SimRoute> routes,
@@ -607,9 +746,16 @@ StageRaceResult simulateStageRace(
   int year = 2026,
   Map<int, TeamPlan> Function(int stageIndex)? plansFor,
   SimTuning? tuning,
+  int month = 7,
+  String country = '',
 }) {
   final run = StageRaceRun(riders,
-      seed: seed, year: year, tuning: tuning, oneDay: routes.length == 1);
+      seed: seed,
+      year: year,
+      tuning: tuning,
+      oneDay: routes.length == 1,
+      month: month,
+      country: country);
   for (var si = 0; si < routes.length; si++) {
     run.nextStage(routes[si], plans: plansFor?.call(si) ?? const {});
   }

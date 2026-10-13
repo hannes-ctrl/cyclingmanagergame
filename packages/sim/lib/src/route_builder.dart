@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'model.dart';
 
 /// A stretch of special surface, given in race kilometres.
@@ -7,6 +9,16 @@ class SectorSpan {
   final double toKm;
   final int difficulty;
   final bool cobbled;
+}
+
+/// A categorised climb with the steepest gradient the stage file gives for it.
+class ClimbSpan {
+  const ClimbSpan(this.fromKm, this.toKm, this.maxGrade);
+  final double fromKm;
+  final double toKm;
+
+  /// Steepest gradient as a fraction (0.12 = 12 %).
+  final double maxGrade;
 }
 
 /// Cuts an elevation profile into segments of equal length.
@@ -19,6 +31,8 @@ class SectorSpan {
 /// @param sectors Cobbled and unpaved sections.
 /// @param climbTops Mountain prizes.
 /// @param sprints Intermediate sprints.
+/// @param climbs Climbs with their steepest gradient; a ramp the profile
+///   smooths away is put back into the climb.
 /// @param segmentM Segment length in metres.
 /// @returns The route.
 SimRoute buildRoute({
@@ -29,7 +43,8 @@ SimRoute buildRoute({
   List<SectorSpan> sectors = const [],
   List<RoutePoint> climbTops = const [],
   List<RoutePoint> sprints = const [],
-  double segmentM = 500,
+  List<ClimbSpan> climbs = const [],
+  double segmentM = 200,
 }) {
   /// Interpolates the profile.
   ///
@@ -55,9 +70,12 @@ SimRoute buildRoute({
     final length = (km1 - km0) * 1000;
     if (length <= 0) break;
     final grade = (altitudeAt(km1) - altitudeAt(km0)) / length;
-    final segment =
-        Segment(km: km0, lengthM: length, grade: grade.clamp(-0.2, 0.25));
     final mid = (km0 + km1) / 2;
+    final segment = Segment(
+        km: km0,
+        lengthM: length,
+        grade: grade.clamp(-0.2, 0.25),
+        altitudeM: altitudeAt(mid));
     for (final x in sectors) {
       if (mid >= x.fromKm && mid <= x.toKm) {
         if (x.cobbled) {
@@ -69,12 +87,13 @@ SimRoute buildRoute({
     }
     segments.add(segment);
   }
-  _markClimbs(segments);
+  final ramped = _addRamps(segments, climbs);
+  _markClimbs(ramped);
   return SimRoute(
     name: name,
     kind: kind,
     raceKm: raceKm,
-    segments: segments,
+    segments: ramped,
     climbTops: climbTops,
     sprints: sprints,
     startAltitudeM: altitudeAt(0),
@@ -117,4 +136,50 @@ void _markClimbs(List<Segment> segments) {
     }
     i = last + 1;
   }
+}
+
+/// Puts the steepest ramp of each climb back into the route. The profile is
+/// averaged over the segment length, which hides short walls such as the
+/// Mur de Huy. Where the climb's steepest segment stays clearly below the
+/// gradient the stage file names, that segment becomes the ramp and the
+/// rest of the climb gets a little flatter, so that the climb keeps its
+/// height gain.
+///
+/// @param segments Segments of the route.
+/// @param climbs Climbs with their steepest gradient.
+/// @returns The segments, changed where a ramp was missing.
+List<Segment> _addRamps(List<Segment> segments, List<ClimbSpan> climbs) {
+  if (climbs.isEmpty) return segments;
+  final out = [...segments];
+  for (final c in climbs) {
+    final inside = [
+      for (var i = 0; i < out.length; i++)
+        if (out[i].km >= c.fromKm &&
+            out[i].km + out[i].lengthM / 1000 <= c.toKm)
+          i,
+    ];
+    if (inside.length < 3 || c.maxGrade <= 0.03) continue;
+    var steepest = inside.first;
+    for (final i in inside) {
+      if (out[i].grade > out[steepest].grade) steepest = i;
+    }
+    final missing = min(0.25, c.maxGrade) - out[steepest].grade;
+    if (missing < 0.015) continue;
+    // Height the ramp adds, taken from the other segments of the climb.
+    final extra = missing * out[steepest].lengthM;
+    final rest = inside.where((i) => i != steepest);
+    final restM = rest.fold(0.0, (sum, i) => sum + out[i].lengthM);
+    Segment regrade(Segment s, double grade) => Segment(
+        km: s.km,
+        lengthM: s.lengthM,
+        grade: grade,
+        cobble: s.cobble,
+        unpaved: s.unpaved,
+        altitudeM: s.altitudeM);
+    out[steepest] = regrade(out[steepest], out[steepest].grade + missing);
+    for (final i in rest) {
+      out[i] = regrade(out[i], out[i].grade - extra / restM);
+    }
+  }
+  return out;
 }

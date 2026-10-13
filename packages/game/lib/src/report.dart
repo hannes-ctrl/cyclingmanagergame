@@ -98,9 +98,16 @@ RaceArticle writeArticle({
             ? tr('Die Ausreißer wurden gestellt. ')
             : tr('Rund {0} Kilometer vor dem Ziel war die Flucht beendet. ',
                 [rest]));
+      case EventType.weather:
+        story.write(tr('Gefahren wurde bei {0}. ', [after(e)]));
       case EventType.gruppetto:
       case EventType.attack:
       case EventType.dropped:
+      case EventType.crash:
+      case EventType.puncture:
+      case EventType.echelon:
+      case EventType.abandon:
+      case EventType.timeCut:
         // These texts are already whole sentences in the present tense.
         story.write('${e.text}. ');
       case EventType.points:

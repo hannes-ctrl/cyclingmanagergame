@@ -9,6 +9,7 @@ export 'src/entries.dart';
 export 'src/forecast.dart';
 export 'src/founding.dart';
 export 'src/licence.dart';
+export 'src/planning.dart';
 export 'src/points.dart';
 export 'src/report.dart';
 export 'src/staff.dart';

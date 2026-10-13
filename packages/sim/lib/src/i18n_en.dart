@@ -4,6 +4,34 @@
 
 /// English text per German source text.
 const english = <String, String>{
+  'Wetter: {0}': 'Weather: {0}',
+  '{0} °C': '{0} °C',
+  'Regen': 'rain',
+  'kaum Wind': 'hardly any wind',
+  'Wind {0} km/h': 'wind {0} km/h',
+  'Gefahren wurde bei {0}. ': 'Conditions: {0}. ',
+  'Windkante: {0} Fahrer verlieren im Seitenwind den Anschluss':
+      'Echelons: {0} riders lose contact in the crosswind',
+  'Sturz: {0} gehen zu Boden': 'Crash: {0} go down',
+  'Sturz im Sprint: {0}': 'Crash in the sprint: {0}',
+  'Defekt bei {0}': 'Puncture for {0}',
+  '{0} muss nach einem Sturz aufgeben': '{0} has to abandon after a crash',
+  '{0} steigt krank vom Rad': '{0} abandons, ill',
+  'Außerhalb der Karenzzeit: {0}': 'Outside the time limit: {0}',
+  'Außerhalb der Karenzzeit: {0} und {1} weitere':
+      'Outside the time limit: {0} and {1} more',
+  '{0} Fahrer kommen außerhalb der Karenzzeit an und werden begnadigt':
+      '{0} riders finish outside the time limit and are reprieved',
+  '{0} außerhalb der Karenzzeit': '{0} outside the time limit',
+  '{0} kam außerhalb der Karenzzeit ins Ziel und ist nicht mehr im Rennen.':
+      '{0} finished outside the time limit and is out of the race.',
+  '{0} ist gestürzt': '{0} has crashed',
+  '{0} ist gestürzt und hat sich ins Ziel gekämpft. Die nächsten Tage wird er Schmerzen haben.':
+      '{0} crashed and fought his way to the finish. He will be in pain for the next few days.',
+  '{0} ist gestürzt, aber ohne ernste Folgen davongekommen.':
+      '{0} crashed but got away without serious harm.',
+  'gestürzt': 'crashed',
+  'Defekt': 'puncture',
   'Fahrersuche': 'Rider search',
   'Alle Teams': 'All teams',
   'Alle Länder': 'All countries',
@@ -307,8 +335,6 @@ const english = <String, String>{
   'Die besten 400': 'The best 400',
   'Die erste Abrechnung kommt am Monatsersten.':
       'The first statement arrives on the first of the month.',
-  'Die erste Antwort lässt den Sportlichen Leiter nach Plan weiterfahren. Nach der letzten Rückfrage des Tages öffnet sich das Ergebnis. Der Funk lässt sich unter „Aufgabenverteilung" abschalten.':
-      'The first answer lets the sports director carry on as planned. After the last question of the day the result opens. The radio can be switched off under "Delegation".',
   'Die laufende Karriere wird dabei ersetzt. Sichere sie vorher unter einem Namen, wenn du sie behalten willst.':
       'This replaces the running career. Save it under a name first if you want to keep it.',
   'Die laufende Karriere wird ersetzt. Benannte Spielstände bleiben erhalten.':
@@ -1112,4 +1138,77 @@ const english = <String, String>{
   '„{0}" löschen?': 'Delete "{0}"?',
   '„{0}" wird geladen …': 'Loading "{0}" …',
   '„{0}" wurde gelöscht.': '"{0}" has been deleted.',
+  'Die markierte Antwort ist das, was der Sportliche Leiter von sich aus tun würde, und was jedes andere Team in dieser Lage tut. Nach der letzten Rückfrage des Tages öffnet sich das Ergebnis. Der Funk lässt sich unter „Aufgabenverteilung" abschalten.':
+      'The marked answer is what the sports director would do himself, and what every other team does in this situation. After the last question of the day the result opens. The radio can be switched off under "Delegation".',
+  '{0}  ·  Empfehlung': '{0}  ·  recommended',
+  'Zurück (Alt+←, Esc)': 'Back (Alt+←, Esc)',
+  'Vor (Alt+→)': 'Forward (Alt+→)',
+  'Was du änderst, wird mit einer Nadel festgelegt und gilt für das ganze Rennen. Alles andere plant der Sportliche Leiter für jede Etappe neu. Ein Klick auf die Nadel gibt die Vorgabe wieder frei.':
+      'What you change is pinned and applies to the whole race. Everything else the sports director plans anew for every stage. A click on the pin releases it again.',
+  'Was du änderst, wird mit einer Nadel festgelegt und gilt für die restlichen Etappen. Alles andere plant der Sportliche Leiter für jede Etappe neu; zu sehen ist sein Plan für die nächste. Ein Klick auf die Nadel gibt die Vorgabe wieder frei.':
+      'What you change is pinned and applies to the remaining stages. Everything else the sports director plans anew for every stage; shown is his plan for the next one. A click on the pin releases it again.',
+  'Nur Geändertes festlegen': 'Pin only what I change',
+  'Alles festlegen': 'Fix everything',
+  'Alles gilt genau so für das ganze Rennen, auf jeder Etappe; der Sportliche Leiter ändert nichts daran.':
+      'Everything applies exactly as set for the whole race, on every stage; the sports director changes nothing.',
+  'Alles gilt genau so für die restlichen Etappen; der Sportliche Leiter ändert nichts daran.':
+      'Everything applies exactly as set for the remaining stages; the sports director changes nothing.',
+  '{0} verlängert bei {1}': '{0} renews with {1}',
+  '{0} wechselt zu {1}': '{0} moves to {1}',
+  'Der Fahrer stand auf deiner Beobachtungsliste. Sein neuer Vertrag läuft bis {0}.':
+      'The rider was on your shortlist. His new contract runs until {0}.',
+  'Beobachtungsliste: {0} Fahrer sind zu haben':
+      'Shortlist: {0} riders are available',
+  'Die Verträge dieser Fahrer laufen aus, und noch hat keiner woanders unterschrieben: {0}.':
+      'The contracts of these riders run out, and none of them has signed elsewhere yet: {0}.',
+  'Automatisch · {0}': 'Automatic · {0}',
+  'Das Team gibt es nicht mehr.': 'The team no longer exists.',
+  'Teamprofil': 'Team profile',
+  'Ø Alter': 'Avg. age',
+  'Rang {0}': 'Rank {0}',
+  'Vergleich mit {0}: seine Werte stehen in der zweiten Spalte, grün, wo {1} besser ist.':
+      'Compared with {0}: his values are in the second column, green where {1} is better.',
+  'Vergleich beenden': 'End comparison',
+  'Notiz zu diesem Fahrer': 'Note on this rider',
+  'Von der Beobachtungsliste nehmen': 'Remove from the shortlist',
+  'Auf die Beobachtungsliste': 'Add to the shortlist',
+  'Zum Vergleich merken: seine Werte erscheinen dann auf jeder anderen Fahrerseite':
+      'Remember for comparison: his values then appear on every other rider page',
+  'Beobachtung': 'Shortlist',
+  'Nur Beobachtungsliste': 'Shortlist only',
+  '{0}: {1} Meldungen': '{0}: {1} messages',
+  'Fahrer des Jahres: {0}, {1} Punkte': 'Rider of the year: {0}, {1} points',
+  'Bester Nachwuchsfahrer: {0}': 'Best young rider: {0}',
+  'Die meisten Siege: {0}, {1} Siege': 'Most wins: {0}, {1} wins',
+  'Team des Jahres: {0}, {1} Punkte': 'Team of the year: {0}, {1} points',
+  'Saisonrückblick': 'Season review',
+  'Die Besten der Saison {0}': 'The best of the {0} season',
+  'Einstellungen des Postfachs': 'Inbox settings',
+  'Diese Themen erhalten': 'Receive these topics',
+  'Ab drei Meldungen je Thema und Tag zusammenfassen':
+      'Summarise three or more messages per topic and day',
+  'Alle gelesen': 'Mark all read',
+  '{0} Nachrichten löschen, davon {1} ungelesen?':
+      'Delete {0} messages, {1} of them unread?',
+  'Alle löschen': 'Delete all',
+  'Alle in „{0}" löschen': 'Delete all in "{0}"',
+  'Doppelt eingeplant: {0}{1}': 'Entered twice: {0}{1}',
+  '{0} ({1} und {2})': '{0} ({1} and {2})',
+  ' und {0} weitere': ' and {0} more',
+  'Der Saisonplan steht': 'The season plan is ready',
+  'Ich habe {0} Rennen mit {1} Renntagen verplant, die wichtigsten zuerst. Im Schnitt kommt jeder Fahrer auf {2} Renntage, keiner auf mehr als {3}. Im Rennplaner kannst du jeden Einsatz ändern.':
+      'I have planned {0} races with {1} race days, the most important first. On average every rider gets {2} race days, none more than {3}. You can change every entry in the race planner.',
+  '{0}: kein Ersatz frei': '{0}: no replacement free',
+  '{0}: {1} rückt nach': '{0}: {1} steps in',
+  'Ersatz für {0}': 'Replacement for {0}',
+  '{0} fehlt in Rennen, für die er eingeplant war. {1}.':
+      '{0} misses races he was planned for. {1}.',
+  'Der Sportliche Leiter verteilt die Fahrer neu auf alle kommenden Rennen: die wichtigsten Rennen zuerst, passend zur Strecke und gleichmäßig über den Kader. Was du von Hand eingetragen hast, wird dabei ersetzt.':
+      'The sports director distributes the riders anew over all coming races: the most important races first, fitting the route and evenly across the squad. What you entered by hand is replaced.',
+  'Saison neu planen': 'Replan the season',
+  'Saisonplan': 'Season plan',
+  'Du planst selbst, welcher Fahrer welches Rennen fährt.':
+      'You plan yourself which rider rides which race.',
+  'Der Sportliche Leiter plant zu Saisonbeginn alle Rennen, die wichtigsten zuerst und gleichmäßig über den Kader, und ersetzt Fahrer, die ausfallen. Du kannst jeden Einsatz im Rennplaner ändern.':
+      'At the start of the season the sports director plans all races, the most important first and evenly across the squad, and replaces riders who drop out. You can change every entry in the race planner.',
 };

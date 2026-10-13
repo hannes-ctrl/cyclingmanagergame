@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:game/game.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sim/sim.dart';
 
 import '../app_state.dart';
@@ -50,6 +51,64 @@ class _TacticsDialogState extends State<_TacticsDialog> {
   late BreakPolicy _breakPolicy;
   late final SimRoute _next;
 
+  /// Riders whose role is pinned, and whether approach and breakaway policy
+  /// are.
+  final _pinned = <int>{};
+
+  /// The role as the player chose it; a stage may show it differently (a
+  /// sprinter is a protected rider in the mountains).
+  final _wanted = <int, Role>{};
+  var _pinApproach = false, _pinBreak = false;
+
+  /// On: the complete plan applies exactly as set, on every stage, and the
+  /// sports director changes nothing. Off: only the pins are fixed.
+  var _fixAll = false;
+
+  /// Switches between pinning single choices and fixing the whole plan.
+  void _setFixAll(bool on) {
+    _fixAll = on;
+    if (on) {
+      // Everything that is shown now becomes the plan.
+      _wanted
+        ..clear()
+        ..addAll(_roles);
+      _pinned
+        ..clear()
+        ..addAll(_roles.keys);
+      _pinApproach = _pinBreak = true;
+    }
+  }
+
+  PlanWish get _wish => PlanWish(
+    roles: {
+      for (final id in _pinned)
+        if (_wanted.containsKey(id)) id: _wanted[id]!,
+    },
+    approach: _pinApproach ? _approach : null,
+    breakPolicy: _pinBreak ? _breakPolicy : null,
+  );
+
+  /// The sports director's plan for the next stage with the pins on top.
+  void _replan() {
+    if (_fixAll) {
+      _roles = {for (final r in _own) r.id: _wanted[r.id] ?? Role.domestique};
+      return;
+    }
+    final s = widget.state;
+    final p = widget.progress;
+    final plan = _wish.applyTo(
+      s.career.suggestPlan(_next, _own, [
+        for (final r in p.run.riders)
+          if (r.teamId != s.team.id) r,
+      ], gcGaps: p.run.gcGaps),
+      _next,
+      {for (final r in _own) r.id},
+    );
+    _roles = {for (final r in _own) r.id: plan.roleOf(r.id)};
+    _approach = plan.approach;
+    _breakPolicy = plan.breakPolicy;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -61,23 +120,29 @@ class _TacticsDialogState extends State<_TacticsDialog> {
         if (r.teamId == s.team.id) r,
     ];
     _next = s.world.route(p.race.stages[p.stagesDone].id);
-    // Starting point: the player's current tactics, otherwise the sports
-    // director's suggestion for the next stage given the current standings.
-    final gc = p.run.standings.last.general;
-    final plan =
-        s.career.ownPlans[raceId] ??
-        s.career.suggestPlan(
-          _next,
-          _own,
-          [
-            for (final r in p.run.riders)
-              if (r.teamId != s.team.id) r,
-          ],
-          gcGaps: {for (final e in gc) e.rider.id: e.timeS - gc.first.timeS},
-        );
-    _roles = {for (final r in _own) r.id: plan.roleOf(r.id)};
-    _approach = plan.approach;
-    _breakPolicy = plan.breakPolicy;
+    // Starting point: what the player has pinned so far, over the sports
+    // director's plan for the next stage given the current standings. A
+    // complete plan from an older save counts as everything pinned.
+    final full = s.career.ownPlans[raceId];
+    final wish = s.career.ownWishes[raceId];
+    if (full != null) {
+      _roles = {for (final r in _own) r.id: full.roleOf(r.id)};
+      _approach = full.approach;
+      _breakPolicy = full.breakPolicy;
+      _pinned.addAll(_roles.keys);
+      _wanted.addAll(_roles);
+      _pinApproach = _pinBreak = true;
+      _fixAll = true;
+    } else {
+      _wanted.addAll(wish?.roles ?? const {});
+      _pinned.addAll(_wanted.keys);
+      _roles = {};
+      _pinApproach = wish?.approach != null;
+      _pinBreak = wish?.breakPolicy != null;
+      _approach = wish?.approach ?? Approach.wait;
+      _breakPolicy = wish?.breakPolicy ?? BreakPolicy.ignore;
+      _replan();
+    }
   }
 
   @override
@@ -144,13 +209,48 @@ class _TacticsDialogState extends State<_TacticsDialog> {
               ),
               const SizedBox(height: 4),
               Text(
-                s.career.ownPlans.containsKey(raceId)
-                    ? tr('Es gilt deine eigene Taktik.')
-                    : tr(
-                        'Bisher plant der Sportliche Leiter jede Etappe selbst. Das ist sein Vorschlag für die nächste.',
-                      ),
+                tr(
+                  'Was du änderst, wird mit einer Nadel festgelegt und gilt für die restlichen Etappen. Alles andere plant der Sportliche Leiter für jede Etappe neu; zu sehen ist sein Plan für die nächste. Ein Klick auf die Nadel gibt die Vorgabe wieder frei.',
+                ),
                 style: const TextStyle(fontSize: 12, color: TeamColors.muted),
               ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                children: [
+                  Pill(
+                    label: tr('Nur Geändertes festlegen'),
+                    selected: !_fixAll,
+                    colors: c,
+                    onTap: () => setState(() {
+                      _setFixAll(false);
+                      _pinned.clear();
+                      _wanted.clear();
+                      _pinApproach = _pinBreak = false;
+                      _replan();
+                    }),
+                  ),
+                  Pill(
+                    label: tr('Alles festlegen'),
+                    selected: _fixAll,
+                    colors: c,
+                    onTap: () => setState(() => _setFixAll(true)),
+                  ),
+                ],
+              ),
+              if (_fixAll)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    tr(
+                      'Alles gilt genau so für die restlichen Etappen; der Sportliche Leiter ändert nichts daran.',
+                    ),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: TeamColors.muted,
+                    ),
+                  ),
+                ),
               const SizedBox(height: 10),
               Flexible(
                 child: ListView(
@@ -162,6 +262,25 @@ class _TacticsDialogState extends State<_TacticsDialog> {
                         child: Row(
                           children: [
                             Expanded(child: cellText(r.name)),
+                            if (_pinned.contains(r.id))
+                              InkWell(
+                                onTap: () => setState(() {
+                                  _fixAll = false;
+                                  _pinned.remove(r.id);
+                                  _wanted.remove(r.id);
+                                  _replan();
+                                }),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                  ),
+                                  child: Icon(
+                                    LucideIcons.pin,
+                                    size: 14,
+                                    color: c.accent,
+                                  ),
+                                ),
+                              ),
                             DropdownButton<Role>(
                               value: _roles[r.id] ?? Role.domestique,
                               isDense: true,
@@ -172,8 +291,11 @@ class _TacticsDialogState extends State<_TacticsDialog> {
                                 fontSize: 13,
                                 color: TeamColors.text,
                               ),
-                              onChanged: (v) =>
-                                  setState(() => _roles[r.id] = v!),
+                              onChanged: (v) => setState(() {
+                                _wanted[r.id] = v!;
+                                _pinned.add(r.id);
+                                _replan();
+                              }),
                               items: [
                                 for (final role in Role.values)
                                   DropdownMenuItem(
@@ -186,19 +308,17 @@ class _TacticsDialogState extends State<_TacticsDialog> {
                         ),
                       ),
                     const SizedBox(height: 10),
-                    choice(
-                      tr('Rennverlauf'),
-                      _approachLabels,
-                      _approach,
-                      (v) => _approach = v,
-                    ),
+                    choice(tr('Rennverlauf'), _approachLabels, _approach, (v) {
+                      _approach = v;
+                      _pinApproach = true;
+                    }),
                     const SizedBox(height: 8),
-                    choice(
-                      tr('Ausreißergruppe'),
-                      _breakLabels,
-                      _breakPolicy,
-                      (v) => _breakPolicy = v,
-                    ),
+                    choice(tr('Ausreißergruppe'), _breakLabels, _breakPolicy, (
+                      v,
+                    ) {
+                      _breakPolicy = v;
+                      _pinBreak = true;
+                    }),
                   ],
                 ),
               ),
@@ -213,7 +333,7 @@ class _TacticsDialogState extends State<_TacticsDialog> {
                   const SizedBox(width: 6),
                   OutlinedButton(
                     onPressed: () {
-                      s.setPlan(raceId, null);
+                      s.setWish(raceId, null);
                       Navigator.pop(context);
                     },
                     child: Text(tr('Sportlicher Leiter entscheidet')),
@@ -225,14 +345,18 @@ class _TacticsDialogState extends State<_TacticsDialog> {
                       foregroundColor: c.onAccent,
                     ),
                     onPressed: () {
-                      s.setPlan(
-                        raceId,
-                        TeamPlan(
-                          roles: _roles,
-                          approach: _approach,
-                          breakPolicy: _breakPolicy,
-                        ),
-                      );
+                      if (_fixAll) {
+                        s.setPlan(
+                          raceId,
+                          TeamPlan(
+                            roles: _roles,
+                            approach: _approach,
+                            breakPolicy: _breakPolicy,
+                          ),
+                        );
+                      } else {
+                        s.setWish(raceId, _wish);
+                      }
                       Navigator.pop(context);
                     },
                     child: Text(tr('Übernehmen')),

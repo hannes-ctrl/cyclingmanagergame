@@ -203,6 +203,7 @@ class _RankingsScreenState extends State<RankingsScreen> {
                           colors: c,
                           rows: teams,
                           highlight: (r) => r[0] == state.team.id,
+                          onTap: (r) => state.openTeam(r[0] as int),
                           columns: [place(), text('Team', 230, 1), points(2)],
                         ),
                       ),

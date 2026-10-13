@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:game/game.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sim/sim.dart';
 
 import '../app_state.dart';
@@ -54,12 +55,13 @@ String _d(DateTime d) =>
 Future<void> showRiderDialog(
   BuildContext context,
   AppState state,
-  int riderId,
-) {
+  int riderId, {
+  List<int>? among,
+}) {
   // From a screen of the shell the profile opens as a full page; on top of
   // another route (founding a team) it stays a dialog.
   if (ModalRoute.of(context)?.isFirst ?? true) {
-    state.openRider(riderId);
+    state.openRider(riderId, among: among);
     return Future.value();
   }
   return showDialog<void>(
@@ -159,6 +161,14 @@ class RiderPage extends StatelessWidget {
           race,
     ];
     final injured = career.isInjured(r.id, career.today);
+    // The rider remembered for comparison, if his values are known.
+    final rival = s.compareWith == null || s.compareWith == r.id
+        ? null
+        : career.riderById[s.compareWith];
+    final rivalKnown =
+        rival != null &&
+        (rival.teamId == s.team.id || book.knowledge(rival.id) >= 1);
+    final watched = career.watch.contains(r.id);
     // Development since the first record: the attributes as they were then,
     // and the mean of all attributes month by month.
     final growth = career.growth[r.id] ?? const <List<num>>[];
@@ -187,7 +197,13 @@ class RiderPage extends StatelessWidget {
     String signed(double v, [int digits = 1]) =>
         '${v >= 0 ? '+' : '−'}${dec(v.abs(), digits)}';
 
-    Widget bar(String label, String code, double value, double? was) {
+    Widget bar(
+      String label,
+      String code,
+      double value,
+      double? was, [
+      double? than,
+    ]) {
       final (low, high) = book.range(r.id, code, value);
       final change = was == null ? 0.0 : value - was;
       final shown = (low + high) / 2;
@@ -229,6 +245,24 @@ class RiderPage extends StatelessWidget {
                 ),
               ),
             ),
+            if (rival != null)
+              SizedBox(
+                width: 54,
+                child: Text(
+                  than == null ? '?' : '${than.round()}',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: than == null
+                        ? TeamColors.muted
+                        : than > shown + 0.5
+                        ? TeamColors.red
+                        : than < shown - 0.5
+                        ? TeamColors.green
+                        : TeamColors.muted,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
             const SizedBox(width: 10),
             Expanded(
               child: Stack(
@@ -275,14 +309,22 @@ class RiderPage extends StatelessWidget {
       ),
     );
 
-    Widget line(String left, String right, {Color? color}) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          Expanded(child: Text(left, overflow: TextOverflow.ellipsis)),
-          const SizedBox(width: 8),
-          Text(right, style: TextStyle(color: color ?? TeamColors.muted)),
-        ],
+    Widget line(
+      String left,
+      String right, {
+      Color? color,
+      VoidCallback? onTap,
+    }) => InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Expanded(child: Text(left, overflow: TextOverflow.ellipsis)),
+            const SizedBox(width: 8),
+            Text(right, style: TextStyle(color: color ?? TeamColors.muted)),
+          ],
+        ),
       ),
     );
 
@@ -320,22 +362,29 @@ class RiderPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(career.fullName(r.id), style: headStyle(27)),
-                    Row(
-                      children: [
-                        Flag(r.country, width: 20),
-                        const SizedBox(width: 7),
-                        Text(
-                          tr('{0} · {1} Jahre · {2}{3}', [
-                            r.country,
-                            career.year - r.born ~/ 10000,
-                            team?.division == 'Free'
-                                ? tr('vereinslos')
-                                : team?.name ?? r.team,
-                            exact ? ' · ${tr(riderType(r))}' : '',
-                          ]),
-                          style: const TextStyle(color: TeamColors.muted),
-                        ),
-                      ],
+                    // The line leads to the page of his team.
+                    InkWell(
+                      onTap: page && team != null
+                          ? () => s.openTeam(r.teamId)
+                          : null,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flag(r.country, width: 20),
+                          const SizedBox(width: 7),
+                          Text(
+                            tr('{0} · {1} Jahre · {2}{3}', [
+                              r.country,
+                              career.year - r.born ~/ 10000,
+                              team?.division == 'Free'
+                                  ? tr('vereinslos')
+                                  : team?.name ?? r.team,
+                              exact ? ' · ${tr(riderType(r))}' : '',
+                            ]),
+                            style: const TextStyle(color: TeamColors.muted),
+                          ),
+                        ],
+                      ),
                     ),
                     if (titles.isNotEmpty)
                       Padding(
@@ -368,6 +417,56 @@ class RiderPage extends StatelessWidget {
                   ],
                 ),
               ),
+              if (page) ...[
+                SizedBox(
+                  width: 260,
+                  child: TextFormField(
+                    key: ValueKey('note-${r.id}'),
+                    initialValue: career.notes[r.id] ?? '',
+                    onChanged: (v) => s.setNote(r.id, v),
+                    maxLines: 3,
+                    minLines: 3,
+                    style: const TextStyle(fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: tr('Notiz zu diesem Fahrer'),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  children: [
+                    IconButton(
+                      tooltip: watched
+                          ? tr('Von der Beobachtungsliste nehmen')
+                          : tr('Auf die Beobachtungsliste'),
+                      onPressed: () => s.toggleWatch(r.id),
+                      icon: Icon(
+                        LucideIcons.star,
+                        size: 20,
+                        color: watched ? TeamColors.gold : TeamColors.muted,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: s.compareWith == r.id
+                          ? tr('Vergleich beenden')
+                          : tr(
+                              'Zum Vergleich merken: seine Werte erscheinen dann auf jeder anderen Fahrerseite',
+                            ),
+                      onPressed: () =>
+                          s.compare(s.compareWith == r.id ? null : r.id),
+                      icon: Icon(
+                        LucideIcons.scale,
+                        size: 20,
+                        color: s.compareWith == r.id
+                            ? c.accent
+                            : TeamColors.muted,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 8),
+              ],
               RiderPhoto(dataDir: s.dataDir, riderId: r.id, size: 76),
               const SizedBox(width: 12),
               Jersey(dataDir: s.dataDir, abbr: s.jerseyOf(r.teamId), size: 64),
@@ -424,6 +523,30 @@ class RiderPage extends StatelessWidget {
                   flex: 5,
                   child: ListView(
                     children: [
+                      if (rival != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  tr(
+                                    'Vergleich mit {0}: seine Werte stehen in der zweiten Spalte, grün, wo {1} besser ist.',
+                                    [career.fullName(rival.id), r.lastName],
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: TeamColors.muted,
+                                  ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => s.compare(null),
+                                child: Text(tr('Vergleich beenden')),
+                              ),
+                            ],
+                          ),
+                        ),
                       Row(
                         children: [
                           Expanded(child: Label(tr('Werte'))),
@@ -452,6 +575,7 @@ class RiderPage extends StatelessWidget {
                           code,
                           pick(r.attributes),
                           before == null ? null : pick(before),
+                          rivalKnown ? pick(rival.attributes) : null,
                         ),
                       if (own || means.length > 1) ...[
                         const SizedBox(height: 14),
@@ -682,6 +806,8 @@ class RiderPage extends StatelessWidget {
                           '${_d(x.race.start)}  ${x.race.info.name}',
                           x.text,
                           color: x.good ? TeamColors.gold : null,
+                          // The line leads to the report of the race.
+                          onTap: page ? () => s.showRace(x.race.info.id) : null,
                         ),
                       const SizedBox(height: 12),
                       Label(tr('Erfolge · {0}', [palmares.length])),

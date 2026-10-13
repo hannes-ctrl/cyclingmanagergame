@@ -497,6 +497,7 @@ class Economy {
     if (searches.isNotEmpty) _finishSearches();
     // The other teams settle their contracts in four waves.
     if (t.day == 15 && t.month >= 8 && t.month <= 11) _marketWave();
+    if (t.day == 1 && t.month == 8) _watchNotice();
     // Right at the start of the signing period, before other teams move in.
     if (t.day == 1 && t.month == 8 && autoRenew) _renewOwn();
   }
@@ -645,6 +646,37 @@ class Economy {
       ..nextTeam = teamId
       ..nextWage = marketWage(r)
       ..nextEnd = c.year + years;
+    // A rider on the shortlist is off the market.
+    if (c.watch.contains(r.id) && teamId != c.teamId) {
+      final team = c.teams[teamId]?.name ?? '';
+      c.inbox.add(Message(
+        c.today,
+        'Scouting',
+        teamId == r.teamId
+            ? tr('{0} verlängert bei {1}', [r.name, team])
+            : tr('{0} wechselt zu {1}', [r.name, team]),
+        tr('Der Fahrer stand auf deiner Beobachtungsliste. Sein neuer Vertrag läuft bis {0}.',
+            [c.year + years]),
+      ));
+    }
+  }
+
+  /// At the start of the signing period: which riders of the shortlist can
+  /// be signed for next season.
+  void _watchNotice() {
+    final free = [
+      for (final id in c.watch)
+        if (c.riderById[id] case final r?)
+          if (r.teamId != c.teamId && expiring(r)) r,
+    ]..sort((a, b) => rating(b).compareTo(rating(a)));
+    if (free.isEmpty) return;
+    c.inbox.add(Message(
+      c.today,
+      'Scouting',
+      tr('Beobachtungsliste: {0} Fahrer sind zu haben', [free.length]),
+      tr('Die Verträge dieser Fahrer laufen aus, und noch hat keiner woanders unterschrieben: {0}.',
+          [free.map((r) => r.name).join(', ')]),
+    ));
   }
 
   // --- Turn of the season -----------------------------------------------------
@@ -813,6 +845,13 @@ class Economy {
                   : talent > 0.3
                       ? 4.5
                       : 4.0;
+      // Climbers are light, rouleurs and sprinters heavier and taller.
+      final weight = (68 +
+              0.8 * (attributes.flat - attributes.mountain) +
+              8 * (rng.nextDouble() - 0.5))
+          .clamp(55.0, 85.0);
+      final height = (165 + 0.6 * (weight - 55) + 8 * (rng.nextDouble() - 0.5))
+          .clamp(160.0, 198.0);
       final rider = SimRider(
         id: id,
         name: '${first.isEmpty ? '' : '${first[0]}. '}$last',
@@ -822,6 +861,8 @@ class Economy {
         born: (c.year + 1 - 18 - rng.nextInt(2)) * 10000 + 601,
         potential: potential,
         country: country,
+        weightKg: weight.roundToDouble(),
+        heightCm: height.roundToDouble(),
       );
       c.squads.putIfAbsent(free, () => []).add(rider);
       c.riderById[id] = rider;

@@ -117,7 +117,9 @@ class RadioPanel extends StatelessWidget {
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
                           foregroundColor: TeamColors.text,
-                          backgroundColor: i == 0 ? c.panel2 : null,
+                          backgroundColor: i == r.call.suggested
+                              ? c.panel2
+                              : null,
                           side: BorderSide(color: c.line),
                           alignment: Alignment.centerLeft,
                           shape: RoundedRectangleBorder(
@@ -131,7 +133,11 @@ class RadioPanel extends StatelessWidget {
                         onPressed: state.busy
                             ? null
                             : () => state.answerRadio(i),
-                        child: Text(option),
+                        child: Text(
+                          i == r.call.suggested
+                              ? tr('{0}  ·  Empfehlung', [option])
+                              : option,
+                        ),
                       ),
                     ),
                   ),
@@ -141,7 +147,7 @@ class RadioPanel extends StatelessWidget {
                     Expanded(
                       child: Text(
                         tr(
-                          'Die erste Antwort lässt den Sportlichen Leiter nach Plan weiterfahren. Nach der letzten Rückfrage des Tages öffnet sich das Ergebnis. Der Funk lässt sich unter „Aufgabenverteilung" abschalten.',
+                          'Die markierte Antwort ist das, was der Sportliche Leiter von sich aus tun würde, und was jedes andere Team in dieser Lage tut. Nach der letzten Rückfrage des Tages öffnet sich das Ergebnis. Der Funk lässt sich unter „Aufgabenverteilung" abschalten.',
                         ),
                         style: TextStyle(fontSize: 12, color: TeamColors.muted),
                       ),

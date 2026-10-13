@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import 'rider_dialog.dart';
+
 import 'package:game/game.dart';
 import 'package:sim/sim.dart';
 
@@ -246,7 +249,6 @@ class _RaceDetail extends StatelessWidget {
     final stages = state.stagesOf(race);
     final routes = state.routesOf(race);
     final run = state.runOf(race);
-    final busy = state.simulating.contains(race.id);
     final index = stage.clamp(0, routes.length - 1);
     final route = routes[index];
     final meters = route.segments
@@ -429,11 +431,9 @@ class _RaceDetail extends StatelessWidget {
             child: run == null
                 ? Center(
                     child: Text(
-                      busy
-                          ? tr('Das Rennen wird gerechnet …')
-                          : tr(
-                              'Noch nicht gefahren. Ergebnis, Bericht und Wertungen erscheinen hier nach dem Rennen.',
-                            ),
+                      tr(
+                        'Noch nicht gefahren. Ergebnis, Bericht und Wertungen erscheinen hier nach dem Rennen.',
+                      ),
                       style: const TextStyle(color: TeamColors.muted),
                     ),
                   )
@@ -538,6 +538,12 @@ class _ReportState extends State<_Report> {
         colors: c,
         rows: result.placings,
         highlight: (p) => own(p.rider),
+        onTap: (p) => showRiderDialog(
+          context,
+          s,
+          p.rider.id,
+          among: [for (final x in result.placings) x.rider.id],
+        ),
         columns: [
           place(),
           rider((p) => p.rider),
@@ -563,6 +569,12 @@ class _ReportState extends State<_Report> {
           colors: c,
           rows: rows,
           highlight: (e) => own(e.rider),
+          onTap: (e) => showRiderDialog(
+            context,
+            s,
+            e.rider.id,
+            among: [for (final x in rows) x.rider.id],
+          ),
           columns: [
             place(),
             rider((e) => e.rider),
@@ -582,6 +594,7 @@ class _ReportState extends State<_Report> {
         colors: c,
         rows: tab == _Tab.points ? standings.points : standings.mountains,
         highlight: (e) => own(e.rider),
+        onTap: (e) => showRiderDialog(context, s, e.rider.id),
         columns: [
           place(),
           rider((e) => e.rider),

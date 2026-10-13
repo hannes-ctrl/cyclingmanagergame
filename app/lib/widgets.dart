@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sim/sim.dart';
 
 import 'app_state.dart';
@@ -116,20 +117,106 @@ class DenseTable<T> extends StatefulWidget {
   final bool Function(T row)? highlight;
   final void Function(T row)? onTap;
 
+  /// Moves the cursor of the table the mouse is over, or opens its row.
+  ///
+  /// @param key Arrow up, arrow down, page up, page down, home, end or enter.
+  /// @returns Whether a table took the key.
+  static bool handleKey(LogicalKeyboardKey key) {
+    if (_activeTable?._key(key) ?? false) return true;
+    // No table under the mouse: the one opened last that is in front.
+    for (final table in _tables.reversed) {
+      if (!identical(table, _activeTable) && table._key(key)) return true;
+    }
+    return false;
+  }
+
   @override
   State<DenseTable<T>> createState() => _DenseTableState<T>();
 }
 
+/// The table that takes the arrow keys: the one the mouse entered last.
+_TableKeys? _activeTable;
+
+/// All tables alive, in the order they were opened.
+final _tables = <_TableKeys>[];
+
+/// What [DenseTable.handleKey] needs of a table, whatever its row type.
+abstract class _TableKeys {
+  bool _key(LogicalKeyboardKey key);
+}
+
 /// State of the table: sort column, direction and scroll position.
-class _DenseTableState<T> extends State<DenseTable<T>> {
+class _DenseTableState<T> extends State<DenseTable<T>> implements _TableKeys {
   int? _sortColumn;
   bool _descending = true;
   final _horizontal = ScrollController();
+  final _vertical = ScrollController();
+
+  /// Row the keyboard cursor is on, or null before the first key.
+  int? _cursor;
+
+  /// The rows as shown, after sorting.
+  List<T> _shown = const [];
+
+  static const _rowHeight = 28.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _tables.add(this);
+  }
 
   @override
   void dispose() {
+    _tables.remove(this);
+    if (identical(_activeTable, this)) _activeTable = null;
     _horizontal.dispose();
+    _vertical.dispose();
     super.dispose();
+  }
+
+  @override
+  bool _key(LogicalKeyboardKey key) {
+    // A table on a page that is not in front does not react.
+    if (!mounted || _shown.isEmpty) return false;
+    if (!TickerMode.valuesOf(context).enabled) return false;
+    final last = _shown.length - 1;
+    final page = _vertical.hasClients
+        ? (_vertical.position.viewportDimension / _rowHeight).floor() - 1
+        : 10;
+    final at = _cursor;
+    int? to;
+    if (key == LogicalKeyboardKey.arrowDown) {
+      to = at == null ? 0 : at + 1;
+    } else if (key == LogicalKeyboardKey.arrowUp) {
+      to = at == null ? 0 : at - 1;
+    } else if (key == LogicalKeyboardKey.pageDown) {
+      to = (at ?? 0) + page;
+    } else if (key == LogicalKeyboardKey.pageUp) {
+      to = (at ?? 0) - page;
+    } else if (key == LogicalKeyboardKey.home) {
+      to = 0;
+    } else if (key == LogicalKeyboardKey.end) {
+      to = last;
+    } else if (key == LogicalKeyboardKey.enter && at != null) {
+      if (widget.onTap == null || at > last) return false;
+      widget.onTap!(_shown[at]);
+      return true;
+    }
+    if (to == null) return false;
+    final row = to.clamp(0, last);
+    setState(() => _cursor = row);
+    // Keep the cursor in view.
+    if (_vertical.hasClients) {
+      final top = row * _rowHeight;
+      final view = _vertical.position;
+      if (top < view.pixels) {
+        _vertical.jumpTo(top);
+      } else if (top + _rowHeight > view.pixels + view.viewportDimension) {
+        _vertical.jumpTo(top + _rowHeight - view.viewportDimension);
+      }
+    }
+    return true;
   }
 
   @override
@@ -147,6 +234,8 @@ class _DenseTableState<T> extends State<DenseTable<T>> {
               : sort(a).compareTo(sort(b)),
         );
     }
+    _shown = rows;
+    if (_cursor != null && _cursor! >= rows.length) _cursor = null;
     final width = widget.columns.fold<double>(0, (s, x) => s + x.width);
 
     Widget cellBox(Col<T> col, Widget child) => SizedBox(
@@ -187,51 +276,75 @@ class _DenseTableState<T> extends State<DenseTable<T>> {
       ],
     );
 
-    return LayoutBuilder(
-      builder: (context, box) => Scrollbar(
-        controller: _horizontal,
-        child: SingleChildScrollView(
+    return MouseRegion(
+      onEnter: (_) => _activeTable = this,
+      child: LayoutBuilder(
+        builder: (context, box) => Scrollbar(
           controller: _horizontal,
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: max(width, box.maxWidth),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border(bottom: BorderSide(color: c.line)),
+          child: SingleChildScrollView(
+            controller: _horizontal,
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: max(width, box.maxWidth),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border(bottom: BorderSide(color: c.line)),
+                    ),
+                    child: header,
                   ),
-                  child: header,
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: rows.length,
-                    itemExtent: 28,
-                    itemBuilder: (context, i) {
-                      final row = rows[i];
-                      final own = widget.highlight?.call(row) ?? false;
-                      return InkWell(
-                        onTap: widget.onTap == null
-                            ? null
-                            : () => widget.onTap!(row),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: own ? c.panel2 : null,
-                            border: Border(bottom: BorderSide(color: c.line)),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: _vertical,
+                      itemCount: rows.length,
+                      itemExtent: _rowHeight,
+                      itemBuilder: (context, i) {
+                        final row = rows[i];
+                        final own = widget.highlight?.call(row) ?? false;
+                        final cursor = i == _cursor;
+                        return InkWell(
+                          onTap: widget.onTap == null
+                              ? null
+                              : () {
+                                  _cursor = i;
+                                  widget.onTap!(row);
+                                },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: cursor
+                                  ? c.accent.withValues(alpha: 0.22)
+                                  : own
+                                  ? c.panel2
+                                  : null,
+                              border: Border(bottom: BorderSide(color: c.line)),
+                            ),
+                            // Painted over the row, so that the bar takes
+                            // no width from the cells.
+                            foregroundDecoration: cursor
+                                ? BoxDecoration(
+                                    border: Border(
+                                      left: BorderSide(
+                                        color: c.accent,
+                                        width: 3,
+                                      ),
+                                    ),
+                                  )
+                                : null,
+                            child: Row(
+                              children: [
+                                for (final col in widget.columns)
+                                  cellBox(col, col.cell(row, i)),
+                              ],
+                            ),
                           ),
-                          child: Row(
-                            children: [
-                              for (final col in widget.columns)
-                                cellBox(col, col.cell(row, i)),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

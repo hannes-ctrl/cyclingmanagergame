@@ -37,3 +37,9 @@ build/
 # Machine-specific toolchain paths
 /env.local.ps1
 /data/photos/
+
+# Route weights for the season planner, derived from world.sqlite
+/data/route_fit.cache.json
+
+# Left behind by an interrupted test run
+/data/savegame_test*.json

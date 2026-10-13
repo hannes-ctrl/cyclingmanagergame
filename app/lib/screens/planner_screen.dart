@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:game/game.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sim/sim.dart';
 
 import '../app_state.dart';
@@ -194,9 +195,35 @@ class _PlannerScreenState extends State<PlannerScreen> {
           : tr('gering');
     }
 
+    // A rider cannot start in two races at once.
+    final clashes = career.programClashes();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (clashes.isNotEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: TeamColors.red.withValues(alpha: 0.16),
+            child: Text(
+              tr('Doppelt eingeplant: {0}{1}', [
+                clashes
+                    .take(4)
+                    .map(
+                      (x) => tr('{0} ({1} und {2})', [
+                        x.rider.name,
+                        x.first.info.name,
+                        x.second.info.name,
+                      ]),
+                    )
+                    .join(', '),
+                clashes.length > 4
+                    ? tr(' und {0} weitere', [clashes.length - 4])
+                    : '',
+              ]),
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
@@ -208,6 +235,17 @@ class _PlannerScreenState extends State<PlannerScreen> {
               tab(tr('Rennen und Meldungen'), false),
               tab(tr('Fahrer-Matrix'), true),
               const Spacer(),
+              Tooltip(
+                message: tr(
+                  'Der Sportliche Leiter verteilt die Fahrer neu auf alle kommenden Rennen: die wichtigsten Rennen zuerst, passend zur Strecke und gleichmäßig über den Kader. Was du von Hand eingetragen hast, wird dabei ersetzt.',
+                ),
+                child: TextButton.icon(
+                  onPressed: s.busy ? null : s.replanSeason,
+                  icon: const Icon(LucideIcons.wand, size: 16),
+                  label: Text(tr('Saison neu planen')),
+                ),
+              ),
+              const SizedBox(width: 12),
               Text(
                 tr('{0} Rennen gemeldet · {1} Renntage{2}', [
                   entered.length,

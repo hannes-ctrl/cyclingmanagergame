@@ -185,12 +185,14 @@ class _ChartPainter extends CustomPainter {
       stroke(TeamColors.gold),
     );
 
-    // Attacks and the catch as marks on the zero line.
+    // Attacks, the catch, crashes and echelons as marks on the zero line.
     for (final e in result.events) {
       final mark = switch (e.type) {
         EventType.attack => TeamColors.text,
         EventType.caught => TeamColors.gold,
         EventType.gruppetto => TeamColors.red,
+        EventType.crash || EventType.abandon => TeamColors.red,
+        EventType.echelon => TeamColors.gold,
         _ => null,
       };
       if (mark == null) continue;
@@ -266,6 +268,10 @@ class OwnRiders extends StatelessWidget {
       else if (!t.inBreak)
         tr('bei den Favoriten'),
       if (t.frontKm >= 10) tr('{0} km Führungsarbeit', [t.frontKm.round()]),
+      if (t.incident == RiderIncident.crash)
+        tr('gestürzt')
+      else if (t.incident == RiderIncident.puncture)
+        tr('Defekt'),
     ];
     return parts.join(' · ');
   }

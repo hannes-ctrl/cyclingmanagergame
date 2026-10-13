@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:game/game.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sim/sim.dart';
 
 import '../app_state.dart';
@@ -35,9 +36,48 @@ class _PrepScreenState extends State<PrepScreen> {
   late Approach _approach;
   late BreakPolicy _breakPolicy;
 
-  /// Off: the sports director plans every stage himself. On: the roles and
-  /// instructions chosen here apply to the whole race.
+  /// Off: the sports director plans every stage himself. On: what the
+  /// player changes here is pinned for the whole race, and the sports
+  /// director plans the rest stage by stage.
   var _ownTactics = false;
+
+  /// Riders whose role the player has pinned, and whether he has pinned the
+  /// approach and the breakaway policy.
+  final _pinned = <int>{};
+
+  /// The role as the player chose it; a stage may show it differently (a
+  /// sprinter is a protected rider in the mountains).
+  final _wanted = <int, Role>{};
+  var _pinApproach = false, _pinBreak = false;
+
+  /// On: the complete plan applies exactly as set, on every stage, and the
+  /// sports director changes nothing. Off: only the pins are fixed.
+  var _fixAll = false;
+
+  /// Switches between pinning single choices and fixing the whole plan.
+  void _setFixAll(bool on) {
+    _fixAll = on;
+    if (on) {
+      // Everything that is shown now becomes the plan.
+      _wanted
+        ..clear()
+        ..addAll(_roles);
+      _pinned
+        ..clear()
+        ..addAll(_roles.keys);
+      _pinApproach = _pinBreak = true;
+    }
+  }
+
+  /// What the player has pinned, as the career stores it.
+  PlanWish get _wish => PlanWish(
+    roles: {
+      for (final id in _pinned)
+        if (_wanted.containsKey(id)) id: _wanted[id]!,
+    },
+    approach: _pinApproach ? _approach : null,
+    breakPolicy: _pinBreak ? _breakPolicy : null,
+  );
 
   /// Sports director in the car; preset to the best free one.
   int? _director;
@@ -100,7 +140,22 @@ class _PrepScreenState extends State<PrepScreen> {
       _breakPolicy = BreakPolicy.ignore;
       return;
     }
-    final plan = widget.state.career.suggestPlan(_first, lineup, _p.others);
+    if (_fixAll) {
+      // The plan stands; riders new to the line-up start as helpers.
+      for (final r in lineup) {
+        _wanted.putIfAbsent(r.id, () => Role.domestique);
+        _pinned.add(r.id);
+      }
+      _roles = {for (final r in lineup) r.id: _wanted[r.id]!};
+      return;
+    }
+    // The suggestion for the first stage, with the player's pins on top.
+    final wish = _ownTactics ? _wish : const PlanWish();
+    final plan = wish.applyTo(
+      widget.state.career.suggestPlan(_first, lineup, _p.others),
+      _first,
+      {for (final r in lineup) r.id},
+    );
     _roles = {for (final r in lineup) r.id: plan.roleOf(r.id)};
     _approach = plan.approach;
     _breakPolicy = plan.breakPolicy;
@@ -122,12 +177,9 @@ class _PrepScreenState extends State<PrepScreen> {
       if (_selected.length >= _p.size) return;
       _selected.add(r.id);
     }
-    if (_ownTactics) {
-      // Keep the chosen roles; new riders start as domestiques.
-      _roles = {for (final x in _lineup) x.id: _roles[x.id] ?? Role.domestique};
-    } else {
-      _takeSuggestion();
-    }
+    // Pins stay; around them the sports director plans the new line-up.
+    _pinned.removeWhere((id) => !_selected.contains(id));
+    _takeSuggestion();
   });
 
   @override
@@ -240,6 +292,9 @@ class _PrepScreenState extends State<PrepScreen> {
                 onPressed: () => setState(() {
                   _selected = {for (final r in _p.suggestedLineup) r.id};
                   _ownTactics = false;
+                  _pinned.clear();
+                  _pinApproach = _pinBreak = false;
+                  _fixAll = false;
                   _takeSuggestion();
                 }),
                 child: Text(tr('Vorschlag des Sportlichen Leiters')),
@@ -263,13 +318,14 @@ class _PrepScreenState extends State<PrepScreen> {
                     : () => s.confirmLineup(
                         _p,
                         lineup,
-                        plan: _ownTactics
+                        plan: _ownTactics && _fixAll
                             ? TeamPlan(
                                 roles: _roles,
                                 approach: _approach,
                                 breakPolicy: _breakPolicy,
                               )
                             : null,
+                        wish: _ownTactics && !_fixAll ? _wish : null,
                         directorId: _director,
                       ),
                 child: Text(
@@ -392,6 +448,19 @@ class _PrepScreenState extends State<PrepScreen> {
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 2),
+                            Text(
+                              tr('Wetter: {0}', [
+                                widget.state.career
+                                        .weatherOf(race)
+                                        ?.describe() ??
+                                    '–',
+                              ]),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: TeamColors.muted,
+                              ),
+                            ),
                             const SizedBox(height: 4),
                             SizedBox(
                               height: 150,
@@ -428,7 +497,13 @@ class _PrepScreenState extends State<PrepScreen> {
                                             activeThumbColor: c.accent,
                                             onChanged: (v) => setState(() {
                                               _ownTactics = v;
-                                              if (!v) _takeSuggestion();
+                                              if (!v) {
+                                                _pinned.clear();
+                                                _pinApproach = false;
+                                                _pinBreak = false;
+                                                _fixAll = false;
+                                                _takeSuggestion();
+                                              }
                                             }),
                                           ),
                                         ),
@@ -437,7 +512,7 @@ class _PrepScreenState extends State<PrepScreen> {
                                     Text(
                                       _ownTactics
                                           ? tr(
-                                              'Deine Vorgaben gelten für das ganze Rennen.',
+                                              'Was du änderst, wird mit einer Nadel festgelegt und gilt für das ganze Rennen. Alles andere plant der Sportliche Leiter für jede Etappe neu. Ein Klick auf die Nadel gibt die Vorgabe wieder frei.',
                                             )
                                           : tr(
                                               'Der Sportliche Leiter plant jede Etappe selbst. Das hier ist sein Plan für den Auftakt.',
@@ -447,6 +522,51 @@ class _PrepScreenState extends State<PrepScreen> {
                                         color: TeamColors.muted,
                                       ),
                                     ),
+                                    if (_ownTactics) ...[
+                                      const SizedBox(height: 6),
+                                      Wrap(
+                                        spacing: 6,
+                                        children: [
+                                          Pill(
+                                            label: tr(
+                                              'Nur Geändertes festlegen',
+                                            ),
+                                            selected: !_fixAll,
+                                            colors: c,
+                                            onTap: () => setState(() {
+                                              _setFixAll(false);
+                                              _pinned.clear();
+                                              _wanted.clear();
+                                              _pinApproach = _pinBreak = false;
+                                              _takeSuggestion();
+                                            }),
+                                          ),
+                                          Pill(
+                                            label: tr('Alles festlegen'),
+                                            selected: _fixAll,
+                                            colors: c,
+                                            onTap: () => setState(
+                                              () => _setFixAll(true),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      if (_fixAll)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 4,
+                                          ),
+                                          child: Text(
+                                            tr(
+                                              'Alles gilt genau so für das ganze Rennen, auf jeder Etappe; der Sportliche Leiter ändert nichts daran.',
+                                            ),
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: TeamColors.muted,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                     const SizedBox(height: 6),
                                     if (_p.directors.isNotEmpty)
                                       Row(
@@ -519,6 +639,26 @@ class _PrepScreenState extends State<PrepScreen> {
                                                   Expanded(
                                                     child: cellText(r.name),
                                                   ),
+                                                  if (_pinned.contains(r.id))
+                                                    InkWell(
+                                                      onTap: () => setState(() {
+                                                        _fixAll = false;
+                                                        _pinned.remove(r.id);
+                                                        _wanted.remove(r.id);
+                                                        _takeSuggestion();
+                                                      }),
+                                                      child: Padding(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 6,
+                                                            ),
+                                                        child: Icon(
+                                                          LucideIcons.pin,
+                                                          size: 14,
+                                                          color: c.accent,
+                                                        ),
+                                                      ),
+                                                    ),
                                                   DropdownButton<Role>(
                                                     value:
                                                         _roles[r.id] ??
@@ -532,10 +672,11 @@ class _PrepScreenState extends State<PrepScreen> {
                                                       color: TeamColors.text,
                                                     ),
                                                     onChanged: _ownTactics
-                                                        ? (v) => setState(
-                                                            () => _roles[r.id] =
-                                                                v!,
-                                                          )
+                                                        ? (v) => setState(() {
+                                                            _wanted[r.id] = v!;
+                                                            _pinned.add(r.id);
+                                                            _takeSuggestion();
+                                                          })
                                                         : null,
                                                     items: [
                                                       for (final role
@@ -556,14 +697,20 @@ class _PrepScreenState extends State<PrepScreen> {
                                             tr('Rennverlauf'),
                                             _approachLabels,
                                             _approach,
-                                            (v) => _approach = v,
+                                            (v) {
+                                              _approach = v;
+                                              _pinApproach = true;
+                                            },
                                           ),
                                           const SizedBox(height: 8),
                                           choice(
                                             tr('Ausreißergruppe'),
                                             _breakLabels,
                                             _breakPolicy,
-                                            (v) => _breakPolicy = v,
+                                            (v) {
+                                              _breakPolicy = v;
+                                              _pinBreak = true;
+                                            },
                                           ),
                                         ],
                                       ),

@@ -3,6 +3,7 @@ import 'dart:convert';
 // (test/goldens) so that layouts can be checked without a running window.
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +11,7 @@ import 'package:game/game.dart';
 import 'package:radmanager/app_state.dart';
 import 'package:radmanager/main.dart';
 import 'package:radmanager/settings.dart';
+import 'package:radmanager/widgets.dart';
 import 'package:sim/sim.dart';
 
 void main() {
@@ -100,6 +102,135 @@ void main() {
     await tester.tap(find.text('Hauptmenü'));
     await tester.pumpAndSettle();
     expect(find.text('FORTSETZEN'), findsOneWidget);
+  });
+
+  testWidgets('Zurück, Vor und Tasten', skip: dataDir == null, (tester) async {
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final state = AppState(dataDir!, persist: false);
+    await tester.pumpWidget(RadmanagerApp(state: state));
+    await tester.pumpAndSettle();
+    bool enabled(String tooltip) =>
+        tester
+            .widget<IconButton>(
+              find.ancestor(
+                of: find.byTooltip(tooltip),
+                matching: find.byType(IconButton),
+              ),
+            )
+            .onPressed !=
+        null;
+    const back = 'Zurück (Alt+←, Esc)', forward = 'Vor (Alt+→)';
+    expect(enabled(back), isFalse);
+
+    // Page to page: back returns, forward goes there again.
+    await tester.tap(find.text('Kalender').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Saisonziele'), findsNothing);
+    expect(enabled(back), isTrue);
+    await tester.tap(find.byTooltip(back));
+    await tester.pumpAndSettle();
+    expect(enabled(back), isFalse);
+    expect(enabled(forward), isTrue);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pumpAndSettle();
+    expect(enabled(forward), isFalse);
+
+    // Rider page: the arrow keys step through the squad without filling the
+    // history, Escape leads back to the page underneath.
+    final first = state.squad[0].id, second = state.squad[1].id;
+    state.openRider(first);
+    await tester.pumpAndSettle();
+    expect(find.text('Fahrerprofil'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    expect(state.riderPage, second);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(state.riderPage, isNull);
+    expect(enabled(forward), isTrue);
+
+    // A team page lies on top like a rider page; its riders open from it,
+    // and back leads to the team again.
+    state.openTeam(state.team.id);
+    await tester.pumpAndSettle();
+    expect(find.text('Teamprofil'), findsOneWidget);
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/team.png'),
+    );
+    // With the mouse over the table the arrow keys move a cursor through
+    // its rows and Enter opens the rider.
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(tester.getCenter(find.byType(DenseTable<SimRider>)));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(state.riderPage, isNotNull);
+    expect(state.squad.map((r) => r.id), contains(state.riderPage));
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('Teamprofil'), findsOneWidget);
+    // Shortlist, note and comparison on the rider page.
+    state.toggleWatch(second);
+    state.compare(first);
+    state.openRider(second);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Vergleich mit'), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField), 'Stark am Berg');
+    expect(state.career.notes[second], 'Stark am Berg');
+    expect(state.career.watch, contains(second));
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/fahrer_vergleich.png'),
+    );
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(state.riderPage, isNull);
+    expect(find.text('Teamprofil'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(state.teamPage, isNull);
+    state.compare(null);
+
+    // Space is the continue button.
+    final day = state.career.today;
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+    expect(state.career.today.isAfter(day) || state.pending != null, isTrue);
+
+    // Ctrl+F opens the rider search.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(find.text('Fahrersuche'), findsWidgets);
+    expect(enabled(back), isTrue);
+
+    // Inbox: mark everything read, then empty it; topics can be muted.
+    await tester.tap(find.text('Postfach').first);
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Einstellungen des Postfachs'), findsOneWidget);
+    if (state.inbox.isNotEmpty) {
+      await tester.tap(find.text('Alle gelesen'));
+      await tester.pumpAndSettle();
+      expect(state.unread, 0);
+      await tester.tap(find.text('Alle löschen'));
+      await tester.pumpAndSettle();
+      expect(state.inbox, isEmpty);
+    }
+    state.setTopic('Medizin', false);
+    expect(state.career.mutedTopics, contains('Medizin'));
   });
 
   testWidgets('Debug und Fahrersuche', skip: dataDir == null, (tester) async {
@@ -196,7 +327,12 @@ void main() {
     // Forecast: a few quick runs in a separate isolate.
     await tester.runAsync(() async {
       await tester.tap(find.text('Prognose'));
-      await Future<void>.delayed(const Duration(seconds: 8));
+      // The runs take a few seconds, longer on a busy machine.
+      for (var i = 0; i < 30; i++) {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        await tester.pump();
+        if (find.text('Gegner zeigen').evaluate().isNotEmpty) break;
+      }
     });
     await tester.pumpAndSettle();
     expect(find.text('Gegner zeigen'), findsOneWidget);
@@ -322,9 +458,23 @@ void main() {
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/taktik.png'),
       );
+      // Pin the approach; the roles stay with the sports director.
+      await tester.tap(find.text('Rennen schwer machen').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Übernehmen'));
+      await tester.pumpAndSettle();
+      final wish = state.career.ownWishes[running.race.info.id];
+      expect(wish?.approach, Approach.makeHard);
+      expect(wish?.roles, isEmpty);
+      // Fix everything: the complete plan replaces the pins.
+      await tester.tap(find.text('Taktik für die nächste Etappe'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Alles festlegen'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Übernehmen'));
       await tester.pumpAndSettle();
       expect(state.career.ownPlans, contains(running.race.info.id));
+      expect(state.career.ownWishes, isNot(contains(running.race.info.id)));
     }
 
     await tester.tap(find.text('Personal').first);
@@ -509,7 +659,7 @@ void main() {
     await tester.tap(find.text('Rennen').first);
     await tester.pumpAndSettle();
     final tour = state.races.firstWhere((r) => r.name == 'Tour de France');
-    await tester.runAsync(() => state.simulateTrial(tour));
+    await tester.runAsync(() => state.simulatePreview(tour));
     await tester.pumpAndSettle();
     expect(state.runOf(tour)!.result.stages.length, 21);
     await tester.tap(find.text('20').first);
