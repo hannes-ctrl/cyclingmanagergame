@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:sim/sim.dart';
 
 import 'career.dart';
+import 'people.dart';
 import 'points.dart';
 
 /// A rider's contract. Wages in euros per year.
@@ -413,7 +414,12 @@ class Economy {
   int demand(SimRider r) {
     final mood = ((r.id * 2654435761) % 1000) / 1000; // fixed per rider, 0 to 1
     var factor = 0.92 + 0.2 * mood;
-    if (r.teamId != c.teamId) factor += 0.1;
+    if (r.teamId != c.teamId) {
+      factor += 0.1;
+    } else {
+      // His own rider: loyalty and mood count.
+      factor *= c.people.demandFactor(r.id);
+    }
     return (marketWage(r) * factor / 1000).round() * 1000;
   }
 
@@ -422,8 +428,10 @@ class Economy {
   /// @param riderId Id of the rider.
   /// @param wage Offered wage in euros per year.
   /// @param years Contract term.
+  /// @param promise What the player promises him for the first season of
+  ///   the contract, or null. With a promise he asks a little less.
   /// @returns null if he signs, otherwise the reason for the refusal.
-  String? offer(int riderId, int wage, int years) {
+  String? offer(int riderId, int wage, int years, {PromiseKind? promise}) {
     final r = c.riderById[riderId];
     final k = contracts[riderId];
     if (r == null || k == null) return tr('Fahrer nicht gefunden.');
@@ -442,7 +450,9 @@ class Economy {
       return tr(
           'Die Teamleitung gibt das Gehalt nicht frei: Das Budget für Gehälter wäre überschritten.');
     }
-    final wanted = demand(r);
+    final wanted = promise == null
+        ? demand(r)
+        : (demand(r) * (1 - People.promiseDiscount) / 1000).round() * 1000;
     if (wage < wanted) {
       k.refusedUntil = c.today.add(const Duration(days: 14));
       // The agent only names the ballpark.
@@ -454,6 +464,7 @@ class Economy {
       ..nextTeam = c.teamId
       ..nextWage = wage
       ..nextEnd = c.year + years.clamp(1, 4);
+    if (promise != null) c.people.promiseSeason(riderId, promise);
     c.inbox.add(Message(
       c.today,
       tr('Berater'),
@@ -461,7 +472,13 @@ class Economy {
           ? tr('{0} verlängert', [r.name])
           : tr('{0} unterschreibt für {1}', [r.name, c.year + 1]),
       tr('{0} hat für {1} im Jahr bis {2} unterschrieben.',
-          [c.fullName(r.id), _euro(wage), k.nextEnd]),
+              [c.fullName(r.id), _euro(wage), k.nextEnd]) +
+          (promise == null
+              ? ''
+              : ' ${tr('Zugesagt für {0}: {1}.', [
+                      c.year + 1,
+                      People.seasonText(promise)
+                    ])}'),
     ));
     return null;
   }

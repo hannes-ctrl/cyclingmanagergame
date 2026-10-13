@@ -31,6 +31,7 @@ import 'screens/search_screen.dart';
 import 'screens/squad_screen.dart';
 import 'screens/staff_screen.dart';
 import 'screens/start_screen.dart';
+import 'screens/help_dialog.dart';
 import 'screens/team_screen.dart';
 import 'screens/transfers_screen.dart';
 import 'settings.dart';
@@ -574,6 +575,16 @@ class _ShellState extends State<Shell> {
         _prepRace = pending.race.info.id;
         _showPrep = true;
       }
+      // Another screen asked for a page.
+      if (s.jumpToPage case final target?) {
+        s.jumpToPage = null;
+        final parts = target.split(':');
+        _page = _Page.values.byName(parts[0]);
+        _sub = parts.length > 1 ? parts[1] : null;
+        _showPrep = false;
+        s.riderPage = null;
+        s.teamPage = null;
+      }
       // After the last radio call of a stage the result is shown at once.
       if (s.jumpToRace) {
         s.jumpToRace = false;
@@ -642,13 +653,27 @@ class _ShellState extends State<Shell> {
                             tooltip: tr('Zurück (Alt+←, Esc)'),
                             visualDensity: VisualDensity.compact,
                             onPressed: _back.isEmpty ? null : _goBack,
-                            icon: const Icon(LucideIcons.arrowLeft, size: 18),
+                            // Not the colour of the theme: with some team
+                            // colours that is the colour of the bar itself.
+                            icon: Icon(
+                              LucideIcons.arrowLeft,
+                              size: 18,
+                              color: _back.isEmpty
+                                  ? TeamColors.muted.withValues(alpha: 0.35)
+                                  : TeamColors.text,
+                            ),
                           ),
                           IconButton(
                             tooltip: tr('Vor (Alt+→)'),
                             visualDensity: VisualDensity.compact,
                             onPressed: _forward.isEmpty ? null : _goForward,
-                            icon: const Icon(LucideIcons.arrowRight, size: 18),
+                            icon: Icon(
+                              LucideIcons.arrowRight,
+                              size: 18,
+                              color: _forward.isEmpty
+                                  ? TeamColors.muted.withValues(alpha: 0.35)
+                                  : TeamColors.text,
+                            ),
                           ),
                           const SizedBox(width: 8),
                           Column(
@@ -697,7 +722,30 @@ class _ShellState extends State<Shell> {
                                 ),
                               ),
                             ),
-                          if (next != null && !career.seasonOver)
+                          // While days run: what is being simulated.
+                          if (s.busy && s.working != null)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 18),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    tr('WIRD SIMULIERT'),
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      letterSpacing: 0.8,
+                                      color: TeamColors.gold,
+                                    ),
+                                  ),
+                                  Text(
+                                    s.working!,
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else if (next != null && !career.seasonOver)
                             Padding(
                               padding: const EdgeInsets.only(right: 18),
                               child: Column(
@@ -1034,6 +1082,23 @@ class _Sidebar extends StatelessWidget {
           Divider(height: 1, color: c.onSide.withValues(alpha: 0.18)),
           if (state.debug) item(_Page.debug),
           item(_Page.saves),
+          InkWell(
+            onTap: () => showHelpDialog(context, state),
+            child: Container(
+              height: 36,
+              padding: const EdgeInsets.only(left: 16, right: 12),
+              child: Row(
+                children: [
+                  Icon(LucideIcons.circleQuestionMark, size: 18, color: faded),
+                  const SizedBox(width: 11),
+                  Text(
+                    tr('Hilfe'),
+                    style: TextStyle(fontSize: 14, color: c.onSide),
+                  ),
+                ],
+              ),
+            ),
+          ),
           InkWell(
             onTap: state.busy ? null : onMenu,
             child: Container(

@@ -530,7 +530,13 @@ class _ReportState extends State<_Report> {
     Col<T> team<T>(SimRider Function(T) of) => Col(
       'Team',
       60,
-      (r, _) => cellText(of(r).team, color: TeamColors.muted),
+      // The abbreviation leads to the team; a national selection has none.
+      (r, _) => s.career.teams.containsKey(of(r).teamId)
+          ? InkWell(
+              onTap: () => s.openTeam(of(r).teamId),
+              child: cellText(of(r).team, color: TeamColors.muted),
+            )
+          : cellText(of(r).team, color: TeamColors.muted),
     );
 
     final Widget table = switch (tab) {

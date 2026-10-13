@@ -76,8 +76,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
         child: Container(
           margin: const EdgeInsets.only(top: 2),
           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+          // Every race in the colour of its tier; the team's own races are
+          // strong, the others pale.
           decoration: BoxDecoration(
-            color: own ? c.accent : c.panel2,
+            color: tierColor(r.tier).withValues(alpha: own ? 0.42 : 0.12),
             border: Border(
               left: BorderSide(color: tierColor(r.tier), width: 3),
             ),
@@ -89,11 +91,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 11.5,
-              color: own
-                  ? c.onAccent
-                  : done
+              fontWeight: own ? FontWeight.w600 : FontWeight.w400,
+              color: done
                   ? TeamColors.muted
-                  : TeamColors.text,
+                  : own
+                  ? TeamColors.text
+                  : TeamColors.text.withValues(alpha: 0.8),
             ),
           ),
         ),

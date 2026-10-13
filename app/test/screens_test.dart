@@ -206,6 +206,14 @@ void main() {
     // Space is the continue button.
     final day = state.career.today;
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    // The days run on other isolates and need real time; between the days
+    // the loop yields to the window, which needs a frame here.
+    for (var i = 0; i < 1200 && state.busy; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump(const Duration(milliseconds: 1));
+    }
     await tester.pumpAndSettle();
     expect(state.career.today.isAfter(day) || state.pending != null, isTrue);
 

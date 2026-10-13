@@ -77,51 +77,96 @@ RaceArticle writeArticle({
   }
   paragraphs.add(lead.toString());
 
-  // Course of the race from the events of the simulation.
-  final story = StringBuffer();
+  // Course of the race from the events of the simulation, in three short
+  // paragraphs: how the day began, what went wrong, how it was decided.
 
   /// @param e An event.
   /// @returns Its text after the leading label.
   String after(RaceEvent e) => e.text.substring(e.text.indexOf(': ') + 2);
-  for (final e in result.events) {
-    switch (e.type) {
-      case EventType.breakaway:
-        story.write(tr(
-            'Die Gruppe des Tages bildete sich nach {0} Kilometern: {1}. ',
-            [e.km.round(), after(e)]));
-      case EventType.maxGap:
-        story.write(tr('Der größte Vorsprung der Spitze betrug {0} Minuten. ',
-            [after(e)]));
-      case EventType.caught:
-        final rest = RegExp(r'(\d+)[.,]\d km').firstMatch(e.text)?[1];
-        story.write(rest == null
-            ? tr('Die Ausreißer wurden gestellt. ')
-            : tr('Rund {0} Kilometer vor dem Ziel war die Flucht beendet. ',
-                [rest]));
-      case EventType.weather:
-        story.write(tr('Gefahren wurde bei {0}. ', [after(e)]));
-      case EventType.gruppetto:
-      case EventType.attack:
-      case EventType.dropped:
-      case EventType.crash:
-      case EventType.puncture:
-      case EventType.echelon:
-      case EventType.abandon:
-      case EventType.timeCut:
-        // These texts are already whole sentences in the present tense.
-        story.write('${e.text}. ');
-      case EventType.points:
-      case EventType.finish:
-        break;
-    }
+
+  /// Joins sentences into a paragraph. Abbreviated first names end in a
+  /// full stop, so a doubled one is taken out.
+  void paragraph(List<String> sentences) {
+    if (sentences.isEmpty) return;
+    paragraphs.add(sentences
+        .map((s) => s.trim().endsWith('.') ? s.trim() : '${s.trim()}.')
+        .join(' ')
+        .replaceAll('..', '.'));
   }
-  if (result.breakSurvived) {
-    story.write(tr('Das Feld kam nicht mehr heran.'));
+
+  List<RaceEvent> of(EventType type) => [
+        for (final e in result.events)
+          if (e.type == type) e
+      ];
+
+  // 1. The start of the day: weather, the break and how far it got.
+  final opening = <String>[];
+  for (final e in of(EventType.weather)) {
+    opening.add(tr('Gefahren wurde bei {0}', [after(e)]));
   }
-  // Abbreviated first names end in a full stop; no double full stop at the end.
-  if (story.isNotEmpty) {
-    paragraphs.add(story.toString().trim().replaceAll('..', '.'));
+  final moves = of(EventType.breakaway);
+  // The first event names the group; later ones are riders who bridged.
+  final formed = moves.where((e) => e.text.contains(': ')).firstOrNull;
+  if (formed != null) {
+    opening.add(tr('Die Gruppe des Tages bildete sich nach {0} Kilometern: {1}',
+        [formed.km.round(), after(formed)]));
   }
+  for (final e in moves) {
+    if (!identical(e, formed)) opening.add(e.text);
+  }
+  for (final e in of(EventType.maxGap)) {
+    opening.add(
+        tr('Der größte Vorsprung der Spitze betrug {0} Minuten', [after(e)]));
+  }
+  for (final e in of(EventType.echelon)) {
+    opening.add(e.text);
+  }
+  paragraph(opening);
+
+  // 2. Mishaps: a few are told, many are counted; whoever had to stop
+  // racing is always named.
+  final mishaps = <String>[];
+  final crashes = of(EventType.crash);
+  if (crashes.length <= 2) {
+    mishaps.addAll(crashes.map((e) => e.text));
+  } else {
+    mishaps.add(tr('Es gab {0} Stürze; der letzte {1} km vor dem Ziel',
+        [crashes.length, (route.raceKm - crashes.last.km).round()]));
+  }
+  final flats = of(EventType.puncture);
+  if (flats.length <= 2) {
+    mishaps.addAll(flats.map((e) => e.text));
+  } else {
+    mishaps.add(tr('{0} Fahrer aus dem Kreis der Favoriten hatten einen Defekt',
+        [flats.length]));
+  }
+  mishaps.addAll(of(EventType.abandon).map((e) => e.text));
+  mishaps.addAll(of(EventType.timeCut).map((e) => e.text));
+  paragraph(mishaps);
+
+  // 3. The finale: the first attack, the last ones, who was dropped and
+  // where the break was caught.
+  final finale = <String>[];
+  final attacks = of(EventType.attack);
+  if (attacks.length <= 3) {
+    finale.addAll(attacks.map((e) => e.text));
+  } else {
+    finale
+      ..add(attacks.first.text)
+      ..add(tr('Es folgten {0} weitere Angriffe', [attacks.length - 2]))
+      ..add(attacks.last.text);
+  }
+  finale.addAll(of(EventType.dropped).map((e) => e.text));
+  finale.addAll(of(EventType.gruppetto).map((e) => e.text));
+  final caught = of(EventType.caught).lastOrNull;
+  if (caught != null) {
+    final rest = RegExp(r'(\d+)[.,]\d km').firstMatch(caught.text)?[1];
+    finale.add(rest == null
+        ? tr('Die Ausreißer wurden gestellt')
+        : tr('Rund {0} Kilometer vor dem Ziel war die Flucht beendet', [rest]));
+  }
+  if (result.breakSurvived) finale.add(tr('Das Feld kam nicht mehr heran'));
+  paragraph(finale);
 
   final close = StringBuffer();
   if (standings != null && standings.general.length > 1) {

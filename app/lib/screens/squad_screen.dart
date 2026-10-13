@@ -203,6 +203,17 @@ class _SquadScreenState extends State<SquadScreen> {
               ? TeamColors.red
               : TeamColors.text,
         ),
+        number(
+          tr('Moral'),
+          110,
+          (r) => career.people.moraleOf(r.id),
+          text: People.moraleWord,
+          color: (v) => v >= 0.4
+              ? TeamColors.green
+              : v <= -0.4
+              ? TeamColors.red
+              : TeamColors.muted,
+        ),
         number('Fitness', 70, (r) => shape(r).fitness),
         number(tr('Ermüdung'), 96, (r) => shape(r).fatigue),
         number(
@@ -316,7 +327,10 @@ class _SquadScreenState extends State<SquadScreen> {
           if (k == null) return const SizedBox();
           if (k.nextTeam == r.teamId) {
             return cellText(
-              tr('verlängert bis {0} · {1}', [k.nextEnd, euro(k.nextWage)]),
+              tr('verlängert bis {0} · {1}', [
+                contractEnd(k.nextEnd),
+                euro(k.nextWage),
+              ]),
               color: TeamColors.green,
             );
           }

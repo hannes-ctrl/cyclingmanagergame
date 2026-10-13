@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:game/game.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sim/sim.dart';
 
 import '../app_state.dart';
@@ -86,7 +87,10 @@ class TeamPage extends StatelessWidget {
                     Text(team.name, style: headStyle(27)),
                     Row(
                       children: [
-                        Flag(team.country, width: 20),
+                        InkWell(
+                          onTap: () => s.searchRidersOf(team.country),
+                          child: Flag(team.country, width: 20),
+                        ),
                         const SizedBox(width: 7),
                         Text(
                           [
@@ -104,6 +108,45 @@ class TeamPage extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+              TextButton.icon(
+                onPressed: () {
+                  final path = s.exportCsv(
+                    team.abbr.isEmpty ? 'team' : team.abbr,
+                    [
+                      tr('Fahrer'),
+                      tr('Nat'),
+                      tr('Alter'),
+                      tr('Stärke'),
+                      tr('Punkte'),
+                      tr('Siege'),
+                      tr('Vertrag'),
+                    ],
+                    [
+                      for (final r in squad)
+                        [
+                          career.fullName(r.id),
+                          r.country,
+                          '${career.year - r.born ~/ 10000}',
+                          strength(r),
+                          '${(career.riderPoints[r.id] ?? 0).round()}',
+                          '${career.winsOf(r.id, career.year)}',
+                          '${career.economy.contracts[r.id]?.endYear ?? ''}',
+                        ],
+                    ],
+                  );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        path == null
+                            ? tr('Die Datei ließ sich nicht schreiben.')
+                            : tr('Gespeichert: {0}', [path]),
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(LucideIcons.download, size: 16),
+                label: Text(tr('Als CSV')),
               ),
               TextButton(onPressed: s.closeTeam, child: Text(tr('Zurück'))),
             ],
@@ -132,6 +175,7 @@ class TeamPage extends StatelessWidget {
                 rows: squad,
                 onTap: (r) => showRiderDialog(context, s, r.id, among: ids),
                 columns: [
+                  Col('', 30, (r, _) => watchStar(s, r)),
                   Col(
                     tr('Fahrer'),
                     230,
@@ -180,7 +224,10 @@ class TeamPage extends StatelessWidget {
                     tr('Vertrag'),
                     80,
                     (r, _) => cellText(
-                      '${career.economy.contracts[r.id]?.endYear ?? '–'}',
+                      switch (career.economy.contracts[r.id]?.endYear) {
+                        final year? when !free => contractEnd(year),
+                        _ => '–',
+                      },
                       color: TeamColors.muted,
                     ),
                     numeric: true,

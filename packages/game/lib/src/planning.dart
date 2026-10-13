@@ -67,6 +67,8 @@ class SeasonPlanner {
   /// @returns A weight; a Grand Tour has 13, a class 2 race 0.4.
   double importance(RaceEntry race, [int? teamId]) =>
       race.tier.factor *
+      // What sponsor and board ask of the player's team this season.
+      ((teamId ?? c.teamId) == c.teamId ? c.sponsorWeight(race) : 1) *
       (race.info.country == c.teams[teamId ?? c.teamId]?.country ? 1.25 : 1) *
       // The Tour comes before the other Grand Tours.
       (race.info.raceClass == 'CWTGTFrance' ? 1.2 : 1);
@@ -254,6 +256,8 @@ class SeasonPlanner {
   /// @param all All races of the season the team rides, for the share of
   ///   race days a rider should get; defaults to [races].
   /// @param teamId The team, for its home races; defaults to the player's.
+  /// @param wishes Goal races per rider id: a rider starts in his goal
+  ///   races if he is free and fit for them, whatever else is planned.
   /// @returns The planned riders per race id, for the races of [races] not
   ///   in [fixed].
   Map<int, Set<int>> plan(
@@ -262,6 +266,7 @@ class SeasonPlanner {
     Map<int, Set<int>> fixed = const {},
     List<RaceEntry>? all,
     int? teamId,
+    Map<int, Set<int>> wishes = const {},
   }) {
     if (squad.isEmpty) return const {};
     final loads = {
@@ -291,8 +296,20 @@ class SeasonPlanner {
         return byWeight != 0 ? byWeight : a.start.compareTo(b.start);
       });
     final out = <int, Set<int>>{};
+    // Goal races come first: whoever builds his season around a race
+    // starts in it.
     for (final race in open) {
-      final size = sizeOf(race);
+      for (final l in loads.values) {
+        if (!(wishes[l.rider.id]?.contains(race.info.id) ?? false)) continue;
+        final seats = out.putIfAbsent(race.info.id, () => {});
+        if (seats.length >= sizeOf(race)) continue;
+        if (!_mayRide(l, race, strict: false)) continue;
+        _book(l, race);
+        seats.add(l.rider.id);
+      }
+    }
+    for (final race in open) {
+      final size = sizeOf(race) - (out[race.info.id]?.length ?? 0);
       final days = race.stages.length;
       // In a big race suitability decides; in a small one the riders who
       // have ridden less than their share come first.
@@ -311,14 +328,18 @@ class SeasonPlanner {
 
       var pool = [
         for (final l in loads.values)
-          if (_mayRide(l, race, strict: true)) l,
+          if (!(out[race.info.id]?.contains(l.rider.id) ?? false) &&
+              _mayRide(l, race, strict: true))
+            l,
       ];
       if (pool.length < size) {
         // Too few riders within their limits: stretch them rather than
         // start short.
         pool = [
           for (final l in loads.values)
-            if (_mayRide(l, race, strict: false)) l,
+            if (!(out[race.info.id]?.contains(l.rider.id) ?? false) &&
+                _mayRide(l, race, strict: false))
+              l,
         ];
       }
       pool.sort((a, b) {
@@ -352,7 +373,9 @@ class SeasonPlanner {
       for (final l in picked) {
         _book(l, race);
       }
-      out[race.info.id] = {for (final l in picked) l.rider.id};
+      out
+          .putIfAbsent(race.info.id, () => {})
+          .addAll([for (final l in picked) l.rider.id]);
     }
     return out;
   }

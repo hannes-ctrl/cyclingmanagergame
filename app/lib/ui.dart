@@ -8,6 +8,13 @@ import 'package:sim/sim.dart';
 
 import 'app_state.dart';
 
+/// Day a contract ends on: contracts run to the end of a year.
+///
+/// @param year Last year of the contract.
+/// @returns The date in the format of the current language.
+String contractEnd(int year) =>
+    I18n.lang == Lang.de ? '31.12.$year' : '31 Dec $year';
+
 /// Font of headings, buttons and big numbers.
 const headFont = 'Barlow Semi Condensed';
 
@@ -575,6 +582,15 @@ class SeasonTimeline extends StatelessWidget {
 /// Explanations of the figures the game shows, by the label or column
 /// heading they appear under.
 const statHelp = <String, String>{
+  'Persönlichkeit': 'Die Person in einem Wort, aus Professionalität, Ehrgeiz, Treue und Konstanz. Grün ist ein gutes Zeichen (etwa Musterprofi, Professionell, Loyal), rot eine Warnung (etwa Söldner, Nachlässig, Launisch); die meisten Fahrer sind ausgeglichen. Sie steht fest, sobald die Karriere beginnt.',
+  'Stellung im Team': 'Was ein Fahrer in seinem Team erwarten darf: Star und Kapitän wollen in wichtigen Rennen auf eigene Rechnung fahren, Edelhelfer, Helfer und Talente nicht. Sie folgt aus Stärke und Alter; bei deinen Fahrern änderst du sie. Eine Aufwertung hebt die Moral, eine Rückstufung drückt sie, ebenso ein Star, der Helferdienste leisten muss.',
+  'Moral': 'Wie zufrieden ein Fahrer ist, in jedem Team. Siege, Podien, gehaltene Versprechen und eine Rolle über seiner Stellung heben sie; gebrochene Versprechen, eine Rückstufung und zu wenige Renntage drücken sie. Wer verletzt oder krank ist, nimmt ein verpasstes Rennen nicht übel. Sie verschiebt seine Form um bis zu knapp ein Prozent in jede Richtung und seine Gehaltsforderung.',
+  'Saisonziele': 'Bis zu drei Rennen, auf die ein Fahrer seine Saison ausrichtet. Dort startet er sicher und ist gut ein Prozent stärker, in den übrigen Rennen eine Spur schwächer. Der Sportliche Leiter setzt sie aus dem Saisonplan; mit der Zielscheibe änderst du sie.',
+  'Versprechen': 'Eine Zusage: ein Startplatz oder eine Kapitänsrolle in einem Rennen, oder im Vertragsgespräch für die ganze erste Saison (Start bei einer Grand Tour, Kapitän in einem WorldTour-Rennen). Gehalten hebt sie die Moral, gebrochen fällt die Moral tief. Fällt der Fahrer verletzt oder krank aus, entfällt sie ohne Folgen.',
+  'Professionalität': 'Wie ernst ein Fahrer Training und Erholung nimmt. Hohe Professionalität lässt ihn bis zu zehn Prozent schneller reifen, niedrige entsprechend langsamer.',
+  'Ehrgeiz': 'Wie sehr ein Fahrer Ergebnisse und eine eigene Rolle will. Ehrgeizige Fahrer reagieren stärker auf alles, was ihre Moral bewegt, und beschweren sich über zu wenige Renntage.',
+  'Treue': 'Wie sehr ein Fahrer an seinem Team hängt. Treue Fahrer verlangen weniger, um zu verlängern.',
+  'Konstanz': 'Wie wenig die Form eines Fahrers von Rennen zu Rennen schwankt.',
   'Form': 'Leistungsfaktor am Start eines Rennens. 0 % ist der Stand bei normalem Training ohne Rennen. Renntage in den Beinen und Erholung heben ihn bis etwa +4 %, Erschöpfung drückt ihn bis etwa −3 %.',
   'Fitness': 'Langfristige Trainings- und Rennbelastung der letzten rund sechs Wochen. Mehr Fitness bedeutet bessere Form, sobald die Ermüdung abgeklungen ist.',
   'Ermüdung': 'Belastung der letzten Woche. Sie steigt mit Rennen und hartem Training schnell und fällt in wenigen Ruhetagen wieder.',

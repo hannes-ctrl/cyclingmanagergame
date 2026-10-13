@@ -1,5 +1,6 @@
 import 'package:sim/sim.dart';
 import 'package:flutter/material.dart';
+import 'package:game/game.dart';
 
 import '../app_state.dart';
 import '../ui.dart';
@@ -38,6 +39,9 @@ class _SimulateDialog extends StatefulWidget {
 class _SimulateDialogState extends State<_SimulateDialog> {
   late DateTime _target;
   var _auto = false;
+
+  /// Topics of the inbox the run stops for.
+  final _stops = <String>{};
 
   DateTime get _first => widget.state.career.today.add(const Duration(days: 1));
   DateTime get _last => DateTime.utc(widget.state.career.year, 12, 31);
@@ -132,6 +136,27 @@ class _SimulateDialogState extends State<_SimulateDialog> {
                     style: TextStyle(fontSize: 12, color: TeamColors.muted),
                   ),
                 ),
+              const SizedBox(height: 12),
+              Text(
+                tr('Anhalten, sobald eine Nachricht zu diesen Themen kommt:'),
+                style: const TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final key in Message.topics)
+                    Pill(
+                      label: key == 'Scouting' ? key : tr(key),
+                      selected: _stops.contains(key),
+                      colors: c,
+                      onTap: () => setState(
+                        () => _stops.remove(key) ? null : _stops.add(key),
+                      ),
+                    ),
+                ],
+              ),
               const SizedBox(height: 14),
               Row(
                 children: [
@@ -156,7 +181,11 @@ class _SimulateDialogState extends State<_SimulateDialog> {
                         ? null
                         : () {
                             Navigator.pop(context);
-                            s.simulateUntil(_target, auto: _auto);
+                            s.simulateUntil(
+                              _target,
+                              auto: _auto,
+                              stopTopics: {..._stops},
+                            );
                           },
                     child: Text(
                       tr('BIS {0} · {1} {2}', [

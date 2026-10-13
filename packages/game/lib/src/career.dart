@@ -1,3 +1,4 @@
+import 'dart:isolate';
 import 'dart:math';
 
 import 'package:sim/sim.dart';
@@ -7,6 +8,7 @@ import 'devteam.dart';
 import 'economy.dart';
 import 'entries.dart';
 import 'licence.dart';
+import 'people.dart';
 import 'planning.dart';
 import 'points.dart';
 import 'staff.dart';
@@ -221,6 +223,25 @@ class Message {
   /// Race the message belongs to, for the jump to the race report.
   final int? raceId;
   bool read = false;
+}
+
+/// Today's stage of a race, fixed as a job.
+class _DayStage {
+  _DayStage(this.race, this.index, this.job);
+  final RaceProgress race;
+  final int index;
+  final StageJob job;
+}
+
+/// A day in progress: its stages and what has been ridden of them.
+class _Day {
+  _Day(this.date, this.inboxBefore, this.stages);
+  final DateTime date;
+
+  /// Index of the first inbox message written today.
+  final int inboxBefore;
+  final List<_DayStage> stages;
+  final ridden = <({RaceProgress race, int stageIndex, StageResult result})>[];
 }
 
 /// What was ridden on one day.
@@ -655,6 +676,34 @@ class Career {
     ));
   }
 
+  /// The riders as people: personality, morale, goals and promises.
+  late final people = People(this);
+
+  /// How much the goals of sponsor and board raise the importance of a race
+  /// for the player's team: a Grand Tour goal lifts the Grand Tours, a
+  /// number of wins lifts the smaller races in which wins are within reach.
+  ///
+  /// @param race The race.
+  /// @returns A factor, 1 without a matching goal.
+  double sponsorWeight(RaceEntry race) {
+    var factor = 1.0;
+    for (final goal in economy.goals) {
+      switch (goal.kind) {
+        case GoalKind.grandTourPodium:
+          if (race.tier == RaceTier.grandTour) factor *= 1.25;
+        case GoalKind.grandTourStage:
+          if (race.tier == RaceTier.grandTour) factor *= 1.1;
+        case GoalKind.wins:
+          if (race.tier == RaceTier.proSeries || race.tier == RaceTier.class1) {
+            factor *= 1.2;
+          }
+        case GoalKind.ranking:
+          break;
+      }
+    }
+    return factor;
+  }
+
   /// The sports director's planner for the race programme.
   late final planner = SeasonPlanner(this);
 
@@ -680,22 +729,30 @@ class Career {
       for (final r in races) {
         program.remove(r.info.id);
       }
+      // Goals the sports director chose go with the old plan; those the
+      // player set stay.
+      for (final r in squads[teamId] ?? const <SimRider>[]) {
+        if (!people.ownGoals.contains(r.id)) people.goals.remove(r.id);
+      }
     }
     final open = [
       for (final r in races)
         if (!program.containsKey(r.info.id)) r,
     ];
     if (open.isEmpty) return 0;
+    final all = [
+      for (final r in ownRaces)
+        if (r.tier != RaceTier.championship) r,
+    ];
     final planned = planner.plan(
       squads[teamId] ?? const [],
       open,
       fixed: program,
-      all: [
-        for (final r in ownRaces)
-          if (r.tier != RaceTier.championship) r,
-      ],
+      all: all,
+      wishes: people.goals,
     );
     program.addAll(planned);
+    people.goalsFrom(program, all, teamId);
     planner.saveWeights();
     return planned.length;
   }
@@ -748,6 +805,7 @@ class Career {
       final squad = squads[team] ?? const <SimRider>[];
       if (squad.length < 4) continue;
       teamPrograms[team] = planner.plan(squad, byTeam[team]!, teamId: team);
+      people.goalsFrom(teamPrograms[team]!, byTeam[team]!, team);
     }
     planner.saveWeights();
   }
@@ -989,7 +1047,19 @@ class Career {
   /// @returns Race, stage and question, or null if there is none or the radio
   ///   is switched off ([Delegation.radio]).
   ({RaceProgress race, int stageIndex, RadioCall call})? nextRadioCall() {
-    if (delegation.radio == RadioMode.off) return null;
+    for (final job in _radioJobs()) {
+      final call = job.job.run().openCall;
+      if (call != null) {
+        return (race: job.race, stageIndex: job.index, call: call);
+      }
+    }
+    return null;
+  }
+
+  /// Today's stages in which the sports director may call in, each as a
+  /// trial run that pauses at the first question without an answer.
+  Iterable<_DayStage> _radioJobs() sync* {
+    if (delegation.radio == RadioMode.off) return;
     for (final race in racesOn(today)) {
       final id = race.info.id;
       // At championships the team's own sports director is not in charge.
@@ -1000,18 +1070,33 @@ class Career {
       final p = progress[id];
       if (p == null || p.finished) continue;
       if (!p.run.riders.any((r) => r.teamId == teamId)) continue;
-      final index = p.stagesDone;
-      final route = world.route(race.stages[index].id);
-      final result = p.run.preview(
-        route,
-        plans: _plansFor(id, route),
-        directorSkills: p.directorSkills,
-        radioTeam: teamId,
-        radio: _radio[id] ?? const {},
-        askRadio: true,
+      final route = world.route(race.stages[p.stagesDone].id);
+      yield _DayStage(
+        p,
+        p.stagesDone,
+        p.run.previewJob(
+          route,
+          plans: _plansFor(id, route),
+          directorSkills: p.directorSkills,
+          radioTeam: teamId,
+          radio: _radio[id] ?? const {},
+          askRadio: true,
+        ),
       );
-      final call = result.openCall;
-      if (call != null) return (race: p, stageIndex: index, call: call);
+    }
+  }
+
+  /// Like [nextRadioCall], with the trial run of the stage on another
+  /// isolate.
+  ///
+  /// @returns Race, stage and question, or null.
+  Future<({RaceProgress race, int stageIndex, RadioCall call})?>
+      nextRadioCallAsync() async {
+    for (final job in _radioJobs()) {
+      final call = (await Isolate.run(job.job.run)).openCall;
+      if (call != null) {
+        return (race: job.race, stageIndex: job.index, call: call);
+      }
     }
     return null;
   }
@@ -1097,16 +1182,52 @@ class Career {
   /// suggestion is taken.
   ///
   /// @returns What was ridden today.
-  DayReport advance() {
+  DayReport advance() => advanceSteps().last!;
+
+  /// The same day in steps: after every race a null is yielded, at the end
+  /// the report of the day. A caller that waits a moment between the steps
+  /// keeps its window responsive on days with many races.
+  ///
+  /// @returns The steps; the day is only complete once all were taken.
+  Iterable<DayReport?> advanceSteps() sync* {
+    final day = _dayBegin();
+    for (final stage in day.stages) {
+      _stageEnd(day, stage, stage.job.run());
+      yield null;
+    }
+    yield _dayEnd(day);
+  }
+
+  /// The same day with the stages simulated on other isolates, all races of
+  /// the day at the same time. The thread that draws the window is free
+  /// meanwhile. The result is the same as that of [advance].
+  ///
+  /// @param onRaces Called with the races that are being simulated.
+  /// @returns The report of the day.
+  Future<DayReport> advanceAsync(
+      {void Function(List<RaceEntry> races)? onRaces}) async {
+    final day = _dayBegin();
+    onRaces?.call([for (final s in day.stages) s.race.race]);
+    final results = await Future.wait([
+      for (final stage in day.stages) Isolate.run(stage.job.run),
+    ]);
+    for (var i = 0; i < day.stages.length; i++) {
+      _stageEnd(day, day.stages[i], results[i]);
+    }
+    return _dayEnd(day);
+  }
+
+  /// Opens the day: plans what is open, confirms waiting line-ups with the
+  /// sports director's suggestion, starts the races of the day and fixes
+  /// today's stage of each as a job. Nothing is simulated yet.
+  _Day _dayBegin() {
     final inboxBefore = inbox.length;
     ensureProgram();
     for (var p = needsDecision; p != null; p = needsDecision) {
       confirm(p, p.suggestedLineup);
     }
-    final date = today;
-    final ridden =
-        <({RaceProgress race, int stageIndex, StageResult result})>[];
-    for (final race in racesOn(date)) {
+    final stages = <_DayStage>[];
+    for (final race in racesOn(today)) {
       final id = race.info.id;
       if (!progress.containsKey(id) && !_skipped.contains(id)) {
         // Races without the player's team start without asking.
@@ -1114,18 +1235,34 @@ class Career {
       }
       final p = progress[id];
       if (p == null || p.finished) continue;
-      final index = p.stagesDone;
-      final route = world.route(race.stages[index].id);
-      final result = p.run.nextStage(
-        route,
-        plans: _plansFor(id, route),
-        directorSkills: p.directorSkills,
-        radioTeam: teamId,
-        radio: _radio.remove(id) ?? const {},
-      );
-      ridden.add((race: p, stageIndex: index, result: result));
-      _credit(p, index, result);
+      final route = world.route(race.stages[p.stagesDone].id);
+      stages.add(_DayStage(
+        p,
+        p.stagesDone,
+        p.run.begin(
+          route,
+          plans: _plansFor(id, route),
+          directorSkills: p.directorSkills,
+          radioTeam: teamId,
+          radio: _radio.remove(id) ?? const {},
+        ),
+      ));
     }
+    return _Day(today, inboxBefore, stages);
+  }
+
+  /// Takes the result of a stage into the race and the rankings.
+  void _stageEnd(_Day day, _DayStage stage, StageResult simulated) {
+    final result = stage.race.run.finish(stage.job, simulated);
+    day.ridden.add((race: stage.race, stageIndex: stage.index, result: result));
+    _credit(stage.race, stage.index, result);
+  }
+
+  /// Closes the day: rest days, training, injuries, development, money,
+  /// staff, and the inbox as the player wants it.
+  DayReport _dayEnd(_Day day) {
+    final date = day.date;
+    final ridden = day.ridden;
     // A stage race without a stage today has a rest day.
     for (final p in progress.values) {
       if (p.finished || p.stagesDone == 0) continue;
@@ -1140,14 +1277,17 @@ class Career {
       _recordGrowth();
       _develop();
     }
-    if (today.weekday == DateTime.monday) _recordForm();
+    if (today.weekday == DateTime.monday) {
+      _recordForm();
+      people.weekly();
+    }
     if (delegation.training && today.weekday == DateTime.monday) _coachPlans();
     economy.daily(ridden);
     staff.daily();
     camps.daily();
     entries.daily();
     if (delegation.scouting && today.month >= 6) staff.scoutOnOwn();
-    _tidyInbox(inboxBefore);
+    _tidyInbox(day.inboxBefore);
     today = today.add(const Duration(days: 1));
     return DayReport(date, ridden);
   }
@@ -1400,7 +1540,12 @@ class Career {
             ? max(staff.coachFactor(r.teamId), staff.coachFactor(teamId))
             : staff.coachFactor(r.teamId);
         final step = perYear > 0
-            ? perYear / 12 * _talent(r) * load * coach
+            ? perYear /
+                12 *
+                _talent(r) *
+                load *
+                coach *
+                people.growthFactor(r.id)
             : perYear / 12;
         final focus = s.focus.attributes;
         // A rider grows where he is already strong: his best attribute at
@@ -1441,6 +1586,7 @@ class Career {
   void startNextSeason() {
     _archiveSeason();
     _awards();
+    people.closeSeason();
     economy.closeSeason();
     licences.closeSeason();
     final ranking = teamPoints.entries.toList()
@@ -1804,6 +1950,7 @@ class Career {
             for (final r in riders)
               r.id: shapeOf(r.id).form *
                   camps.peak(r.id, race.start) *
+                  people.formFactor(r, id) *
                   (1 + 0.006 * (motivation[r.teamId]! / 20 - 0.6)),
           }),
       skills,
@@ -1830,6 +1977,7 @@ class Career {
   /// @param result Its result.
   void _credit(RaceProgress p, int index, StageResult result) {
     final race = p.race;
+    people.afterStage(p, index, result);
     final own = result.placings.indexWhere((x) => _isOwn(x.rider));
     final winner = result.placings.first.rider;
     final tier = _pointsTier(race);
@@ -2126,6 +2274,7 @@ class Career {
       'program': ints<Set<int>>(program, (s) => s.toList()),
       'teamPrograms': ints<Map<int, Set<int>>>(
           teamPrograms, (m) => ints<Set<int>>(m, (s) => s.toList())),
+      'people': people.toJson(),
       'watch': watch.toList(),
       'muted': mutedTopics.toList(),
       'digest': inboxDigest,
@@ -2259,6 +2408,7 @@ class Career {
         };
       }
     }
+    people.restore(j['people'] as Map<String, dynamic>?);
     watch
       ..clear()
       ..addAll((j['watch'] as List? ?? const []).cast<int>());

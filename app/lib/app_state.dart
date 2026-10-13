@@ -234,6 +234,100 @@ class AppState extends ChangeNotifier {
   /// Rider whose page is open on top of the selected screen, or null.
   int? riderPage;
 
+  /// Page the shell should open next, as "page" or "page:view"; the shell
+  /// clears it.
+  String? jumpToPage;
+
+  /// Opens a page of the sidebar from anywhere.
+  ///
+  /// @param target "page" or "page:view", by the names of the sidebar.
+  void goTo(String target) {
+    jumpToPage = target;
+    notifyListeners();
+  }
+
+  /// Country the rider search should show next; the search clears it.
+  String? searchCountry;
+
+  /// Opens the rider search for the riders of a country.
+  ///
+  /// @param country Country code, e.g. `BEL`.
+  void searchRidersOf(String country) {
+    searchCountry = country;
+    goTo('search');
+  }
+
+  // What the player set on the screens (filters of the rider search) is
+  // kept in a small file of its own, apart from the save games: it belongs
+  // to the player, not to a career.
+  File get _viewFile => File('$dataDir/ui_state.json');
+  Map<String, dynamic>? _views;
+
+  /// @param key Name of a screen.
+  /// @returns What was remembered for it, or null.
+  Map<String, dynamic>? viewOf(String key) {
+    if (_views == null) {
+      _views = {};
+      if (persist) {
+        try {
+          _views =
+              jsonDecode(_viewFile.readAsStringSync()) as Map<String, dynamic>;
+        } on Object {
+          // No file yet, or an unreadable one: start empty.
+        }
+      }
+    }
+    return _views![key] as Map<String, dynamic>?;
+  }
+
+  /// Remembers the settings of a screen beyond this session.
+  ///
+  /// @param key Name of the screen.
+  /// @param value Its settings, JSON-encodable.
+  void rememberView(String key, Map<String, dynamic> value) {
+    viewOf(key);
+    if (jsonEncode(_views![key]) == jsonEncode(value)) return;
+    _views![key] = value;
+    if (!persist) return;
+    try {
+      _viewFile.writeAsStringSync(jsonEncode(_views));
+    } on FileSystemException {
+      // Not being able to remember a filter must not stop anything.
+    }
+  }
+
+  /// Writes a list as a CSV file into the folder `export` next to the save
+  /// games. Semicolons separate the columns, as spreadsheet programs with
+  /// a German locale expect; the file starts with a byte order mark so that
+  /// umlauts survive.
+  ///
+  /// @param name Start of the file name.
+  /// @param headers Column headings.
+  /// @param rows The lines.
+  /// @returns The path of the file, or null if it could not be written.
+  String? exportCsv(
+    String name,
+    List<String> headers,
+    List<List<String>> rows,
+  ) {
+    String cell(String v) =>
+        v.contains(RegExp('[;"\n]')) ? '"${v.replaceAll('"', '""')}"' : v;
+    final now = DateTime.now();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final stamp =
+        '${now.year}${two(now.month)}${two(now.day)}_${two(now.hour)}${two(now.minute)}';
+    try {
+      final dir = Directory('$dataDir/export')..createSync(recursive: true);
+      final file = File('${dir.path}/${name}_$stamp.csv');
+      file.writeAsStringSync(
+        '\uFEFF${[headers, ...rows].map((r) => r.map(cell).join(';')).join('\r\n')}\r\n',
+      );
+      return file.path;
+    } on FileSystemException {
+      return null;
+    }
+  }
+
   /// Shows the report of a race, closing whatever lies on top.
   ///
   /// @param raceId Id of the race.
@@ -296,6 +390,41 @@ class AppState extends ChangeNotifier {
     _save();
     notifyListeners();
     return n;
+  }
+
+  /// Makes a race a season goal of a rider, or takes the goal back.
+  ///
+  /// @param riderId Id of the rider.
+  /// @param raceId Id of the race.
+  /// @returns null on success, otherwise the reason.
+  String? toggleGoal(int riderId, int raceId) {
+    final answer = career.people.toggleGoal(riderId, raceId);
+    _save();
+    notifyListeners();
+    return answer;
+  }
+
+  /// Promises a rider a start or a leading role in a race.
+  ///
+  /// @param riderId Id of the rider.
+  /// @param raceId Id of the race.
+  /// @param kind What is promised.
+  /// @returns null on success, otherwise the reason.
+  String? promise(int riderId, int raceId, PromiseKind kind) {
+    final answer = career.people.promise(riderId, raceId, kind);
+    _save();
+    notifyListeners();
+    return answer;
+  }
+
+  /// Gives a rider of the team another standing.
+  ///
+  /// @param riderId Id of the rider.
+  /// @param role His new standing.
+  void setTeamRole(int riderId, TeamRole role) {
+    career.people.setRole(riderId, role);
+    _save();
+    notifyListeners();
   }
 
   /// Puts a rider on the shortlist or takes him off it.
@@ -367,8 +496,14 @@ class AppState extends ChangeNotifier {
   ///
   /// @param target Day to stop at.
   /// @param auto Whether line-ups and radio are left to the staff meanwhile.
+  /// @param stopTopics Topics of the inbox (keys of [Message.topics]); the
+  ///   run stops on the day a message of one of them arrives.
   /// @returns A future that completes when the run has stopped.
-  Future<void> simulateUntil(DateTime target, {bool auto = false}) async {
+  Future<void> simulateUntil(
+    DateTime target, {
+    bool auto = false,
+    Set<String> stopTopics = const {},
+  }) async {
     if (busy || career.seasonOver || !target.isAfter(career.today)) return;
     final d = career.delegation;
     final lineups = d.lineups, radioMode = d.radio;
@@ -387,12 +522,23 @@ class AppState extends ChangeNotifier {
       } else if (career.needsDecision != null) {
         break;
       }
-      radio = career.nextRadioCall();
+      radio = await career.nextRadioCallAsync();
       if (radio != null) break;
-      career.advance();
+      final inboxBefore = career.inbox.length;
+      await _playDay();
       _days++;
       _autoSave();
       notifyListeners();
+      // Something the player wanted to be told about has arrived.
+      if (career.inbox
+          .skip(
+            inboxBefore < career.inbox.length
+                ? inboxBefore
+                : career.inbox.length,
+          )
+          .any((m) => stopTopics.contains(m.topicKey))) {
+        break;
+      }
       await Future<void>.delayed(Duration.zero);
     }
     if (auto) {
@@ -520,7 +666,19 @@ class AppState extends ChangeNotifier {
     _raceCache.clear();
     // The sports director plans the season before the first day; a loaded
     // game brings its plan along.
-    if (plan) career.ensureProgram();
+    if (plan) {
+      career.ensureProgram();
+      career.inbox.add(
+        Message(
+          career.today,
+          tr('Teamleitung'),
+          tr('Willkommen bei {0}', [t.name]),
+          tr(
+            'Der Sportliche Leiter hat die Saison geplant; im Rennplaner siehst du, wer wo fährt. „Weiter" oben rechts lässt die Tage laufen, bis etwas dein Team betrifft. Vor jedem Rennen bestätigst du das Aufgebot, im Rennen meldet sich der Sportliche Leiter über Funk. Was die Zahlen bedeuten und welche Tasten es gibt, steht unter „Hilfe" unten links.',
+          ),
+        ),
+      );
+    }
   }
 
   /// Team founded by the player, if the career runs with one.
@@ -770,6 +928,26 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
+  /// Plays one day. The stages are simulated on other isolates, all races
+  /// of the day at once, so the window stays free meanwhile.
+  Future<void> _playDay() async {
+    await career.advanceAsync(
+      onRaces: (races) {
+        working = races.isEmpty
+            ? null
+            : races.length == 1
+            ? races.first.info.name
+            : tr('{0} Rennen', [races.length]);
+        notifyListeners();
+      },
+    );
+    working = null;
+  }
+
+  /// What is being simulated at the moment, for the header: the name of the
+  /// race or the number of races; null between the days.
+  String? working;
+
   /// Number of automatic saves kept.
   static const autoSaves = 4;
 
@@ -875,9 +1053,9 @@ class AppState extends ChangeNotifier {
         break;
       }
       // The sports director asks from the race.
-      radio = career.nextRadioCall();
+      radio = await career.nextRadioCallAsync();
       if (radio != null) break;
-      career.advance();
+      await _playDay();
       _days++;
       _autoSave();
       notifyListeners();
@@ -940,6 +1118,9 @@ class AppState extends ChangeNotifier {
           e['rider'] as int,
           e['wage'] as int,
           e['years'] as int,
+          promise: e['promise'] == null
+              ? null
+              : PromiseKind.values[e['promise'] as int],
         );
       case 'hire':
         career.staff.hire(e['staff'] as int);
@@ -1088,16 +1269,18 @@ class AppState extends ChangeNotifier {
   /// @param riderId Id of the rider.
   /// @param wage Offered wage in euros per year.
   /// @param years Contract term.
+  /// @param promise What he is promised for the first season, or null.
   /// @returns null if he signs, otherwise the reason for the refusal.
-  String? offer(int riderId, int wage, int years) {
+  String? offer(int riderId, int wage, int years, {PromiseKind? promise}) {
     if (busy) return tr('Die Tage laufen gerade.');
-    final answer = career.economy.offer(riderId, wage, years);
+    final answer = career.economy.offer(riderId, wage, years, promise: promise);
     // Log refusals too: they block the rider for two weeks.
     _log.add({
       'type': 'offer',
       'rider': riderId,
       'wage': wage,
       'years': years,
+      if (promise != null) 'promise': promise.index,
       'day': _days,
     });
     _save();

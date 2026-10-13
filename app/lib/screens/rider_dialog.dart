@@ -78,6 +78,99 @@ class _Result {
   final bool good;
 }
 
+/// Lets the player promise a rider something for one of his planned races.
+///
+/// @param context Build context.
+/// @param s Application state.
+/// @param r The rider.
+/// @param races His planned races.
+/// @returns A future that completes when the dialog is closed.
+Future<void> _promiseDialog(
+  BuildContext context,
+  AppState s,
+  SimRider r,
+  List<RaceEntry> races,
+) => showDialog<void>(
+  context: context,
+  builder: (context) => AlertDialog(
+    title: Text(tr('Versprechen an {0}', [r.name])),
+    content: SizedBox(
+      width: 460,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            tr(
+              'Ein Versprechen hebt seine Moral sofort. Hältst du es, steigt sie noch einmal; brichst du es, fällt sie tief, und er merkt es sich. Je Fahrer und Saison ist ein Versprechen möglich.',
+            ),
+            style: const TextStyle(fontSize: 13, color: TeamColors.muted),
+          ),
+          const SizedBox(height: 10),
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (final race in races.take(14))
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          race.info.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      for (final kind in PromiseKind.values)
+                        TextButton(
+                          onPressed: () {
+                            s.promise(r.id, race.info.id, kind);
+                            Navigator.pop(context);
+                          },
+                          child: Text(kind.label),
+                        ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: Text(tr('Abbrechen')),
+      ),
+    ],
+  ),
+);
+
+/// Star that puts a rider on the shortlist or takes him off it, for the
+/// rows of a list. Riders of the player's own team get none.
+///
+/// @param s Application state.
+/// @param r The rider.
+/// @returns The star, or an empty box.
+Widget watchStar(AppState s, SimRider r) {
+  if (r.teamId == s.team.id) return const SizedBox();
+  final watched = s.career.watch.contains(r.id);
+  return Tooltip(
+    message: watched
+        ? tr('Von der Beobachtungsliste nehmen')
+        : tr('Auf die Beobachtungsliste'),
+    child: InkWell(
+      onTap: () => s.toggleWatch(r.id),
+      child: Icon(
+        LucideIcons.star,
+        size: 15,
+        color: watched
+            ? TeamColors.gold
+            : TeamColors.muted.withValues(alpha: 0.45),
+      ),
+    ),
+  );
+}
+
 /// Profile of a rider, as a page of the shell or as a dialog.
 class RiderPage extends StatelessWidget {
   /// Creates the profile.
@@ -169,6 +262,19 @@ class RiderPage extends StatelessWidget {
         rival != null &&
         (rival.teamId == s.team.id || book.knowledge(rival.id) >= 1);
     final watched = career.watch.contains(r.id);
+    final people = career.people;
+    final person = people.of(r.id);
+    final goals = people.goals[r.id] ?? const <int>{};
+    final promise = people.promiseOf(r.id, career.year);
+    final nextPromise = people.promiseOf(r.id, career.year + 1);
+    String raceName(int id) =>
+        career.calendar.where((x) => x.info.id == id).firstOrNull?.info.name ??
+        '?';
+    String promiseText(RiderPromise p) => p.raceId == 0
+        ? People.seasonText(p.kind)
+        : '${p.kind.label} · ${raceName(p.raceId)}';
+    // Without a team there is no contract to show.
+    final free = team?.division == 'Free';
     // Development since the first record: the attributes as they were then,
     // and the mean of all attributes month by month.
     final growth = career.growth[r.id] ?? const <List<num>>[];
@@ -510,7 +616,8 @@ class RiderPage extends StatelessWidget {
                   tr('Siege {0}', [career.year]),
                   '${career.winsOf(r.id, career.year)}',
                 ),
-                if (k != null) tile(tr('Vertrag bis'), '${k.endYear}'),
+                if (k != null && !free)
+                  tile(tr('Vertrag bis'), contractEnd(k.endYear)),
               ],
             ),
           ],
@@ -729,6 +836,98 @@ class RiderPage extends StatelessWidget {
                             : tr('einsatzbereit'),
                         color: injured ? TeamColors.red : null,
                       ),
+                      if (own || exact) ...[
+                        const SizedBox(height: 12),
+                        Label(tr('Person')),
+                        const SizedBox(height: 4),
+                        fact(
+                          tr('Persönlichkeit'),
+                          person.label,
+                          color: person.tone > 0
+                              ? TeamColors.green
+                              : person.tone < 0
+                              ? TeamColors.red
+                              : null,
+                        ),
+                        if (own)
+                          PopupMenuButton<TeamRole>(
+                            tooltip: tr('Stellung im Team ändern'),
+                            onSelected: (role) => s.setTeamRole(r.id, role),
+                            itemBuilder: (context) => [
+                              for (final role in TeamRole.values)
+                                PopupMenuItem(
+                                  value: role,
+                                  child: Text(role.label),
+                                ),
+                            ],
+                            child: fact(
+                              tr('Stellung im Team'),
+                              '${people.roleOf(r.id).label} ▾',
+                            ),
+                          )
+                        else
+                          fact(
+                            tr('Stellung im Team'),
+                            people.roleOf(r.id).label,
+                          ),
+                        fact(
+                          tr('Moral'),
+                          People.moraleWord(people.moraleOf(r.id)),
+                          color: people.moraleOf(r.id) >= 0.4
+                              ? TeamColors.green
+                              : people.moraleOf(r.id) <= -0.4
+                              ? TeamColors.red
+                              : null,
+                        ),
+                        if (own) ...[
+                          // What moved it last.
+                          for (final note
+                              in (people.notes[r.id] ?? const []).reversed.take(
+                                3,
+                              ))
+                            Padding(
+                              padding: const EdgeInsets.only(left: 10),
+                              child: line(
+                                note[0] as String,
+                                (note[1] as num) >= 0 ? '▲' : '▼',
+                                color: (note[1] as num) >= 0
+                                    ? TeamColors.green
+                                    : TeamColors.red,
+                              ),
+                            ),
+                          if (promise != null)
+                            fact(
+                              tr('Versprechen'),
+                              promiseText(promise),
+                              color: TeamColors.gold,
+                            )
+                          else if (page && planned.isNotEmpty)
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton(
+                                onPressed: () =>
+                                    _promiseDialog(context, s, r, planned),
+                                child: Text(tr('Etwas versprechen …')),
+                              ),
+                            ),
+                        ],
+                        if (own && nextPromise != null)
+                          fact(
+                            tr('Zugesagt für {0}', [career.year + 1]),
+                            promiseText(nextPromise),
+                            color: TeamColors.gold,
+                          ),
+                        fact(
+                          tr('Professionalität'),
+                          Personality.word(person.professionalism),
+                        ),
+                        fact(tr('Ehrgeiz'), Personality.word(person.ambition)),
+                        fact(tr('Treue'), Personality.word(person.loyalty)),
+                        fact(
+                          tr('Konstanz'),
+                          Personality.word(person.consistency),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       Label(tr('Vertrag')),
                       const SizedBox(height: 4),
@@ -748,12 +947,15 @@ class RiderPage extends StatelessWidget {
                               ])
                             : tr('unbekannt'),
                       ),
-                      if (k != null) fact(tr('Läuft bis'), '${k.endYear}'),
+                      if (k != null && !free)
+                        fact(tr('Läuft bis'), contractEnd(k.endYear)),
                       if (k?.nextTeam != null)
                         fact(
                           '${career.year + 1}',
                           k!.nextTeam == r.teamId
-                              ? tr('verlängert bis {0}', [k.nextEnd])
+                              ? tr('verlängert bis {0}', [
+                                  contractEnd(k.nextEnd),
+                                ])
                               : tr('wechselt zu {0}', [
                                   career.teams[k.nextTeam]?.name ?? '?',
                                 ]),
@@ -761,10 +963,53 @@ class RiderPage extends StatelessWidget {
                         ),
                       if (planned.isNotEmpty) ...[
                         const SizedBox(height: 12),
-                        Label(tr('Geplante Rennen')),
+                        withHelp(
+                          'Saisonziele',
+                          Label(
+                            tr('Geplante Rennen · Ziele {0}/{1}', [
+                              goals.length,
+                              People.maxGoals,
+                            ]),
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        for (final race in planned.take(8))
-                          line(race.info.name, _d(race.start)),
+                        for (final race in planned.take(12))
+                          Row(
+                            children: [
+                              // The target makes the race a season goal.
+                              InkWell(
+                                onTap: page && own
+                                    ? () {
+                                        final answer = s.toggleGoal(
+                                          r.id,
+                                          race.info.id,
+                                        );
+                                        if (answer != null) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                                SnackBar(content: Text(answer)),
+                                              );
+                                        }
+                                      }
+                                    : null,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: Icon(
+                                    LucideIcons.target,
+                                    size: 14,
+                                    color: goals.contains(race.info.id)
+                                        ? TeamColors.gold
+                                        : TeamColors.muted.withValues(
+                                            alpha: 0.4,
+                                          ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: line(race.info.name, _d(race.start)),
+                              ),
+                            ],
+                          ),
                       ],
                       if (seasons.isNotEmpty) ...[
                         const SizedBox(height: 12),

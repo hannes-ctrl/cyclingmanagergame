@@ -4,6 +4,19 @@ Where Radmanager goes after 0.2.0 alpha, and what it has to be before it is call
 
 Nothing here is promised; priorities are set version by version. Ideas come from *Football Manager* (FM), *Pro Cycling Manager* (PCM) and the dev blogs of *Velo Victory* (VV), and from what their players ask for in the forums. Each item names its source in brackets; the links are at the end.
 
+## Next up
+
+The working list, in order. It is rewritten whenever something on it is done; the sections below hold the full plan.
+
+1. **Close 0.3.0.** Evaluate the calibration run on the seasons 2023 to 2026 and fix what tuning cannot reach: the middle of the field finishes too close to the winner, flat stages are too closed, hilly stages end in a bunch too rarely, sector races end solo too rarely. Check with real fields whether the time limit takes too many sprinters out of Grand Tours. Then the version number and the release.
+2. **A world that lasts ten seasons.** The multi-season test first, because every later balance change is judged by it: finances, squad strength per tier, licences, age structure, top riders, and now also morale and goals over several seasons. Then money, the exceptional talents of the yearly intake, and the other teams promoting from their development teams.
+3. **The stage in fast motion.** The data for it exists (gaps and group sizes along the route, events with their kilometre, incidents), and with the simulation in the background nothing blocks it any more. It is the largest visible step.
+4. **The people, third step.** Personality, morale for every team, standing in the team and promises (also in contract talks) exist. Open: mentoring, leadership of the road captain, talks as a choice in the inbox, adaptability after a transfer, a rider who asks to leave, the other teams acting on the morale of their riders.
+5. **Scouting in stages and competition on the market,** once the money is balanced.
+6. **Comfort that is left:** multi-select in lists, saved column sets, export from every list, bookmarks, undo for a line-up, "simulate until" with a vacation mode that has rules.
+
+Done since the last version of this list: the simulation in the background, goals that steer the season plan, morale for every team, promises (also in contract talks), personalities by name, the standing in the team, a rider matrix that shows goals, and the small comfort items (links, filters that survive a restart, export, messages that lead to their page, stops for "simulate until", help and introduction).
+
 ## Principles
 
 Three rules decide the order.
@@ -42,11 +55,14 @@ Done:
 - **One simulation.** A test guards that watching, skipping and "simulate until" give the same race. [3]
 - **Partial plans.** Pin only a leader or an approach for a race; the sports director plans the rest stage by stage.
 - **The search.** About three parameters per attempt instead of ten, and race types weighted so that the few sector races are not sacrificed.
+- **Race report in paragraphs:** how the day began, mishaps, the finale.
+- **A day in steps,** race by race, so that the window answers the system while many days are simulated.
 
 Open:
 
-- **The calibration run** for all of this: the tuning values are start values. After it, a look at what tuning cannot reach. Before the run the middle of the field finishes far too close to the winner (0:26 against 1:39 on average) and flat stages are too closed (91 % bunch finishes against 74 %).
-- **Speed.** A stage takes two to three times as long as in 0.2.0, so a night holds only a few hundred attempts.
+- **The calibration run** for all of this, on the seasons 2023 to 2026: *running.* After it, a look at what tuning cannot reach. Before the run the middle of the field finishes far too close to the winner (0:26 against 1:39 on average) and flat stages are too closed (91 % bunch finishes against 74 %).
+- **The time limit with real fields.** On a synthetic field too many sprinters miss it in the mountains.
+- **Speed.** A stage takes two to three times as long as in 0.2.0, so a night of calibration holds only a few hundred attempts. In the game the stages now run in the background.
 - **Older seasons.** Checked: the database covers 58 % of the finishers of 2021, 67 % of 2022, 75 % of 2023, 85 % of 2024 and 92 % of 2025. The calibration now uses 2023 to 2026 only. Filling the missing riders with anonymous ones of typical strength would bring the earlier seasons back.
 - **Weather, second step.** Real compass headings for the routes, a forecast that can be wrong, riders who cope differently with heat and cold. [PCM, VV]
 
@@ -57,19 +73,19 @@ Open:
 - **Multi-season test.** A tool plays ten seasons without a player and reports finances, squad strength per tier, licence moves, age structure and the number of top riders. It runs before each release.
 - **Money.** Salaries, sponsor income, prize money from the WorldDB, camp and staff costs are set against real orders of magnitude. The budget is planned once per season; a surplus carries over and can be spent (signing bonuses, facilities later). No yearly renewal chores. [2]
 - **The top of the field.** The yearly intake brings a few exceptional talents, so that riders with a best value of 84 or more do not die out.
-- **The other teams act like teams.** They promote from their development teams, sign for their needs (a sprinter when theirs leaves, riders from the sponsor's country) and let riders go. [VV]
+- **The other teams act like teams.** They promote from their development teams, sign for their needs (a sprinter when theirs leaves, riders from the sponsor's country) and let riders go. [VV] *Done so far:* each of them plans its season like the player's sports director.
 - **Licences on the three-year ranking,** as in reality. [VV]
-- **The winter has content:** training camps, contract talks, the season plan and the intake fall into the weeks without races. [2]
+- **The winter has content:** training camps, contract talks, the season plan and the intake fall into the weeks without races. [2] *Started:* the season plan and the review of the season arrive at the turn of the year.
 
 ### 0.5.0 The rider as a person
 
 *Third, because it is the largest gap to the models, and it needs believable results to react to.*
 
-- **Season plan by the sports director.** *Done* for the player's team and every other team: importance of the races, suitability, an even load, replacements. Still open: the importance follows the tier of a race only, not sponsor goals or a rider's own goals.
-- **Season goals per rider.** In the season planner each rider gets up to three goal races; training builds form towards them. The planner shows a rider's goals and favourite races in the same view, so planning needs one screen. [2, PCM]
-- **Personal attributes.** A small set, visible only through scouting and time: professionalism (development and fitness), ambition (wants a role and results), loyalty (contract talks), consistency (spread of the form of the day), adaptability (settling in after a transfer). [VV]
-- **Morale.** One value per rider, moved by role, programme, results and promises, acting on form within a narrow band. A rider is never unhappy for not racing while he is resting towards a goal. [2, FM]
-- **Promises.** "Leader at the Tour", "a free role in the classics", made in contract talks, checked at the end of the season. [FM]
+- **Season plan by the sports director.** *Done* for the player's team and every other team: importance of the races, suitability, an even load, replacements. The importance of a race follows its tier, the team's home country, the goals of sponsor and board and each rider's own goals.
+- **Season goals per rider.** Each rider has up to three goal races; he is sure to start there and his form peaks for them. [2, PCM] *Done,* for every team; set on the rider page or by right click in the matrix, which shows them.
+- **Personal attributes.** A small set, visible only through scouting: professionalism (development), ambition (reacts more strongly, wants race days), loyalty (contract talks), consistency (spread of the form from race to race). [VV] *Done,* with a summary term per rider. Adaptability after a transfer is missing.
+- **Morale.** One value per rider, moved by programme, results and promises, acting on form within a narrow band. [2, FM] *Done* for every team. For the player's riders the role in the race against the standing in the team moves it too; injured and ill riders take no offence.
+- **Promises.** "Leader at the Tour", "a start at the Giro", checked when the race starts. [FM] *Done,* for one race or, in contract talks, for the first season of the contract.
 - **Mentoring.** An experienced rider takes one or two young riders, including from the development team; they develop a little faster and take on some of his professionalism. [VV]
 - **Leadership and race sense** as attributes of the road captain, which decide how well the plan is carried out without radio. [2]
 - **Programme templates.** "Classics", "Grand Tour helper", "sprinter's spring" assigned with one click. [PCM]
@@ -121,27 +137,27 @@ These are spread over the versions above rather than saved for the end. The firs
 
 - A back button and history that always return to the previous page. [5] *Done for 0.3.0,* with filters, sorting and scroll position kept for the session.
 - Keyboard control: space to continue, arrow keys from rider to rider, Ctrl+F for the search, Esc to go back. [6] *Done for 0.3.0,* including the rows of a list.
-- Every name is a link: rider, team, race, country, wherever it appears. *Started:* riders in race results, teams in the ranking and on the rider page (the team page exists now).
-- No screen waits for the simulation; a day simulates in the background with a visible progress.
+- Every name is a link: rider, team, race, country, wherever it appears. *Done for the common cases:* riders and teams in race results, teams in the ranking and on the rider page, races on the rider page, a team's flag to the riders of its country.
+- No screen waits for the simulation; a day simulates in the background with a visible progress. *Done:* the stages run on other isolates, and the header shows what is being simulated.
 - Bookmarks for pages the player uses often. [5]
 
 **Lists**
 
 - Saved filters and saved column sets per list, with a default the player chooses. PCM added saved search filters in a patch after its players asked. [10]
-- Multi-select with checkboxes for actions on several riders: assign a programme, a camp, a training focus, put on the shortlist. [7]
-- Sorting by any column, remembered per list.
-- Export of any list as CSV. [7]
+- Multi-select with checkboxes for actions on several riders: assign a programme, a camp, a training focus, put on the shortlist. [7] *A first step:* a star per row for the shortlist.
+- Sorting by any column, remembered per list. *Done for the session.*
+- Export of any list as CSV. [7] *Done* for the rider search and team pages.
 
 **The inbox**
 
 - Fewer messages rather than more filters: one summary per day and topic, not one message per event. [6] *Done:* from three messages of a topic on a day.
 - Settings per topic: show, summarise, or do not send. *Done:* each topic can be switched off; summarising is one switch for all.
-- Filters that stay set. A filter that resets itself is among the oldest FM complaints. [6]
-- Messages that ask for a decision are marked and carry the decision in them.
+- Filters that stay set. A filter that resets itself is among the oldest FM complaints. [6] *Done;* the filters of the rider search also survive a restart.
+- Messages that ask for a decision are marked and carry the decision in them. *A first step:* every message leads to the page of its topic.
 
 **Continuing**
 
-- "Simulate until" stops for what the player has chosen: own race, contract offer, injury, transfer deadline. [9]
+- "Simulate until" stops for what the player has chosen: own race, contract offer, injury, transfer deadline. [9] *Done* by topic of the inbox.
 - **Vacation mode.** The assistant takes over for a period, with rules for what he may decide. [9]
 - Autosave with several rolling files; a weekly save can be opened again. A PCM thread asks for a way to go back a few days. [4] *Done:* four weekly files.
 - Undo for the last line-up or plan change before it is confirmed.
@@ -150,15 +166,15 @@ These are spread over the versions above rather than saved for the end. The firs
 
 - The season planner shows conflicts at once: rider entered twice, too many race days, a goal race without the leader. [2] *Started:* riders entered for two overlapping races.
 - Copy a line-up from the last race or from a template.
-- An assistant's proposal for every chore (line-up, programme, training), which the player accepts or changes. Nothing has to be done by hand that the player does not care about.
+- An assistant's proposal for every chore (line-up, programme, training), which the player accepts or changes. Nothing has to be done by hand that the player does not care about. *Done* for line-ups, tactics (pins), the season plan and training.
 
 **Reading**
 
 - Text scaling and layouts for wide and high-resolution screens. Exists as a scale; needs a check at 4K and 21:9. [7]
 - A clearer form display than the scale from −3 % to +4 %: steps with an arrow for the trend. *Started:* the trend arrow in the squad.
 - Notes on a rider, written by the player. *Done.*
-- A glossary behind the tooltips, and a short introduction for new careers.
-- Singular and plural in English, dates in the format of the language, command-line tools in English.
+- A glossary behind the tooltips, and a short introduction for new careers. *Done:* the help page and a welcome message.
+- Singular and plural in English, dates in the format of the language, command-line tools in English. *Started:* contract dates.
 
 **Open data**
 
@@ -210,10 +226,10 @@ The world database is built from the WorldDB for Pro Cycling Manager, and rider 
 
 | Version | Theme | Depends on | Comfort that ships with it |
 | --- | --- | --- | --- |
-| 0.3.0 | Races that hold up (in progress) | New calibration run | Back and history, keyboard, links everywhere |
-| 0.4.0 | A world that lasts | 0.3.0 | Saved filters and columns, rolling autosaves, inbox summaries |
-| 0.5.0 | The rider as a person | 0.3.0, 0.4.0 | Planner with conflicts, templates, multi-select, notes |
-| 0.6.0 | Scouting and market | 0.4.0, 0.5.0 | Shortlist messages, comparison, export |
+| 0.3.0 | Races that hold up (calibration running) | The calibration run | Back and history, keyboard, lists, inbox, shortlist, team pages, season plan |
+| 0.4.0 | A world that lasts | 0.3.0 | Simulation in the background, filters that survive a restart, export |
+| 0.5.0 | The rider as a person | 0.3.0, 0.4.0 | Goals in the planner, templates, multi-select |
+| 0.6.0 | Scouting and market | 0.4.0, 0.5.0 | Comparison of several riders, decisions in messages |
 | 0.7.0 | Race day | 0.3.0, 0.5.0 | Stops in "simulate until", assistant's proposals |
 | 0.8.0 | The organisation | 0.4.0, 0.6.0 | Vacation mode, history pages |
 | 0.9.0 | Beta | All | Introduction, glossary, difficulty, installer |

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:game/game.dart';
 
 import '../app_state.dart';
+import '../ui.dart';
 import '../widgets.dart';
 
 /// Finances and season goals: balance, budget, monthly statement, confidence.
@@ -301,7 +302,10 @@ class _Sponsors extends StatelessWidget {
                 ),
               ),
               Text(
-                tr('{0} € · bis {1}', [euro(sp.amount), sp.endYear]),
+                tr('{0} € · bis {1}', [
+                  euro(sp.amount),
+                  contractEnd(sp.endYear),
+                ]),
                 style: TextStyle(
                   color: sp.endYear == year ? TeamColors.gold : TeamColors.text,
                 ),

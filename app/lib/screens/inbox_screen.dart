@@ -24,6 +24,16 @@ class InboxScreen extends StatefulWidget {
   State<InboxScreen> createState() => _InboxScreenState();
 }
 
+/// Where the messages of a topic are dealt with: page and button text.
+const _areaOf = <String, (String, String)>{
+  'Medizin': ('squad:shape', 'Zu Form und Training'),
+  'Training und Nachwuchs': ('dev', 'Zum Nachwuchsteam'),
+  'Verträge': ('transfers', 'Zu den Transfers'),
+  'Lizenz': ('rankings', 'Zu den Ranglisten'),
+  'Teamleitung': ('finance', 'Zu Finanzen und Zielen'),
+  'Scouting': ('search', 'Zur Fahrersuche'),
+};
+
 /// State of the inbox: the selected message and the topic filter.
 class _InboxScreenState extends State<InboxScreen> {
   Message? _selected;
@@ -294,6 +304,19 @@ class _InboxScreenState extends State<InboxScreen> {
                             onPressed: () =>
                                 widget.onOpenRace(selected.raceId!),
                             child: Text(tr('Zum Rennen')),
+                          ),
+                        // Every topic has a place where it is dealt with.
+                        if (_areaOf[selected.topicKey] case final area?)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: TeamColors.text,
+                                side: BorderSide(color: c.line),
+                              ),
+                              onPressed: () => s.goTo(area.$1),
+                              child: Text(tr(area.$2)),
+                            ),
                           ),
                       ],
                     ),

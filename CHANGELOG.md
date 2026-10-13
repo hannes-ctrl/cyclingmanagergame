@@ -26,6 +26,15 @@ Race realism.
 - Calibration on the seasons 2023 to 2026 only: of the fields of 2021 and 2022 the database covers too little (58 % and 67 % of the finishers). `bin/seasons.dart` shows the coverage per season, and the report lists the error per season.
 - Removed: what was left of the trial run in the race screen. A preview run remains in the application state for the screen tests only.
 - A test guards that watching, skipping and "simulate to a date" give the same race (`app/test/one_simulation_test.dart`).
+- Simulation in the background: the stages of a day run on other isolates, all races at once; the window no longer freezes, and the header shows what is being simulated. Days with several races are faster on a machine with free cores.
+- Season goals per rider (up to three), set by the sports directors of every team and changeable on the rider page: a sure start and better form in the goal races. The season plan honours them, and the goals of sponsor and board raise the importance of the races they concern.
+- Riders as people: personality (professionalism, ambition, loyalty, consistency) with a summary term as in football management games, including balanced and difficult characters; morale for the riders of every team; promises (a start or a leading role) that lift morale and cost dearly when broken, for one race or, made in contract talks, for a season. A rider who is injured or ill takes no offence at a missed race or a promise that lapses.
+- Standing in the team (star, leader, key domestique, domestique, prospect), set from strength and age and changeable; it decides what a rider expects in the races.
+- Rider matrix reworked: the head and the rider column stay in place, months are marked, larger fields, places taken per race, season goals (right click sets them), promises and riders who are out on race day are shown, riders are ordered by their standing.
+- Help with a short introduction and a glossary; welcome message for a new career.
+- CSV export of the rider search and of team pages; the filters of the rider search survive a restart.
+- A button in every message leads to the page of its topic; teams in result tables and a team's flag are links.
+- "Simulate to a date" can stop when a message on chosen topics arrives.
 - Season plan by the sports director: all races of the season planned before the first day, by importance, suitability and an even load; leaders split over the Grand Tours; replacements when a rider drops out; "Replan the season" in the race planner; can be switched off under "Delegation". Every other team plans its season with the same planner. Tool `bin/plan.dart` prints a plan. The suitability of riders for routes is worked out from weights per stage that are stored in `data/route_fit.cache.json` (4.7 s the first time, under a second afterwards).
 - Inbox: "Mark all read" and "Delete all" (asks once if several unread messages would go), topics that can be switched off, and one summary for three or more messages of a topic on a day.
 - Season review with awards at the turn of the year.
@@ -40,6 +49,13 @@ Race realism.
 - Navigation: back and forward through the pages visited (header buttons, Alt+← / Alt+→, Esc, mouse side buttons). Pages stay alive for the session and keep their filters, sorting and scroll position.
 - Keyboard: Space continues, Ctrl+F opens the rider search, the arrow keys step from rider to rider on the rider page.
 - Rider names in stage results and classifications open the rider page.
+- Race report in three short paragraphs (how the day began, mishaps, the finale) instead of one block: many crashes, punctures and attacks are counted rather than listed, and the catch of the break is told once.
+- Contracts show the day they end on instead of a year; riders without a team show none.
+- A star in the rows of the rider search, the transfer market and the team pages puts a rider on the shortlist.
+- Calendar: every race in the colour of its tier, the team's own races strong and the others pale. Before, own races were filled with the team colour and all looked alike.
+- Fixed: the back and forward arrows were invisible with some team colours.
+- Fixed: a rider who bridged to the break appeared in the report as a second "break of the day" with a mangled name.
+- Fixed: while many days were simulated, Windows could report the window as not responding; a day is now played race by race with a pause for the system in between.
 - Fixed: a pace-setter on a sector could ride above his threshold on an empty reserve for as long as the sector lasted.
 
 ## 0.2.0 alpha

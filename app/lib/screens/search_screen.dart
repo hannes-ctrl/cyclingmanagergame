@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:game/game.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sim/sim.dart';
 
 import '../app_state.dart';
@@ -76,6 +77,52 @@ class _SearchScreenState extends State<SearchScreen> {
   var _expiring = false;
   var _watched = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // The filters as the player left them, also after a restart.
+    final v = widget.state.viewOf('search');
+    if (v == null) return;
+    try {
+      _team = v['team'] as int?;
+      _country = v['country'] as String?;
+      _level.addAll((v['level'] as List).cast<String>());
+      _types.addAll((v['types'] as List).cast<String>());
+      _ages = RangeValues(
+        (v['ageFrom'] as num).toDouble(),
+        (v['ageTo'] as num).toDouble(),
+      );
+      _strength = (v['strength'] as num).toDouble();
+      _potential = (v['potential'] as num).toDouble();
+      _attribute = v['attribute'] as String?;
+      _minimum = (v['minimum'] as num).toDouble();
+      _expiring = v['expiring'] as bool;
+      _watched = v['watched'] as bool;
+    } on Object {
+      // Written by another version: start with the defaults.
+    }
+  }
+
+  /// A link elsewhere asked for the riders of a country: show them, with
+  /// the other filters open.
+  void _takeCountry() {
+    final s = widget.state;
+    final country = s.searchCountry;
+    if (country == null) return;
+    s.searchCountry = null;
+    _text = '';
+    _team = null;
+    _country = country;
+    _level.clear();
+    _types.clear();
+    _ages = const RangeValues(17, 45);
+    _strength = 50;
+    _potential = 1;
+    _attribute = null;
+    _expiring = false;
+    _watched = false;
+  }
+
   /// @param r A rider.
   /// @returns The level of his team, one of [_levels].
   String _levelOf(SimRider r) {
@@ -92,6 +139,21 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _takeCountry();
+    widget.state.rememberView('search', {
+      'team': _team,
+      'country': _country,
+      'level': _level.toList(),
+      'types': _types.toList(),
+      'ageFrom': _ages.start,
+      'ageTo': _ages.end,
+      'strength': _strength,
+      'potential': _potential,
+      'attribute': _attribute,
+      'minimum': _minimum,
+      'expiring': _expiring,
+      'watched': _watched,
+    });
     final s = widget.state;
     final c = s.colors;
     final career = s.career;
@@ -367,6 +429,51 @@ class _SearchScreenState extends State<SearchScreen> {
                               )
                             : tr('{0} Fahrer gefunden', [found.length]),
                       ),
+                      const SizedBox(width: 12),
+                      TextButton.icon(
+                        onPressed: () {
+                          final path = s.exportCsv(
+                            'fahrersuche',
+                            [
+                              tr('Fahrer'),
+                              'Team',
+                              tr('Nat'),
+                              tr('Alter'),
+                              tr('Stärke'),
+                              tr('Vertrag'),
+                            ],
+                            [
+                              for (final r in found)
+                                [
+                                  career.fullName(r.id),
+                                  r.team,
+                                  r.country,
+                                  '${year - r.born ~/ 10000}',
+                                  () {
+                                    final (low, high) = book.range(
+                                      r.id,
+                                      'Stärke',
+                                      Economy.rating(r),
+                                    );
+                                    return low == high ? '$low' : '$low–$high';
+                                  }(),
+                                  '${eco.contracts[r.id]?.endYear ?? ''}',
+                                ],
+                            ],
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                path == null
+                                    ? tr('Die Datei ließ sich nicht schreiben.')
+                                    : tr('Gespeichert: {0}', [path]),
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(LucideIcons.download, size: 16),
+                        label: Text(tr('Als CSV')),
+                      ),
                       const Spacer(),
                       Text(
                         tr(
@@ -387,6 +494,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       highlight: (r) => r.teamId == s.team.id,
                       onTap: (r) => showRiderDialog(context, s, r.id),
                       columns: [
+                        Col('', 30, (r, _) => watchStar(s, r)),
                         Col(
                           tr('Fahrer'),
                           190,
@@ -447,10 +555,14 @@ class _SearchScreenState extends State<SearchScreen> {
                         Col(
                           tr('Vertrag bis'),
                           92,
-                          (r, _) => cellText(
-                            '${eco.contracts[r.id]?.endYear ?? '–'}',
-                            color: TeamColors.muted,
-                          ),
+                          (r, _) =>
+                              cellText(switch (eco.contracts[r.id]?.endYear) {
+                                final year?
+                                    when career.teams[r.teamId]?.division !=
+                                        'Free' =>
+                                  contractEnd(year),
+                                _ => '–',
+                              }, color: TeamColors.muted),
                           numeric: true,
                           sortKey: (r) => eco.contracts[r.id]?.endYear ?? 0,
                         ),

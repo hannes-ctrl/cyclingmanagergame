@@ -145,6 +145,44 @@ void main() {
     },
   );
 
+  test(
+    'Im Hintergrund gerechnet ergibt dieselbe Saison',
+    skip: dataDir == null,
+    timeout: const Timeout(Duration(minutes: 15)),
+    () async {
+      final world = World('$dataDir/world.sqlite');
+      addTearDown(world.close);
+      final tuning = SimTuning.load('$dataDir/calibration/tuning.json');
+      final team = world.teams().firstWhere((t) => t.abbr == 'RBH').id;
+      Career start() => Career(world, teamId: team, seed: 99, tuning: tuning)
+        ..delegation.lineups = true
+        ..delegation.radio = RadioMode.off;
+      const days = 45;
+      final here = start(), there = start();
+      for (var d = 0; d < days; d++) {
+        here.advance();
+        await there.advanceAsync();
+      }
+      final a = season(here), b = season(there);
+      expect(a.length, greaterThan(20));
+      expect(b.keys, a.keys);
+      for (final stage in a.keys) {
+        expect(b[stage], a[stage], reason: stage);
+      }
+      // The radio question as well.
+      final x = start()..delegation.radio = RadioMode.all;
+      final y = start()..delegation.radio = RadioMode.all;
+      for (var d = 0; d < 25; d++) {
+        expect(
+          (await y.nextRadioCallAsync())?.call.text,
+          x.nextRadioCall()?.call.text,
+        );
+        x.advance();
+        await y.advanceAsync();
+      }
+    },
+  );
+
   test('Nur eine Stelle im Spiel simuliert Etappen', () {
     // Everything in the game and the app has to go through StageRaceRun, so
     // that no screen can end up with a second, different race.

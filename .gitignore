@@ -43,3 +43,7 @@ build/
 
 # Left behind by an interrupted test run
 /data/savegame_test*.json
+
+# Written by the player: exported lists and what he set on the screens
+/data/export/
+/data/ui_state.json

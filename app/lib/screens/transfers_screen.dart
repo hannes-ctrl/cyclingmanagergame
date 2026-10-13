@@ -28,6 +28,9 @@ class _TransfersScreenState extends State<TransfersScreen> {
   var _contract = 0;
   int? _selected;
   var _years = 2;
+
+  /// What the offer promises the rider for its first season, or null.
+  PromiseKind? _promise;
   String? _answer;
   final _wage = TextEditingController();
 
@@ -40,6 +43,7 @@ class _TransfersScreenState extends State<TransfersScreen> {
   void _select(SimRider r) => setState(() {
     _selected = r.id;
     _answer = null;
+    _promise = null;
     // Preset to the market wage; the rider's demand is not known.
     _wage.text = '${widget.state.career.economy.marketWage(r) ~/ 1000}';
   });
@@ -90,13 +94,15 @@ class _TransfersScreenState extends State<TransfersScreen> {
       final k = eco.contracts[r.id]!;
       if (k.nextTeam == s.team.id) {
         return r.teamId == s.team.id
-            ? tr('verlängert bis {0}', [k.nextEnd])
+            ? tr('verlängert bis {0}', [contractEnd(k.nextEnd)])
             : tr('kommt {0}', [year + 1]);
       }
       if (k.nextTeam != null) {
         return tr('geht zu {0}', [career.teams[k.nextTeam]?.abbr ?? '?']);
       }
-      return k.endYear <= year ? tr('läuft aus') : tr('bis {0}', [k.endYear]);
+      return k.endYear <= year
+          ? tr('läuft aus')
+          : tr('bis {0}', [contractEnd(k.endYear)]);
     }
 
     Color statusColor(SimRider r) {
@@ -298,6 +304,7 @@ class _TransfersScreenState extends State<TransfersScreen> {
                       highlight: (r) => r.id == _selected,
                       onTap: _select,
                       columns: [
+                        Col('', 30, (r, _) => watchStar(s, r)),
                         Col(
                           tr('Fahrer'),
                           190,
@@ -584,6 +591,50 @@ class _TransfersScreenState extends State<TransfersScreen> {
               const Text(' J.', style: TextStyle(fontSize: 13)),
             ],
           ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(tr('Zusage:'), style: const TextStyle(fontSize: 13)),
+              for (final kind in <PromiseKind?>[null, ...PromiseKind.values])
+                InkWell(
+                  onTap: () => setState(() => _promise = kind),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _promise == kind ? TeamColors.text : null,
+                      border: Border.all(color: c.line),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      kind == null ? tr('keine') : People.seasonText(kind),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: _promise == kind
+                            ? TeamColors.ground
+                            : TeamColors.text,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (_promise != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                tr(
+                  'Mit einer Zusage für {0} verlangt er etwas weniger. Hältst du sie nicht, fällt seine Moral tief.',
+                  [career.year + 1],
+                ),
+                style: const TextStyle(fontSize: 12, color: TeamColors.muted),
+              ),
+            ),
           const SizedBox(height: 12),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -599,7 +650,12 @@ class _TransfersScreenState extends State<TransfersScreen> {
                 ? null
                 : () {
                     final thousands = int.tryParse(_wage.text.trim()) ?? 0;
-                    final answer = s.offer(r.id, thousands * 1000, _years);
+                    final answer = s.offer(
+                      r.id,
+                      thousands * 1000,
+                      _years,
+                      promise: _promise,
+                    );
                     setState(
                       () => _answer =
                           answer ??

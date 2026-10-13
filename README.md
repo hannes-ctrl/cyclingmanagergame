@@ -15,6 +15,11 @@ The game runs on the community **WorldDB** for Pro Cycling Manager, so riders, t
 - Monthly development by age and potential: a rider grows mainly where he is already strong, slows down towards a ceiling set by his potential and declines from 31.
 - Rider search over the whole database: name, team, country, level, age, strength, potential, any single attribute, rider type and contract; riders nobody has scouted show ranges.
 - Rider page with photo (a neutral silhouette for riders without one), key figures, attributes, the change of each attribute since the rider joined, a twelve-month outlook, the form curve of the season, results, palmares and career seasons.
+- Riders as people. Every rider has a personality (professionalism, ambition, loyalty, consistency), summed up in one term as in football management games, from "model professional" and "loyal" through "balanced" to "mercenary", "slack" and "temperamental"; about a quarter are balanced, a fifth difficult. It is drawn per rider and career, a little more professional past thirty and a little more ambitious for young riders of great potential, and shown for riders your scouts know well. It changes how fast he develops, how strongly he reacts, what he asks to renew and how evenly he performs.
+- Morale for the riders of every team: wins and podiums lift it, too few race days lower it, and it shifts form and wage demands. For your riders your decisions move it as well: promises kept or broken, and whether a rider rides in the part his standing lets him expect. A rider who is injured or ill does not blame you for the race he misses.
+- Standing in the team (star, leader, key domestique, domestique, prospect): follows from strength and age and can be changed for your riders. A star used as a helper in a race that matters is displeased; a helper allowed to ride for himself is pleased.
+- Promises: a start or a leading role in one race, once per season, or, in contract talks, for the whole first season of the contract (a start in a Grand Tour, the lead in a WorldTour race). With such a promise a rider asks eight per cent less; it is settled at the end of that season.
+- Season goals: up to three races a rider builds his season around. He is sure to start there and is a good one per cent stronger, a touch weaker elsewhere. The sports directors set them from the season plan, for every team; on the rider page the target changes them, in the rider matrix a right click does, and the plan follows. Goals you set stay yours; the sports director leaves them alone. Goals of sponsor and board raise the importance of the races they concern.
 - Shortlist: a star on the rider page puts a rider on it. A message arrives when the signing period opens and he is available, and when he renews or signs elsewhere; the rider search can show the shortlist alone.
 - Compare two riders: remember one with the scales on his page, and his values appear as a second column on every other rider page. A note of your own can be kept for every rider.
 - Team pages for every team: licence, place and points of the season, wins and the squad, with strengths as ranges where your scouts do not know a rider. Reached from the rankings and from a rider's page.
@@ -53,6 +58,10 @@ The game runs on the community **WorldDB** for Pro Cycling Manager, so riders, t
 - Back and forward through the pages visited (buttons in the header, Alt+← and Alt+→, Esc, the side buttons of the mouse). Every page keeps its filters, sorting and scroll position for the session, whether a rider page lies on top of it or you come back to it from another page.
 - Keyboard: Space is the continue button, Ctrl+F opens the rider search. In the list under the mouse the arrow keys, Page Up/Down, Home and End move a cursor and Enter opens the row; on a rider page the arrow keys step through the list he was opened from. Rider names in race results lead to the rider page, races on a rider's page to their report.
 - The form in the squad shows where it is heading (↗ → ↘) since the last weekly record.
+- Help in the sidebar: how a season goes in a few steps, and a glossary of every figure. A new career starts with a welcome message.
+- Lists can be exported as CSV (rider search, team pages), into `data/export`. The filters of the rider search survive a restart (`data/ui_state.json`).
+- A message in the inbox leads to the page where its topic is dealt with; teams in result tables lead to the team page and a team's flag to the riders of its country.
+- "Simulate to a date" can stop on the day a message on chosen topics arrives.
 - English and German, switched by flags in the settings of the start menu; English is the default.
 - Settings for the size of the interface, page transitions and full screen.
 - Debug mode (in the settings): exact values for every rider, internal figures on the rider page, the wildcard chance in per cent, and a debug page with the seed, the tuning values and test actions (simulate to the end of the season, add money, heal riders).
@@ -153,6 +162,8 @@ A stage is cut into 200 m segments; where the profile smooths away the steepest 
 
 Each team rides to a plan: a role per rider, an approach (wait, control, make the race hard) and a breakaway policy. AI teams derive their plan from the route, their riders and the general classification. The quality of the sports director in the car changes how well the plan is executed.
 
+- **In the background.** In the game the stages of a day are simulated on other isolates, all races of the day at the same time, while the window stays free; the header shows what is being computed. A stage is handed over as a job (`StageJob`) holding everything that decides it, so the result is the same as on the main thread. Watching a stage, skipping it and simulating to a date all go through `StageRaceRun`; tests check both.
+
 Everything is deterministic for a given seed. 48 tuning parameters live in `data/calibration/tuning.json`. The physical ones (threshold power, the gain per attribute point, drafting, the spread of the daily form) are held within values from the literature, so that the calibration tunes how teams race rather than physics.
 
 ## Calibration
@@ -187,6 +198,7 @@ flutter test test/save_test.dart            # save -> load yields the identical 
 flutter test test/screens_test.dart         # renders every screen with real data
 flutter test test/one_simulation_test.dart  # watching, skipping and simulating to a date are one race
 flutter test test/plan_test.dart            # the sports director's season plan
+flutter test test/people_test.dart          # goals, promises, morale, personality
 ```
 
 `screens_test.dart` writes images to `app/test/goldens/`. They exist to check layouts without opening a window; pass `--update-goldens` to refresh them. Both tests need `data/world.sqlite` and are skipped without it.

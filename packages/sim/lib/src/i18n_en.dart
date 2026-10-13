@@ -459,8 +459,6 @@ const english = <String, String>{
   'Gehälter im Jahr': 'Wages per year',
   'Gehälter {0}': 'Wages {0}',
   'Gehört nicht zum Team.': 'Does not belong to the team.',
-  'Gelb: Grand Tour · Rot: Monument · Blau: WorldTour · Grau: kleinere Rennen. Punkt: Rennen gefahren. Tage über 65 werden gelb, über 80 rot.':
-      'Yellow: Grand Tour · red: monument · blue: WorldTour · grey: smaller races. Dot: race ridden. Days above 65 turn yellow, above 80 red.',
   'Gelesene in „{0}" löschen': 'Delete read messages in "{0}"',
   'Gelesene löschen': 'Delete read messages',
   'Gemeldet': 'Entered',
@@ -541,8 +539,6 @@ const english = <String, String>{
   'Klassiker': 'Classics',
   'Klassiker-Lager': 'Classics camp',
   'Kletterer': 'Climber',
-  'Klick auf ein Feld trägt den Fahrer für das Rennen ein. Beim Aufgebot schlägt der Sportliche Leiter eingetragene Fahrer zuerst vor. Die Zahl unter dem Rennen zeigt, wie viele eingetragen sind.':
-      'A click on a cell pencils the rider in for the race. For the line-up the sports director suggests pencilled-in riders first. The number below the race shows how many are pencilled in.',
   'Klick auf ein Team zeigt nur dessen Fahrer':
       'Click a team to show only its riders',
   'Km {0}: {1} Fahrer sind weg – {2}.{3}':
@@ -1211,4 +1207,161 @@ const english = <String, String>{
       'You plan yourself which rider rides which race.',
   'Der Sportliche Leiter plant zu Saisonbeginn alle Rennen, die wichtigsten zuerst und gleichmäßig über den Kader, und ersetzt Fahrer, die ausfallen. Du kannst jeden Einsatz im Rennplaner ändern.':
       'At the start of the season the sports director plans all races, the most important first and evenly across the squad, and replaces riders who drop out. You can change every entry in the race planner.',
+  'Gefahren wurde bei {0}': 'The race was ridden in {0}',
+  'Die Gruppe des Tages bildete sich nach {0} Kilometern: {1}':
+      'The break of the day formed after {0} kilometres: {1}',
+  'Der größte Vorsprung der Spitze betrug {0} Minuten':
+      'The biggest lead of the front was {0} minutes',
+  'Es gab {0} Stürze; der letzte {1} km vor dem Ziel':
+      'There were {0} crashes, the last one {1} km from the finish',
+  '{0} Fahrer aus dem Kreis der Favoriten hatten einen Defekt':
+      '{0} of the favourites had a puncture',
+  'Es folgten {0} weitere Angriffe': '{0} more attacks followed',
+  'Die Ausreißer wurden gestellt': 'The breakaway was caught',
+  'Rund {0} Kilometer vor dem Ziel war die Flucht beendet':
+      'The breakaway was over about {0} kilometres from the finish',
+  'Das Feld kam nicht mehr heran': 'The field did not get back to them',
+  '{0} Rennen': '{0} races',
+  'sehr hoch': 'very high',
+  'hoch': 'high',
+  'niedrig': 'low',
+  'sehr niedrig': 'very low',
+  'Start': 'Start',
+  'Kapitänsrolle': 'Leading role',
+  'begeistert': 'delighted',
+  'zufrieden': 'content',
+  'in Ordnung': 'fine',
+  'unzufrieden': 'unhappy',
+  'sehr unzufrieden': 'very unhappy',
+  'Ein Fahrer kann höchstens {0} Saisonziele haben.':
+      'A rider can have at most {0} season goals.',
+  'Er hat für diese Saison schon ein Versprechen.':
+      'He already has a promise for this season.',
+  'Das Rennen läuft schon oder ist vorbei.':
+      'The race is already running or over.',
+  'Versprechen: {0} bei {1}': 'Promise: {0} at {1}',
+  'Versprechen gehalten: {0}': 'Promise kept: {0}',
+  'Versprechen gebrochen: {0}': 'Promise broken: {0}',
+  '{0} fühlt sich getäuscht': '{0} feels deceived',
+  'Du hattest ihm für {0} etwas zugesagt ({1}) und es nicht gehalten. Das merkt er sich, auch bei der nächsten Vertragsverhandlung.':
+      'You had promised him something for {0} ({1}) and did not keep it. He will remember, at the next contract talks too.',
+  'Sieg: {0}': 'Win: {0}',
+  '{0}. Platz: {1}': 'Place {0}: {1}',
+  'Zu wenige Renntage im Programm': 'Too few race days in his programme',
+  'Person': 'Person',
+  'Moral': 'Morale',
+  'Versprechen': 'Promise',
+  'Etwas versprechen …': 'Make a promise …',
+  'Professionalität': 'Professionalism',
+  'Ehrgeiz': 'Ambition',
+  'Treue': 'Loyalty',
+  'Konstanz': 'Consistency',
+  'Geplante Rennen · Ziele {0}/{1}': 'Planned races · goals {0}/{1}',
+  'Versprechen an {0}': 'Promise to {0}',
+  'Ein Versprechen hebt seine Moral sofort. Hältst du es, steigt sie noch einmal; brichst du es, fällt sie tief, und er merkt es sich. Je Fahrer und Saison ist ein Versprechen möglich.':
+      'A promise lifts his morale at once. Keep it and it rises again; break it and it falls far, and he remembers. One promise per rider and season is possible.',
+  'Hilfe': 'Help',
+  'So läuft eine Saison': 'How a season goes',
+  'Begriffe': 'Glossary',
+  'Weiter': 'Continue',
+  'Der Knopf oben rechts (oder die Leertaste) lässt die Tage laufen, bis etwas dein Team betrifft: ein Rennen, eine Nachricht, eine Rückfrage aus dem Rennen.':
+      'The button at the top right (or the space bar) lets the days run until something concerns your team: a race, a message, a question from the race.',
+  'Der Sportliche Leiter hat alle Rennen der Saison geplant. Im Rennplaner änderst du einzelne Einsätze; auf der Fahrerseite setzt du mit der Zielscheibe Saisonziele, auf die ein Fahrer seine Form ausrichtet.':
+      'The sports director has planned every race of the season. In the race planner you change single entries; on the rider page the target sets season goals a rider builds his form towards.',
+  'Vor jedem Rennen bestätigst du das Aufgebot. Mit eigener Taktik legst du einzelne Rollen fest (Nadel) oder alles; den Rest plant der Sportliche Leiter je Etappe.':
+      'Before every race you confirm the line-up. With your own tactics you pin single roles or fix everything; the sports director plans the rest stage by stage.',
+  'Funk': 'Radio',
+  'Im Rennen meldet sich der Sportliche Leiter bis zu dreimal. Die markierte Antwort ist seine Empfehlung. Unter „Aufgabenverteilung" lässt sich der Funk abschalten.':
+      'During a race the sports director calls in up to three times. The marked answer is his recommendation. The radio can be switched off under "Delegation".',
+  'Moral, Versprechen und Persönlichkeit stehen auf der Fahrerseite. Der Stern setzt fremde Fahrer auf die Beobachtungsliste, die Waage vergleicht zwei Fahrer.':
+      'Morale, promises and personality are on the rider page. The star puts riders of other teams on the shortlist, the scales compare two riders.',
+  'Tastatur': 'Keyboard',
+  'Leertaste: weiter. Esc oder Alt+←: zurück. Strg+F: Fahrersuche. Pfeiltasten und Enter: durch Listen und von Fahrer zu Fahrer.':
+      'Space: continue. Esc or Alt+←: back. Ctrl+F: rider search. Arrow keys and Enter: through lists and from rider to rider.',
+  'Zu Form und Training': 'To form and training',
+  'Zum Nachwuchsteam': 'To the development team',
+  'Zu den Transfers': 'To the transfers',
+  'Zu den Ranglisten': 'To the rankings',
+  'Zu Finanzen und Zielen': 'To finances and goals',
+  'Zur Fahrersuche': 'To the rider search',
+  'Die Datei ließ sich nicht schreiben.': 'The file could not be written.',
+  'Gespeichert: {0}': 'Saved: {0}',
+  'Als CSV': 'As CSV',
+  'Anhalten, sobald eine Nachricht zu diesen Themen kommt:':
+      'Stop as soon as a message on these topics arrives:',
+  'Willkommen bei {0}': 'Welcome to {0}',
+  'Der Sportliche Leiter hat die Saison geplant; im Rennplaner siehst du, wer wo fährt. „Weiter" oben rechts lässt die Tage laufen, bis etwas dein Team betrifft. Vor jedem Rennen bestätigst du das Aufgebot, im Rennen meldet sich der Sportliche Leiter über Funk. Was die Zahlen bedeuten und welche Tasten es gibt, steht unter „Hilfe" unten links.':
+      'The sports director has planned the season; the race planner shows who rides where. "Continue" at the top right lets the days run until something concerns your team. Before every race you confirm the line-up, during the race the sports director calls in over the radio. What the figures mean and which keys there are is under "Help" at the bottom left.',
+  'Bis zu drei Rennen, auf die ein Fahrer seine Saison ausrichtet. Dort startet er sicher und ist gut ein Prozent stärker, in den übrigen Rennen eine Spur schwächer. Der Sportliche Leiter setzt sie aus dem Saisonplan; mit der Zielscheibe änderst du sie.':
+      'Up to three races a rider builds his season around. He is sure to start there and is a good one per cent stronger, a touch weaker in the other races. The sports director sets them from the season plan; the target changes them.',
+  'Wie ernst ein Fahrer Training und Erholung nimmt. Hohe Professionalität lässt ihn bis zu zehn Prozent schneller reifen, niedrige entsprechend langsamer.':
+      'How seriously a rider takes training and recovery. High professionalism lets him develop up to ten per cent faster, low professionalism correspondingly slower.',
+  'Wie sehr ein Fahrer Ergebnisse und eine eigene Rolle will. Ehrgeizige Fahrer reagieren stärker auf alles, was ihre Moral bewegt, und beschweren sich über zu wenige Renntage.':
+      'How much a rider wants results and a role of his own. Ambitious riders react more strongly to everything that moves their morale, and complain about too few race days.',
+  'Wie sehr ein Fahrer an seinem Team hängt. Treue Fahrer verlangen weniger, um zu verlängern.':
+      'How attached a rider is to his team. Loyal riders ask less to renew.',
+  'Wie wenig die Form eines Fahrers von Rennen zu Rennen schwankt.':
+      'How little a rider\'s form varies from race to race.',
+  'WIRD SIMULIERT': 'SIMULATING',
+  'Musterprofi': 'Model professional',
+  'Perfektionist': 'Perfectionist',
+  'Söldner': 'Mercenary',
+  'Nachlässig': 'Slack',
+  'Launisch': 'Temperamental',
+  'Unbeständig': 'Fickle',
+  'Ohne Ehrgeiz': 'Unambitious',
+  'Dem Team ergeben': 'Devoted',
+  'Professionell': 'Professional',
+  'Sehr ehrgeizig': 'Very ambitious',
+  'Zielstrebig': 'Driven',
+  'Loyal': 'Loyal',
+  'Ehrgeizig': 'Ambitious',
+  'Verlässlich': 'Reliable',
+  'Recht professionell': 'Fairly professional',
+  'Lässig': 'Casual',
+  'Genügsam': 'Easily content',
+  'Ausgeglichen': 'Balanced',
+  'Star': 'Star rider',
+  'Edelhelfer': 'Key domestique',
+  'Helfer': 'Domestique',
+  'Talent': 'Prospect',
+  'Persönlichkeit': 'Personality',
+  'Stellung im Team': 'Standing in the team',
+  'Stellung im Team ändern': 'Change his standing in the team',
+  'Stellung': 'Standing',
+  'Aufgewertet: {0}': 'Moved up: {0}',
+  'Zurückgestuft: {0}': 'Moved down: {0}',
+  'Start bei einer Grand Tour': 'A start in a Grand Tour',
+  'Kapitän in einem WorldTour-Rennen': 'Leader in a WorldTour race',
+  'Versprechen entfällt, er ist nicht fit: {0}':
+      'Promise lapses, he is not fit: {0}',
+  'Als Helfer eingesetzt: {0}': 'Used as a domestique: {0}',
+  'Durfte auf eigene Rechnung fahren: {0}':
+      'Was allowed to ride for himself: {0}',
+  'Zugesagt für {0}: {1}.': 'Promised for {0}: {1}.',
+  'Zugesagt für {0}': 'Promised for {0}',
+  'Zusage:': 'Promise:',
+  'keine': 'none',
+  'Mit einer Zusage für {0} verlangt er etwas weniger. Hältst du sie nicht, fällt seine Moral tief.':
+      'With a promise for {0} he asks a little less. If you do not keep it, his morale falls far.',
+  'Du hattest ihm etwas zugesagt ({0}: {1}) und es nicht gehalten. Das merkt er sich, auch bei der nächsten Vertragsverhandlung.':
+      'You had promised him something ({0}: {1}) and did not keep it. He will remember, also in the next contract talks.',
+  'Klick trägt den Fahrer für das Rennen ein, Rechtsklick macht es zu einem seiner Saisonziele. Unter jedem Rennen steht, wie viele Fahrer von wie vielen Startplätzen eingetragen sind.':
+      'A click pencils the rider in for the race, a right click makes it one of his season goals. Below every race: how many riders are pencilled in, of how many places.',
+  'Nur kommende': 'Upcoming only',
+  '{0} von {1} eingetragen': '{0} of {1} pencilled in',
+  'Kleinere Rennen': 'Smaller races',
+  'Gefahren': 'Ridden',
+  'Saisonziel': 'Season goal',
+  'Fällt am Renntag aus': 'Out on race day',
+  'Weißer Rand: Versprechen. Tage über 65 gelb, über 80 rot.':
+      'White border: promise. Days above 65 yellow, above 80 red.',
+  'Die Person in einem Wort, aus Professionalität, Ehrgeiz, Treue und Konstanz. Grün ist ein gutes Zeichen (etwa Musterprofi, Professionell, Loyal), rot eine Warnung (etwa Söldner, Nachlässig, Launisch); die meisten Fahrer sind ausgeglichen. Sie steht fest, sobald die Karriere beginnt.':
+      'The person in a word, from professionalism, ambition, loyalty and consistency. Green is a good sign (such as model professional, professional, loyal), red a warning (such as mercenary, slack, temperamental); most riders are balanced. It is fixed once the career begins.',
+  'Was ein Fahrer in seinem Team erwarten darf: Star und Kapitän wollen in wichtigen Rennen auf eigene Rechnung fahren, Edelhelfer, Helfer und Talente nicht. Sie folgt aus Stärke und Alter; bei deinen Fahrern änderst du sie. Eine Aufwertung hebt die Moral, eine Rückstufung drückt sie, ebenso ein Star, der Helferdienste leisten muss.':
+      'What a rider may expect in his team: a star and a leader want to ride for themselves in important races; key domestiques, domestiques and prospects do not. It follows from strength and age; for your riders you can change it. Moving a rider up lifts his morale, moving him down lowers it, and so does a star who has to work for others.',
+  'Wie zufrieden ein Fahrer ist, in jedem Team. Siege, Podien, gehaltene Versprechen und eine Rolle über seiner Stellung heben sie; gebrochene Versprechen, eine Rückstufung und zu wenige Renntage drücken sie. Wer verletzt oder krank ist, nimmt ein verpasstes Rennen nicht übel. Sie verschiebt seine Form um bis zu knapp ein Prozent in jede Richtung und seine Gehaltsforderung.':
+      'How content a rider is, in every team. Wins, podiums, kept promises and a role above his standing raise it; broken promises, being moved down and too few race days lower it. A rider who is injured or ill does not resent a race he misses. It shifts his form by up to just under one per cent either way, and the wage he asks.',
+  'Eine Zusage: ein Startplatz oder eine Kapitänsrolle in einem Rennen, oder im Vertragsgespräch für die ganze erste Saison (Start bei einer Grand Tour, Kapitän in einem WorldTour-Rennen). Gehalten hebt sie die Moral, gebrochen fällt die Moral tief. Fällt der Fahrer verletzt oder krank aus, entfällt sie ohne Folgen.':
+      'A commitment: a start or a leading role in one race, or, in contract talks, for the whole first season (a start in a Grand Tour, leader in a WorldTour race). Kept, it lifts morale; broken, morale falls far. If the rider is out injured or ill, it lapses without consequences.',
 };

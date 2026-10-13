@@ -237,6 +237,95 @@ class StageRaceRun {
         illness: oneDay ? 0 : illnessPerStage,
       );
 
+  /// Packs a stage into a job.
+  StageJob _job(SimRoute route, _Snapshot s,
+          {int? radioTeam, bool askRadio = false}) =>
+      StageJob._(route, s, tuning, month, country, oneDay ? 0 : illnessPerStage,
+          radioTeam, askRadio, I18n.lang);
+
+  /// The next stage as a job that does not count: for a preview that is
+  /// simulated on another isolate.
+  ///
+  /// @param route The stage.
+  /// @param plans Tactics of the teams that do not follow the automatic plan.
+  /// @param directorSkills Quality of the sports director per team.
+  /// @param radioTeam Team that is asked over the radio.
+  /// @param radio Answers given so far.
+  /// @param askRadio Whether to pause at the first unanswered question.
+  /// @returns The job; its result is not to be passed to [finish].
+  StageJob previewJob(SimRoute route,
+          {Map<int, TeamPlan> plans = const {},
+          Map<int, double> directorSkills = const {},
+          int? radioTeam,
+          Map<RadioKind, int> radio = const {},
+          bool askRadio = false}) =>
+      _job(route, _snapshot(plans, directorSkills, radio),
+          radioTeam: radioTeam, askRadio: askRadio);
+
+  /// Starts the next stage: fixes everything that decides it and returns it
+  /// as a job. The job can be run here or on another isolate; its result
+  /// goes to [finish].
+  ///
+  /// @param route The stage.
+  /// @param plans Tactics of the teams that do not follow the automatic plan.
+  /// @param directorSkills Quality of the sports director per team.
+  /// @param radioTeam Team whose radio answers apply.
+  /// @param radio Radio answers of that team.
+  /// @returns The job.
+  StageJob begin(SimRoute route,
+      {Map<int, TeamPlan> plans = const {},
+      Map<int, double> directorSkills = const {},
+      int? radioTeam,
+      Map<RadioKind, int> radio = const {}}) {
+    final snapshot = _snapshot(plans, directorSkills, radio);
+    _before.add(snapshot);
+    return _job(route, snapshot, radioTeam: radioTeam);
+  }
+
+  /// Takes the result of a job started with [begin] into the race: time
+  /// limit, classifications, fatigue.
+  ///
+  /// @param job The job.
+  /// @param result What [StageJob.run] returned, here or on another isolate.
+  /// @returns The result with the riders of this race in it.
+  StageResult finish(StageJob job, StageResult result) {
+    final linked = _relink(result, job._s.riders);
+    _timeCut(job.route, linked);
+    results.add(linked);
+    _classify(job.route, linked);
+    _recover(job.route, linked);
+    _nextSeed = _rng.nextInt(1 << 31);
+    return linked;
+  }
+
+  /// A result that crossed an isolate boundary holds copies of the riders.
+  /// The race works with its own rider objects, so they are put back.
+  static StageResult _relink(StageResult r, List<SimRider> riders) {
+    if (r.placings.isEmpty ||
+        riders.any((x) => identical(x, r.placings.first.rider))) {
+      return r;
+    }
+    final own = {for (final x in riders) x.id: x};
+    return StageResult(
+      [for (final p in r.placings) Placing(own[p.rider.id]!, p.timeS, p.group)],
+      r.events,
+      r.breakSurvived,
+      [
+        for (final a in r.awards)
+          PointAward(a.point, [for (final x in a.order) own[x.id]!]),
+      ],
+    )
+      ..openCall = r.openCall
+      ..timeline = r.timeline
+      ..traces = r.traces
+      ..injuries = r.injuries
+      ..weather = r.weather
+      ..abandons = [
+        for (final a in r.abandons)
+          Abandon(own[a.rider.id]!, a.km, a.reason, a.days),
+      ];
+  }
+
   /// Simulates the next stage as a trial that does not count.
   ///
   /// @param route The stage.
@@ -311,15 +400,12 @@ class StageRaceRun {
       Map<int, double> directorSkills = const {},
       int? radioTeam,
       Map<RadioKind, int> radio = const {}}) {
-    final snapshot = _snapshot(plans, directorSkills, radio);
-    _before.add(snapshot);
-    final result = _simulate(route, snapshot, radioTeam: radioTeam);
-    _timeCut(route, result);
-    results.add(result);
-    _classify(route, result);
-    _recover(route, result);
-    _nextSeed = _rng.nextInt(1 << 31);
-    return result;
+    final job = begin(route,
+        plans: plans,
+        directorSkills: directorSkills,
+        radioTeam: radioTeam,
+        radio: radio);
+    return finish(job, job.run());
   }
 
   /// Adds a stage result to all classifications. Uses no randomness, so the
@@ -711,6 +797,50 @@ class StageRaceRun {
     run._rng.state = j['rng'] as int;
     run._nextSeed = j['next'] as int;
     return run;
+  }
+}
+
+/// One stage with everything that decides it, as plain data. It can be
+/// handed to another isolate and simulated there.
+class StageJob {
+  StageJob._(this.route, this._s, this._tuning, this._month, this._country,
+      this._illness, this._radioTeam, this._askRadio, this._lang);
+
+  /// The stage.
+  final SimRoute route;
+  final _Snapshot _s;
+  final SimTuning? _tuning;
+  final int _month;
+  final String _country;
+  final double _illness;
+  final int? _radioTeam;
+  final bool _askRadio;
+
+  /// Language of the event texts; an isolate does not know the setting of
+  /// the one that started it.
+  final Lang _lang;
+
+  /// Simulates the stage. The same job always gives the same result.
+  ///
+  /// @returns The result, or a paused result with an open radio question.
+  StageResult run() {
+    I18n.lang = _lang;
+    return simulateStage(
+      route,
+      _s.riders,
+      seed: _s.seed,
+      tuning: _tuning,
+      plans: _s.plans,
+      directorSkills: _s.directors,
+      gcGaps: _s.gcGaps,
+      conditions: _s.conditions,
+      radioTeam: _radioTeam,
+      radio: _s.radio,
+      askRadio: _askRadio,
+      month: _month,
+      country: _country,
+      illness: _illness,
+    );
   }
 }
 
