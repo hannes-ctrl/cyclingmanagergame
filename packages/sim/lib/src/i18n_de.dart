@@ -1393,6 +1393,10 @@ const german = <String, String>{
       'Angriffe je Kilometer an Bergen vor dem Finale',
   'Factor on the will to attack away from the climbs':
       'Faktor auf die Angriffslust abseits der Steigungen',
+  'Effort above which a rider with nothing to ride for lets the group go':
+      'Anstrengung, ab der ein Fahrer ohne Aufgabe die Gruppe ziehen lässt',
+  'Effort of a group in which nobody races any more on a hard day':
+      'Anstrengung einer Gruppe, in der an einem schweren Tag niemand mehr Rennen fährt',
   'Remaining air resistance in the line of a team time trial':
       'Restlicher Luftwiderstand in der Reihe des Mannschaftszeitfahrens',
   'Promised for {0}: {1}.': 'Zugesagt für {0}: {1}.',

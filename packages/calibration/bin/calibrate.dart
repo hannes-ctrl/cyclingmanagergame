@@ -1,7 +1,11 @@
 // Tunes the simulation against real results.
 //
-//   dart run bin/calibrate.dart report [--runs n]
-//       Compares the current tuning with the real races.
+//   dart run bin/calibrate.dart report [--runs n] [--sample k] [--types a,b]
+//       [--set name=value ...]
+//       Compares the current tuning with the real races. With --sample only
+//       every k-th race counts and --runs is taken as given: a quick check
+//       of a model change. --types limits it to race types (Flach, Hügel,
+//       Berg, Sektoren, Zeitfahren).
 //   dart run bin/calibrate.dart run [--hours h] [--runs n] [--margin m]
 //       Searches for better tuning values for h hours (default 8).
 //       Every improvement is written to data/calibration/tuning.json at
@@ -43,6 +47,10 @@ Future<void> main(List<String> argv) async {
   final dry = args.remove('--dry');
   final hours = option('--hours', 8);
   final runs = option('--runs', 4).round();
+  final sample = option('--sample', 1).round();
+  final ti = args.indexOf('--types');
+  final onlyTypes = ti < 0 ? null : args[ti + 1].split(',').toSet();
+  if (ti >= 0) args.removeRange(ti, ti + 2);
   final margin = option('--margin', 0.1);
   const year = 2026;
   final root = Platform.script.resolve('../../../data/').toFilePath();
@@ -69,6 +77,12 @@ Future<void> main(List<String> argv) async {
   }
   stdout.writeln('${data.cases.length} Vergleichsrennen: $byType');
   final tuning = SimTuning.load(tuningFile.path).toMap();
+  // --set name=value: try a value without writing it, for the report.
+  for (var i = args.indexOf('--set'); i >= 0; i = args.indexOf('--set')) {
+    final kv = args[i + 1].split('=');
+    tuning[kv[0]] = double.parse(kv[1]);
+    args.removeRange(i, i + 2);
+  }
   stdout.writeln(tuningFile.existsSync()
       ? 'Einstellung aus ${tuningFile.path}'
       : 'Noch keine kalibrierte Einstellung, es gelten die Standardwerte');
@@ -78,12 +92,20 @@ Future<void> main(List<String> argv) async {
       data.notes.forEach(stdout.writeln);
     case 'report':
       final watch = Stopwatch()..start();
-      final e =
-          await evaluate(data.cases, tuning, runs: max(runs, 8), seed: 12345);
+      final quick = sample > 1 || onlyTypes != null;
+      final cases = [
+        for (var i = 0; i < data.cases.length; i++)
+          if (i % sample == 0 &&
+              (onlyTypes == null || onlyTypes.contains(data.cases[i].type)))
+            data.cases[i],
+      ];
+      final e = await evaluate(cases, tuning,
+          runs: quick ? runs : max(runs, 8), seed: 12345);
       _report(e);
       _reportSplit(e);
       _reportBounds(tuning);
-      stdout.writeln('\n${max(runs, 8)} Läufe je Rennen in '
+      stdout.writeln('\n${quick ? runs : max(runs, 8)} Läufe je Rennen, '
+          '${cases.length} Rennen in '
           '${watch.elapsed.inSeconds} s');
     case 'run':
       void log(String line) {

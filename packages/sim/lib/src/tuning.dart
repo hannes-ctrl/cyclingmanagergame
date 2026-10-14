@@ -150,6 +150,10 @@ class SimTuning {
         'Factor on the will to attack away from the climbs'),
     TuningParam('tttDraft', 0.7, 0.55, 0.85,
         'Remaining air resistance in the line of a team time trial'),
+    TuningParam('sitUpEffort', 0.85, 0.7, 1.0,
+        'Effort above which a rider with nothing to ride for lets the group go'),
+    TuningParam('aimlessEffort', 0.72, 0.6, 0.88,
+        'Effort of a group in which nobody races any more on a hard day'),
   ];
 
   /// Threshold power in W/kg at attribute 70.
@@ -290,6 +294,14 @@ class SimTuning {
 
   /// Remaining drag in the line of a team time trial.
   double get tttDraft => _a[47];
+
+  /// Effort, relative to his threshold, above which a rider with nothing
+  /// left to ride for lets the group go on a selective day.
+  double get sitUpEffort => _a[48];
+
+  /// Effort of a group in which nobody races any more on a hard day: it
+  /// rolls to the finish.
+  double get aimlessEffort => _a[49];
 
   /// Effort of the front on cobbled sectors while the race is on.
   double get cobbleEffort => _a[34];

@@ -865,6 +865,7 @@ class _RoadRace {
     for (seg = 0; seg < segments.length; seg++) {
       final s = segments[seg];
       final inFinale = s.km >= finaleKm;
+      _inFinale = inFinale;
       for (final m in states) {
         if (m.out) continue;
         m.thr = _computeThreshold(m);
@@ -1110,13 +1111,20 @@ class _RoadRace {
   double _allowedGap(double remainingKm, bool threatAhead) {
     // If nobody dangerous for the general classification is up the road, the
     // GC teams let the group go on hard days.
-    final letGo = hasGc && !sprintStage && !threatAhead ? t.letGoFactor : 1.0;
+    // In a stage race that is already from the second stage on: the
+    // favourites ride for the overall, not for the stage.
+    final letGo =
+        _stageRace && !sprintStage && !threatAhead ? t.letGoFactor : 1.0;
+    // On a summit finish the favourites take minutes out of a break on the
+    // last climb, so the field can leave it more.
+    final summit = uphillFinish && route.selectivity > 1500 ? 120.0 : 0.0;
     return max(
         20.0,
-        t.secondsPerKmAllowed *
-            (sprintStage ? t.sprintStageAllowed : 1) *
-            letGo *
-            remainingKm);
+        summit +
+            t.secondsPerKmAllowed *
+                (sprintStage ? t.sprintStageAllowed : 1) *
+                letGo *
+                remainingKm);
   }
 
   /// Teams working in the field: they want to control, their leader is
@@ -1709,6 +1717,16 @@ class _RoadRace {
       }
       // Nobody rides above his threshold on an empty tank.
       if (effort > 1 && ref.reserve < 0.05) effort = 1.0;
+    } else if (aheadOfMain && n >= 8 && !order.any((m) => m.inBreak)) {
+      // A front part of the field after a split (an echelon, a hard climb):
+      // the teams in it press on to keep the others behind.
+      ref = order[n ~/ 2];
+      effort = max(t.chaseGroupEffort, t.breakEffort);
+      workers = {
+        for (final m in order)
+          if (!m.role.sheltered && !m.blown) m,
+      }.take(10).toSet();
+      if (workers.isEmpty) workers = order.take(6).toSet();
     } else if (aheadOfMain) {
       ref = order[n ~/ 2];
       effort = inFinale ? 0.96 : t.breakEffort;
@@ -1741,18 +1759,20 @@ class _RoadRace {
           : pool;
       final crew = pace.isEmpty ? order : pace;
       ref = crew[crew.length ~/ 2];
-      // On a climb the riders on the front climb at the field's own tempo,
-      // not at the pace a rouleur would ride uphill.
-      if (s.grade > 0.03) {
-        final tempo = order[(n * 0.35).floor()];
-        if (_threshold(tempo) > _threshold(ref)) ref = tempo;
-      }
-      workers = crew.take(8).toSet();
       // The bigger the gap relative to the distance left, the harder the chase.
       // If nobody dangerous for the general classification is up the road, the
       // GC teams let the group go on hard days.
       final allowed = _allowedGap(remainingKm, threatAhead);
       final pressure = (gapToFront / allowed).clamp(0.0, 1.0);
+      // On a climb the riders on the front climb at the field's own tempo,
+      // not at the pace a rouleur would ride uphill: that of its stronger
+      // riders while it controls or chases, that of the middle of the
+      // field while it lets a group go.
+      if (s.grade > 0.03) {
+        final tempo = order[(n * (pressure >= 0.6 ? 0.35 : 0.55)).floor()];
+        if (_threshold(tempo) > _threshold(ref)) ref = tempo;
+      }
+      workers = crew.take(8).toSet();
       // Nobody chases: the field dawdles. Several teams: the chase runs smoothly.
       final interest =
           const [0.86, 0.95, 1.0, 1.03][min(chasingTeams.length, 3)];
@@ -1807,15 +1827,8 @@ class _RoadRace {
       ref = order[min(n - 1, (n * 0.85).floor())];
       // The closer the bus comes to the time limit, the harder it rides; at
       // the share [SimTuning.gruppettoCutShare] of the limit it rides flat out.
-      final frontClock = g.clock - gapToFront;
-      final km = s.km + s.lengthM / 1000;
-      final kmh = frontClock > 0 ? km / (frontClock / 3600) : 40.0;
-      final limit = t.gruppettoCutShare * timeLimitShare(route, kmh);
-      final danger = limit <= 0
-          ? 0.0
-          : ((gapToFront / max(1.0, frontClock) / limit - 0.5) / 0.5)
-              .clamp(0.0, 1.0);
-      effort = t.gruppettoEffort + (1.0 - t.gruppettoEffort) * danger;
+      effort = t.gruppettoEffort +
+          (1.0 - t.gruppettoEffort) * _cutDanger(g, s, gapToFront);
       workers = order.take(12).toSet();
       if (n >= 20 && !_gruppettoReported) {
         _gruppettoReported = true;
@@ -1835,9 +1848,18 @@ class _RoadRace {
       workers = helpers.isNotEmpty ? helpers.toSet() : order.toSet();
     } else {
       // Dropped riders: chase at first, far behind just get to the finish.
+      // On a hard day a group in which nobody races any more rolls in.
       g.gruppetto = false;
       ref = order[n ~/ 2];
-      effort = gapToFront < 180 && !inFinale ? 0.92 : t.droppedEffort;
+      final leaders = _leadersIn(order);
+      final aimless = _selective && !order.any((m) => _hasStake(m, leaders));
+      // A group that only rolls in still watches the time limit.
+      effort = aimless
+          ? t.aimlessEffort +
+              (1.0 - t.aimlessEffort) * _cutDanger(g, s, gapToFront)
+          : gapToFront < 180 && !inFinale
+              ? 0.92
+              : t.droppedEffort;
       workers = order.where((m) => !m.role.sheltered).take(6).toSet();
     }
 
@@ -1865,9 +1887,27 @@ class _RoadRace {
 
     final convoyShelter = g.convoy && remainingKm > 3 ? 0.7 : 1.0;
     // Whoever sets the pace takes turns and feels more wind than the rest.
-    final frontShare = n >= 3
-        ? (1 + draft) / 2
-        : n == 2
+    // Only the riders who work share the front: in a big field a handful of
+    // them rotate, and they have the shelter of a small group, not of the
+    // whole bunch.
+    // The field always has a few riders to share the front with, a team
+    // train in the finale.
+    // In an echelon the whole line in the shelter takes turns.
+    final rotating = workers.isEmpty
+        ? n
+        : echelon
+            ? min(n, max(4, t.echelonSize.round()))
+            : min(n, max(isMain ? 4 : 2, workers.length));
+    var frontDraft = 1 -
+        (1 - draftFactor(rotating, t)) *
+            (1 - t.cobbleDraftLoss * (s.cobble + 0.5 * s.unpaved))
+                .clamp(0.0, 1.0);
+    if (cross > 2) {
+      frontDraft = 1 - (1 - frontDraft) * max(0.7, 1 - 0.03 * cross);
+    }
+    final frontShare = rotating >= 3
+        ? (1 + frontDraft) / 2
+        : rotating == 2
             ? 0.86
             : 1.0;
     final frontCda = ref.cda * frontShare * convoyShelter;
@@ -1887,6 +1927,13 @@ class _RoadRace {
     // has to be closed. Behind a rider who lets the wheel go, the rest is
     // gapped too, unless they have the punch to come round him.
     final onSector = rough >= 2 && n >= 4;
+    // On a hard day, once the race is on, whoever has nothing left to ride
+    // for does not suffer on the climbs to stay with the group.
+    final easing = _selective &&
+        (isMain || aheadOfMain) &&
+        s.grade > 0.02 &&
+        (inFinale || remainingKm < route.raceKm * 0.4);
+    final leadersHere = easing ? _leadersIn(order) : const <int>{};
     final line = onSector
         ? ([...order]..sort((a, b) => a.rank.compareTo(b.rank)))
         : order;
@@ -1927,9 +1974,12 @@ class _RoadRace {
               ((v - own) / v * 10).clamp(0.0, 0.8) * lengthKm * 2;
         }
       }
+      final sitsUp =
+          easing && e > t.sitUpEffort && !working && !_hasStake(m, leadersHere);
       if (!identical(m, ref) &&
           (stuck ||
               lostDownhill ||
+              sitsUp ||
               e > burst ||
               e > 1.0 && m.reserve <= 0.03)) {
         dropped.add(m);
@@ -1991,6 +2041,83 @@ class _RoadRace {
 
   /// Kilometre of the last reported split in the crosswind.
   double _lastEchelonKm = -100;
+
+  /// Whether the stage belongs to a stage race that has started: the
+  /// riders bring gaps in the general classification.
+  late final bool _stageRace = states.any((m) => m.gcGap != null);
+
+  /// How close a group behind comes to the time limit: 0 while it is far
+  /// from it, 1 once it has used up the share
+  /// [SimTuning.gruppettoCutShare] of the limit.
+  ///
+  /// @param g The group.
+  /// @param s Current segment.
+  /// @param gapToFront Seconds behind the head of the race.
+  /// @returns 0 to 1.
+  double _cutDanger(_Group g, Segment s, double gapToFront) {
+    final frontClock = g.clock - gapToFront;
+    final km = s.km + s.lengthM / 1000;
+    final kmh = frontClock > 0 ? km / (frontClock / 3600) : 40.0;
+    final limit = t.gruppettoCutShare * timeLimitShare(route, kmh);
+    return limit <= 0
+        ? 0.0
+        : ((gapToFront / max(1.0, frontClock) / limit - 0.5) / 0.5)
+            .clamp(0.0, 1.0);
+  }
+
+  /// Whether the current segment lies in the finale.
+  bool _inFinale = false;
+
+  /// Whether the day is hard enough for riders to give up on it.
+  late final bool _selective = !route.sprintStage && route.selectivity > 600;
+
+  /// Whether a rider still has a reason to race with the front of his
+  /// group: a favourite, a rider in the break or riding for himself, one
+  /// placed in the general classification, or a helper who can still
+  /// help a leader of his in the same group. Everybody else saves himself
+  /// on a hard day once the race is on.
+  ///
+  /// @param m The rider.
+  /// @param leaders Teams with a leader in the group.
+  /// @returns Whether he races on.
+  bool _hasStake(_State m, Set<int> leaders) {
+    if (m.favorite || m.inBreak) return true;
+    if (hasGc && m.gcGap != null && m.gcGap! < 600) return true;
+    // A sprinter hangs on on a hilly day, not in the mountains.
+    if (m.role == Role.sprinter) return route.selectivity <= 1500;
+    if (m.role.ridesForHimself) return true;
+    if (!m.role.works ||
+        m.blown ||
+        m.energy <= t.helperEmpty ||
+        !leaders.contains(m.rider.teamId)) {
+      return false;
+    }
+    // In the finale only the climbing domestiques and the lead-out men
+    // still have a job, and the helpers of a team that rides for its
+    // sprinter or has been told to empty itself; the others have done
+    // theirs.
+    return !_inFinale ||
+        m.role == Role.climbDomestique ||
+        m.role == Role.leadOut ||
+        _driving.contains(m.rider.teamId) ||
+        _sprinting.contains(m.rider.teamId);
+  }
+
+  /// Teams with a rider in the group they ride for. Also fills
+  /// [_sprinting] with the teams whose sprinter is in it.
+  Set<int> _leadersIn(List<_State> order) {
+    _sprinting = {
+      for (final m in order)
+        if (m.role == Role.sprinter) m.rider.teamId,
+    };
+    return {
+      for (final m in order)
+        if (m.favorite || m.role.sheltered) m.rider.teamId,
+    };
+  }
+
+  /// Teams whose sprinter is in the group just looked at.
+  var _sprinting = <int>{};
 
   /// Decides, once per five-kilometre block of crosswind, whether a team
   /// splits the field: one whose plan is to ride the race, with fresh strong
@@ -2055,8 +2182,8 @@ class _RoadRace {
   /// @param gapToMain Seconds behind the group with the favourites.
   /// @returns true if the group rides as a gruppetto.
   bool _formsGruppetto(List<_State> members, double gapToMain) =>
-      route.selectivity > 1500 &&
-      gapToMain > 90 &&
+      _selective &&
+      gapToMain > (route.selectivity > 1500 ? 90 : 60) &&
       !members
           .any((m) => m.favorite || hasGc && m.gcGap != null && m.gcGap! < 900);
 

@@ -175,8 +175,13 @@ void main() {
     test('a gale splits the field in echelons', () {
       var calm = 0, gale = 0, echelons = 0;
       for (var seed = 0; seed < 4; seed++) {
-        int first(StageResult r) =>
-            r.placings.where((p) => p.timeS - r.winnerTimeS <= 1).length;
+        // The leading part of the field, without the break of the day.
+        int first(StageResult r) {
+          final field =
+              r.placings.where((p) => !r.traces[p.rider.id]!.inBreak).toList();
+          return field.where((p) => p.timeS - field.first.timeS <= 1).length;
+        }
+
         calm += first(simulateStage(flatStage(), field,
             seed: seed, weather: const Weather()));
         final g = simulateStage(flatStage(), field,

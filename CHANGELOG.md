@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased (0.3.1)
+
+The race shape in the model. The tuning values of 0.3.0 no longer fit and need a new calibration run.
+
+- Riders who have nothing left to ride for sit up on hard days once the race is on: on the climbs they let the group go instead of suffering, and a group in which nobody races any more rolls to the finish (new tuning values `sitUpEffort` and `aimlessEffort`). Who still races: favourites, riders in the break or riding for themselves, riders placed in the general classification, and helpers who can still help a leader in their group; in the finale only climbing domestiques, lead-out men and the helpers of a team that rides for its sprinter or has been told to empty itself. A gruppetto also forms on hilly days.
+- The riders who set the pace only have the shelter of those who take turns with them, not of the whole bunch: a field that lets a break go is no longer faster than the break by drafting alone. The field has at least four riders rotating, an echelon its whole line in the shelter.
+- A front part of the field after a split (an echelon, a hard climb) presses on instead of riding like a break.
+- In a stage race the favourites' teams let a break without danger for the general classification go from the second stage on, not only once the classification has wide gaps; on a summit finish the field leaves two minutes more.
+- While the field lets a group go, it climbs at the tempo of its middle, not of its stronger riders.
+- A group that only rolls in still watches the time limit, like the gruppetto.
+- Calibration tools: `calibrate.dart report --sample k --runs n --types …` for a quick check of a model change on part of the races, `--set name=value` to try a tuning value without writing it, `bin/breaks.dart` with how breaks fare along the route (lead at 70, 85 and 95 per cent, where they are caught), and `bin/timecut.dart`, which compares how many riders and sprinters finish outside the time limit on the hilly and mountain stages of stage races. The time limit as a whole fits (mountain stages 7.0 % of the riders in reality, 7.6 % in the simulation), but sprinters fall outside it too often in the mountains (36 % against 21 %).
+
 ## 0.3.0 alpha (2026-10-14)
 
 Races that hold up better, riders as people, a season plan for every team, material and staff, and a lot of comfort. Calibrated on the seasons 2023 to 2026; still not balanced.
