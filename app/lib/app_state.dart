@@ -2,10 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:game/game.dart';
 import 'package:sim/sim.dart';
+
+import 'settings.dart';
+import 'zip.dart';
 
 /// Colours of the user interface, derived from the team colours.
 class TeamColors {
@@ -513,10 +517,23 @@ class AppState extends ChangeNotifier {
         ..radio = RadioMode.off;
     }
     busy = true;
+    stopRequested = false;
     simulatingTo = target;
+    final from = career.today;
+    _runFrom = from;
+    final wins = career.economy.wins;
+    final points = career.teamPoints[career.teamId] ?? 0;
+    final rank = career.economy.ownRank;
+    final inboxFrom = career.inbox.length;
+    final injured = {
+      for (final r in squad)
+        if (career.isInjured(r.id, career.today)) r.id,
+    };
     radio = null;
     notifyListeners();
-    while (career.today.isBefore(target) && !career.seasonOver) {
+    while (career.today.isBefore(target) &&
+        !career.seasonOver &&
+        !stopRequested) {
       if (d.lineups) {
         _applySavedDecisions();
       } else if (career.needsDecision != null) {
@@ -546,11 +563,202 @@ class AppState extends ChangeNotifier {
         ..lineups = lineups
         ..radio = radioMode;
     }
+    _summarize(from, wins, points, rank, inboxFrom, injured);
     simulatingTo = null;
+    _runFrom = null;
+    stopRequested = false;
     _save();
     flush();
     busy = false;
     notifyListeners();
+  }
+
+  /// Whether the player asked the running days to stop.
+  bool stopRequested = false;
+
+  /// First day of the running run to a date.
+  DateTime? _runFrom;
+
+  /// Asks the running days to stop after the current one.
+  void stopRun() {
+    if (!busy) return;
+    stopRequested = true;
+    notifyListeners();
+  }
+
+  /// Share of a run to a date that is done, 0 to 1.
+  double get runProgress {
+    final to = simulatingTo, from = _runFrom;
+    if (to == null || from == null) return 0;
+    final all = to.difference(from).inDays;
+    return all <= 0
+        ? 1
+        : (career.today.difference(from).inDays / all).clamp(0.0, 1.0);
+  }
+
+  /// Sets the tyres for a race; null leaves them to the sports director.
+  ///
+  /// @param raceId Id of the race.
+  /// @param tyres The tyres.
+  void setTyres(int raceId, Tyres? tyres) {
+    if (tyres == null) {
+      career.equipment.ownTyres.remove(raceId);
+    } else {
+      career.equipment.ownTyres[raceId] = tyres;
+    }
+    _save();
+    notifyListeners();
+  }
+
+  /// Sets the bike for the time trials of a race; null leaves it to the
+  /// sports director.
+  ///
+  /// @param raceId Id of the race.
+  /// @param timeTrialBike true for the time trial bike, false for the road bike.
+  void setTimeTrialBike(int raceId, bool? timeTrialBike) {
+    if (timeTrialBike == null) {
+      career.equipment.ownTimeTrialBike.remove(raceId);
+    } else {
+      career.equipment.ownTimeTrialBike[raceId] = timeTrialBike;
+    }
+    _save();
+    notifyListeners();
+  }
+
+  /// Accepts a supplier's offer for next season.
+  ///
+  /// @param index Position among the offers.
+  /// @returns null on success, otherwise the reason.
+  String? acceptSupply(int index) {
+    final answer = career.equipment.accept(index);
+    _save();
+    notifyListeners();
+    return answer;
+  }
+
+  /// Sets the style of the player's team; null lets it follow the squad.
+  ///
+  /// @param style The style.
+  void setOwnStyle(TeamStyle? style) {
+    career.ownStyle = style;
+    _save();
+    notifyListeners();
+  }
+
+  /// Saves the running state under a name with today's game date.
+  ///
+  /// @returns null on success, otherwise the reason.
+  String? quickSave() => saveAs(
+    tr('Quick save {0}', [
+      '${career.today.day.toString().padLeft(2, '0')}.'
+          '${career.today.month.toString().padLeft(2, '0')}.${career.year}',
+    ]),
+  );
+
+  /// Writes everything that helps to find a bug into one ZIP file in
+  /// `data/export`: the running save, the settings, the tuning values and a
+  /// note with version, seed and team.
+  ///
+  /// @returns The path of the file, or null if it could not be written.
+  String? bugReport() {
+    try {
+      final zip = ZipWriter()
+        ..addText(
+          'info.txt',
+          [
+            'Radmanager $appVersion',
+            'Seed ${career.seed}',
+            'Team ${team.name} (${team.id})',
+            'Game date ${career.today.toIso8601String().substring(0, 10)}',
+            'Created ${DateTime.now().toIso8601String()}',
+            'Dart ${Platform.version}',
+            'System ${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+          ].join('\n'),
+        )
+        ..addText('savegame.rmsave', _saveText(tr('Bug report')));
+      for (final name in [
+        'settings.json',
+        'ui_state.json',
+        'calibration/tuning.json',
+      ]) {
+        final f = File('$dataDir/$name');
+        if (f.existsSync()) zip.add(name, f.readAsBytesSync());
+      }
+      final dir = Directory('$dataDir/export')..createSync(recursive: true);
+      final stamp = DateTime.now()
+          .toIso8601String()
+          .substring(0, 19)
+          .replaceAll(':', '-');
+      final file = File('${dir.path}/bugreport-$stamp.zip')
+        ..writeAsBytesSync(zip.bytes());
+      return file.path;
+    } on FileSystemException {
+      return null;
+    }
+  }
+
+  /// After a run to a date of a week or more: one message with what
+  /// happened, instead of many to read.
+  ///
+  /// @param from First day of the run.
+  /// @param wins Wins of the team before the run.
+  /// @param points Points of the team before the run.
+  /// @param rank Place in the team ranking before the run.
+  /// @param inboxFrom Length of the inbox before the run.
+  /// @param injured The team's riders injured before the run.
+  void _summarize(
+    DateTime from,
+    int wins,
+    double points,
+    int rank,
+    int inboxFrom,
+    Set<int> injured,
+  ) {
+    final days = career.today.difference(from).inDays;
+    if (days < 7) return;
+    final team = career.teamId;
+    final newWins = career.economy.wins - wins;
+    final gained = (career.teamPoints[team] ?? 0) - points;
+    final nowRank = career.economy.ownRank;
+    final hurt = [
+      for (final r in squad)
+        if (career.isInjured(r.id, career.today) && !injured.contains(r.id))
+          r.name,
+    ];
+    final races = career.progress.values
+        .where(
+          (p) =>
+              p.finished &&
+              !p.race.start.isBefore(from) &&
+              p.riders.any((r) => r.teamId == team),
+        )
+        .length;
+    final byTopic = <String, int>{};
+    for (final m in career.inbox.skip(min(inboxFrom, career.inbox.length))) {
+      byTopic[m.topic] = (byTopic[m.topic] ?? 0) + 1;
+    }
+    String day(DateTime d) =>
+        '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.';
+    career.inbox.add(
+      Message(
+        career.today,
+        tr('Board'),
+        tr('What happened from {0} to {1}', [day(from), day(career.today)]),
+        [
+          tr('Races finished: {0}. Wins: {1}.', [races, newWins]),
+          tr('Points for the team ranking: +{0}, now place {1} (before {2}).', [
+            gained.round(),
+            nowRank,
+            rank,
+          ]),
+          if (hurt.isNotEmpty) tr('Injured or ill: {0}.', [hurt.join(', ')]),
+          if (byTopic.isNotEmpty)
+            tr('Messages: {0}.', [
+              byTopic.entries.map((e) => '${e.key} ${e.value}').join(', '),
+            ]),
+        ].join(' '),
+      ),
+    );
   }
 
   /// Removes a message from the inbox.
@@ -671,10 +879,10 @@ class AppState extends ChangeNotifier {
       career.inbox.add(
         Message(
           career.today,
-          tr('Teamleitung'),
-          tr('Willkommen bei {0}', [t.name]),
+          tr('Board'),
+          tr('Welcome to {0}', [t.name]),
           tr(
-            'Der Sportliche Leiter hat die Saison geplant; im Rennplaner siehst du, wer wo fährt. „Weiter" oben rechts lässt die Tage laufen, bis etwas dein Team betrifft. Vor jedem Rennen bestätigst du das Aufgebot, im Rennen meldet sich der Sportliche Leiter über Funk. Was die Zahlen bedeuten und welche Tasten es gibt, steht unter „Hilfe" unten links.',
+            'The sports director has planned the season; the race planner shows who rides where. "Continue" at the top right lets the days run until something concerns your team. Before every race you confirm the line-up, during the race the sports director calls in over the radio. What the figures mean and which keys there are is under "Help" at the bottom left.',
           ),
         ),
       );
@@ -867,7 +1075,7 @@ class AppState extends ChangeNotifier {
     _saveTimer?.cancel();
     _saveTimer = null;
     if (!persist || _replayDays > 0) return;
-    _saveFile.writeAsStringSync(_saveText(tr('Automatisch')));
+    _saveFile.writeAsStringSync(_saveText(tr('Automatic')));
   }
 
   // --- Named saves --------------------------------------------------------------
@@ -919,8 +1127,8 @@ class AppState extends ChangeNotifier {
   /// @returns null on success, otherwise the reason.
   String? saveAs(String name) {
     final clean = name.trim();
-    if (clean.isEmpty) return tr('Der Spielstand braucht einen Namen.');
-    if (busy) return tr('Die Tage laufen gerade.');
+    if (clean.isEmpty) return tr('The save needs a name.');
+    if (busy) return tr('The days are running right now.');
     final file = clean.replaceAll(RegExp(r'[^A-Za-z0-9äöüÄÖÜß _-]'), '_');
     _savesDir.createSync(recursive: true);
     File('${_savesDir.path}/$file.rmsave').writeAsStringSync(_saveText(clean));
@@ -937,7 +1145,7 @@ class AppState extends ChangeNotifier {
             ? null
             : races.length == 1
             ? races.first.info.name
-            : tr('{0} Rennen', [races.length]);
+            : tr('{0} races', [races.length]);
         notifyListeners();
       },
     );
@@ -962,7 +1170,7 @@ class AppState extends ChangeNotifier {
     try {
       _savesDir.createSync(recursive: true);
       File('${_savesDir.path}/auto-${slot + 1}.rmsave').writeAsStringSync(
-        _saveText(tr('Automatisch · {0}', [_dayText(career.today)])),
+        _saveText(tr('Automatic · {0}', [_dayText(career.today)])),
       );
     } on FileSystemException {
       // A full disk or a locked file must not stop the game.
@@ -979,10 +1187,10 @@ class AppState extends ChangeNotifier {
   /// @param info The save to load.
   /// @returns null on success, otherwise the reason.
   Future<String?> loadSave(SaveInfo info) async {
-    if (busy) return tr('Die Tage laufen gerade.');
+    if (busy) return tr('The days are running right now.');
     _log.clear();
     final saved = _readSave(File(info.path));
-    if (saved == null) return tr('Die Datei lässt sich nicht lesen.');
+    if (saved == null) return tr('The file cannot be read.');
     _open(saved);
     notifyListeners();
     // Only a save in the old format still has to be replayed.
@@ -1042,9 +1250,10 @@ class AppState extends ChangeNotifier {
   Future<void> next() async {
     if (busy || career.seasonOver) return;
     busy = true;
+    stopRequested = false;
     notifyListeners();
     final before = career.inbox.length;
-    for (var i = 0; i < 60 && !career.seasonOver; i++) {
+    for (var i = 0; i < 60 && !career.seasonOver && !stopRequested; i++) {
       // One of our races starts: have the line-up confirmed first, unless the
       // sports director picks it himself.
       if (career.delegation.lineups) {
@@ -1272,7 +1481,7 @@ class AppState extends ChangeNotifier {
   /// @param promise What he is promised for the first season, or null.
   /// @returns null if he signs, otherwise the reason for the refusal.
   String? offer(int riderId, int wage, int years, {PromiseKind? promise}) {
-    if (busy) return tr('Die Tage laufen gerade.');
+    if (busy) return tr('The days are running right now.');
     final answer = career.economy.offer(riderId, wage, years, promise: promise);
     // Log refusals too: they block the rider for two weeks.
     _log.add({
@@ -1296,7 +1505,7 @@ class AppState extends ChangeNotifier {
   /// @param action The action; returns null on success.
   /// @returns null on success, otherwise the reason.
   String? _act(String type, String key, int id, String? Function(int) action) {
-    if (busy) return tr('Die Tage laufen gerade.');
+    if (busy) return tr('The days are running right now.');
     final answer = action(id);
     if (answer == null) {
       _log.add({'type': type, key: id, 'day': _days});
@@ -1377,7 +1586,7 @@ class AppState extends ChangeNotifier {
   /// @param riders Ids of the riders to send.
   /// @returns null on success, otherwise the reason.
   String? bookCamp(CampType type, DateTime start, int days, List<int> riders) {
-    if (busy) return tr('Die Tage laufen gerade.');
+    if (busy) return tr('The days are running right now.');
     final answer = career.camps.book(type, start, days, riders);
     if (answer == null) {
       _log.add({
@@ -1401,7 +1610,7 @@ class AppState extends ChangeNotifier {
   /// @param index Index of the offer.
   /// @returns null on success, otherwise the reason.
   String? acceptSponsor(int slot, int index) {
-    if (busy) return tr('Die Tage laufen gerade.');
+    if (busy) return tr('The days are running right now.');
     final answer = career.economy.acceptSponsor(slot, index);
     if (answer == null) {
       _log.add({'type': 'sponsor', 'slot': slot, 'index': index, 'day': _days});
@@ -1424,7 +1633,7 @@ class AppState extends ChangeNotifier {
   /// @param action `decline`, `restore` or `apply` (for a wildcard).
   /// @returns null on success, otherwise the reason.
   String? entry(int raceId, String action) {
-    if (busy) return tr('Die Tage laufen gerade.');
+    if (busy) return tr('The days are running right now.');
     final e = career.entries;
     final answer = switch (action) {
       'decline' => e.decline(raceId),
@@ -1455,7 +1664,7 @@ class AppState extends ChangeNotifier {
   ///
   /// @returns null on success, otherwise the reason.
   String? foundDevTeam() {
-    if (busy) return tr('Die Tage laufen gerade.');
+    if (busy) return tr('The days are running right now.');
     final answer = career.devTeam.found();
     if (answer == null) _save();
     notifyListeners();
@@ -1467,7 +1676,7 @@ class AppState extends ChangeNotifier {
   /// @param riderId Id of the rider.
   /// @returns null on success, otherwise the reason.
   String? takeStagiaire(int riderId) {
-    if (busy) return tr('Die Tage laufen gerade.');
+    if (busy) return tr('The days are running right now.');
     final answer = career.devTeam.takeStagiaire(riderId);
     if (answer == null) _save();
     notifyListeners();
@@ -1479,7 +1688,7 @@ class AppState extends ChangeNotifier {
   /// @param teamId Team id, or null for none.
   /// @returns null on success, otherwise the reason.
   String? chooseDevTeam(int? teamId) {
-    if (busy) return tr('Die Tage laufen gerade.');
+    if (busy) return tr('The days are running right now.');
     final answer = career.devTeam.choose(teamId);
     if (answer == null) {
       _log.add({'type': 'devTeam', 'team': teamId, 'day': _days});

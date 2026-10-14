@@ -67,18 +67,18 @@ class _PlanScreenState extends State<PlanScreen> {
   };
 
   static const _months = [
-    'Januar',
-    'Februar',
-    'März',
+    'January',
+    'February',
+    'March',
     'April',
-    'Mai',
-    'Juni',
-    'Juli',
+    'May',
+    'June',
+    'July',
     'August',
     'September',
-    'Oktober',
+    'October',
     'November',
-    'Dezember',
+    'December',
   ];
 
   @override
@@ -147,8 +147,8 @@ class _PlanScreenState extends State<PlanScreen> {
         waitDuration: const Duration(milliseconds: 350),
         message:
             '${r.info.name}\n$date · '
-            '${tr('{0} Etappen', [r.stages.length])} · '
-            '${tr('{0} von {1} eingetragen', [planned, size])}',
+            '${tr('{0} stages', [r.stages.length])} · '
+            '${tr('{0} of {1} pencilled in', [planned, size])}',
         child: ValueListenableBuilder(
           valueListenable: _hover,
           builder: (context, hover, _) => Container(
@@ -402,20 +402,20 @@ class _PlanScreenState extends State<PlanScreen> {
               Expanded(
                 child: Text(
                   tr(
-                    'Klick trägt den Fahrer für das Rennen ein, Rechtsklick macht es zu einem seiner Saisonziele. Unter jedem Rennen steht, wie viele Fahrer von wie vielen Startplätzen eingetragen sind.',
+                    'A click pencils the rider in for the race, a right click makes it one of his season goals. Below every race: how many riders are pencilled in, of how many places.',
                   ),
                   style: const TextStyle(color: TeamColors.muted),
                 ),
               ),
               const SizedBox(width: 12),
               toggle(
-                tr('Nur kommende'),
+                tr('Upcoming only'),
                 _onlyAhead,
                 (v) => setState(() => _onlyAhead = v),
               ),
               const SizedBox(width: 8),
               toggle(
-                tr('Nur WorldTour'),
+                tr('WorldTour only'),
                 _onlyBig,
                 (v) => setState(() => _onlyBig = v),
               ),
@@ -448,16 +448,16 @@ class _PlanScreenState extends State<PlanScreen> {
                             ),
                             child: Row(
                               children: [
-                                Expanded(child: Label(tr('Fahrer'))),
+                                Expanded(child: Label(tr('Rider'))),
                                 SizedBox(
                                   width: 84,
-                                  child: Label(tr('Stellung')),
+                                  child: Label(tr('Standing')),
                                 ),
                                 SizedBox(
                                   width: 30,
                                   child: Align(
                                     alignment: Alignment.centerRight,
-                                    child: Label(tr('Tage')),
+                                    child: Label(tr('Days')),
                                   ),
                                 ),
                               ],
@@ -596,11 +596,11 @@ class _PlanScreenState extends State<PlanScreen> {
               swatch(TeamColors.gold, 'Grand Tour'),
               swatch(TeamColors.red, 'Monument'),
               swatch(const Color(0xFF6DB3FF), 'WorldTour'),
-              swatch(TeamColors.muted, tr('Kleinere Rennen')),
-              swatch(TeamColors.muted.withValues(alpha: 0.28), tr('Gefahren')),
+              swatch(TeamColors.muted, tr('Smaller races')),
+              swatch(TeamColors.muted.withValues(alpha: 0.28), tr('Ridden')),
               swatch(
                 TeamColors.muted,
-                tr('Saisonziel'),
+                tr('Season goal'),
                 child: const Icon(
                   LucideIcons.target,
                   size: 11,
@@ -609,10 +609,12 @@ class _PlanScreenState extends State<PlanScreen> {
               ),
               swatch(
                 TeamColors.red.withValues(alpha: 0.2),
-                tr('Fällt am Renntag aus'),
+                tr('Out on race day'),
               ),
               Text(
-                tr('Weißer Rand: Versprechen. Tage über 65 gelb, über 80 rot.'),
+                tr(
+                  'White border: promise. Days above 65 yellow, above 80 red.',
+                ),
                 style: const TextStyle(fontSize: 12, color: TeamColors.muted),
               ),
             ],

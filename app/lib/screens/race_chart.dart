@@ -67,28 +67,31 @@ class _RaceChartState extends State<RaceChart> {
               ? Wrap(
                   spacing: 14,
                   children: [
-                    _legend(TeamColors.gold, tr('Spitze vor den Favoriten')),
-                    _legend(TeamColors.red, tr('Mitte des Feldes')),
+                    _legend(
+                      TeamColors.gold,
+                      tr('Front ahead of the favourites'),
+                    ),
+                    _legend(TeamColors.red, tr('Middle of the field')),
                     _legend(
                       widget.colors.accent,
-                      tr('Fahrer in der Favoritengruppe'),
+                      tr('Riders in the favourites\' group'),
                     ),
                   ],
                 )
               : Text(
                   tr(
-                    'km {0} · {1} · Feldmitte {2} · {3} in der Favoritengruppe',
+                    'km {0} · {1} · middle of the field {2} · {3} in the favourites\' group',
                     [
                       at.km.round(),
                       at.frontGapS < 1
-                          ? tr('Favoriten an der Spitze')
-                          : tr('Spitze ({0}) {1} voraus', [
+                          ? tr('favourites at the front')
+                          : tr('front ({0}) {1} ahead', [
                               at.frontSize,
                               clock(at.frontGapS),
                             ]),
                       at.lastGapS < 1
-                          ? tr('bei den Favoriten')
-                          : tr('{0} zurück', [clock(at.lastGapS)]),
+                          ? tr('with the favourites')
+                          : tr('{0} back', [clock(at.lastGapS)]),
                       at.mainSize,
                     ],
                   ),
@@ -159,7 +162,7 @@ class _ChartPainter extends CustomPainter {
       ..color = colors.line
       ..strokeWidth = 1;
     canvas.drawLine(Offset(left, zero), Offset(left + w, zero), grid);
-    text(tr('Favoriten'), Offset(left - 5, zero), end: true);
+    text(tr('Favourites'), Offset(left - 5, zero), end: true);
     text('+${clock(ahead)}', Offset(left - 5, top + 5), end: true);
     text('−${clock(behind)}', Offset(left - 5, top + gapH - 5), end: true);
 
@@ -260,18 +263,18 @@ class OwnRiders extends StatelessWidget {
   /// @returns What happened to him, in a few words.
   String _note(RiderTrace t) {
     final parts = <String>[
-      if (t.inBreak) tr('in der Gruppe des Tages'),
+      if (t.inBreak) tr('in the break of the day'),
       if (t.gruppetto)
-        tr('im Gruppetto')
+        tr('in the gruppetto')
       else if (t.lostKm case final km?)
-        tr('abgehängt {0} km vor dem Ziel', [(route.raceKm - km).round()])
+        tr('dropped {0} km from the finish', [(route.raceKm - km).round()])
       else if (!t.inBreak)
-        tr('bei den Favoriten'),
-      if (t.frontKm >= 10) tr('{0} km Führungsarbeit', [t.frontKm.round()]),
+        tr('with the favourites'),
+      if (t.frontKm >= 10) tr('{0} km on the front', [t.frontKm.round()]),
       if (t.incident == RiderIncident.crash)
-        tr('gestürzt')
+        tr('crashed')
       else if (t.incident == RiderIncident.puncture)
-        tr('Defekt'),
+        tr('puncture'),
     ];
     return parts.join(' · ');
   }

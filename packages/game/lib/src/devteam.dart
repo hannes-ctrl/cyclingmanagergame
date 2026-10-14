@@ -95,7 +95,7 @@ class DevTeam {
   ///
   /// @returns null on success, otherwise the reason.
   String? found() {
-    if (!canFound) return tr('Das Team hat schon ein Nachwuchsteam.');
+    if (!canFound) return tr('The team already has a development team.');
     final own = c.teams[c.teamId]!;
     final free = c.teams.values.where((t) => t.division == 'Free').first.id;
     final id = c.teams.keys.reduce((a, b) => a > b ? a : b) + 1;
@@ -110,7 +110,7 @@ class DevTeam {
         return p != 0 ? p : Economy.rating(b).compareTo(Economy.rating(a));
       });
     if (pool.length < 8)
-      return tr('Es gibt nicht genug junge Fahrer ohne Team.');
+      return tr('There are not enough young riders without a team.');
     c.teams[id] = info;
     founded = info;
     for (final r in pool.take(8)) {
@@ -121,9 +121,9 @@ class DevTeam {
     teamId = id;
     c.inbox.add(Message(
       c.today,
-      tr('Teamleitung'),
-      tr('Nachwuchsteam gegründet'),
-      tr('{0} nimmt mit acht jungen Fahrern den Betrieb auf. Es kostet {1} im Jahr.',
+      tr('Board'),
+      tr('Development team founded'),
+      tr('{0} starts with eight young riders. It costs {1} a year.',
           [info.name, '${(yearlyCost / 1000).round()}.000 €']),
     ));
     return null;
@@ -162,12 +162,12 @@ class DevTeam {
   /// @param riderId Id of the rider.
   /// @returns null on success, otherwise the reason.
   String? takeStagiaire(int riderId) {
-    if (!has(riderId)) return tr('Er fährt nicht im Nachwuchsteam.');
+    if (!has(riderId)) return tr('He does not ride for the development team.');
     if (!window(c.today))
-      return tr('Stagiaires gibt es erst ab dem 1. August.');
-    if (stagiaires.contains(riderId)) return tr('Er ist schon Stagiaire.');
+      return tr('Stagiaires are only available from 1 August.');
+    if (stagiaires.contains(riderId)) return tr('He is already a stagiaire.');
     if (stagiaires.length >= maxStagiaires) {
-      return tr('Mehr als {0} Stagiaires sind nicht erlaubt.', [maxStagiaires]);
+      return tr('More than {0} stagiaires are not allowed.', [maxStagiaires]);
     }
     stagiaires.add(riderId);
     return null;
@@ -200,8 +200,8 @@ class DevTeam {
   ///
   /// @param id Team id, or null for none.
   /// @returns null on success, otherwise the reason.
-  String? choose(int? id) => tr(
-      'Das Nachwuchsteam ist fest mit dem Team verbunden und lässt sich nicht wechseln.');
+  String? choose(int? id) =>
+      tr('The development team is tied to the team and cannot be changed.');
 
   /// @param riderId Id of a rider.
   /// @returns Whether he rides for the development team.
@@ -222,17 +222,16 @@ class DevTeam {
     final r = c.riderById[riderId];
     final k = c.economy.contracts[riderId];
     if (r == null || k == null || !has(riderId)) {
-      return tr('Er fährt nicht im Nachwuchsteam.');
+      return tr('He does not ride for the development team.');
     }
     if (k.nextTeam == c.teamId)
-      return tr('Er ist schon für nächstes Jahr geholt.');
-    if (k.nextTeam != null) return tr('Er hat schon woanders unterschrieben.');
+      return tr('He has already been signed for next year.');
+    if (k.nextTeam != null) return tr('He has already signed elsewhere.');
     if (!c.economy.windowOpen) {
-      return tr(
-          'Verträge für die nächste Saison gibt es erst ab dem 1. August.');
+      return tr('Contracts for next season are only available from 1 August.');
     }
     if (c.economy.squadNextSeason(c.teamId) >= 30) {
-      return tr('Der Kader für die nächste Saison ist mit 30 Fahrern voll.');
+      return tr('The squad for next season is full with 30 riders.');
     }
     final wage = c.economy.marketWage(r);
     k
@@ -241,9 +240,9 @@ class DevTeam {
       ..nextEnd = c.year + 2;
     c.inbox.add(Message(
       c.today,
-      tr('Nachwuchsteam'),
-      tr('{0} rückt {1} auf', [r.name, c.year + 1]),
-      tr('{0} kommt aus dem Nachwuchsteam und hat bis {1} unterschrieben.',
+      tr('Development team'),
+      tr('{0} moves up in {1}', [r.name, c.year + 1]),
+      tr('{0} comes from the development team and has signed until {1}.',
           [c.fullName(r.id), k.nextEnd]),
     ));
     return null;
@@ -272,9 +271,9 @@ class DevTeam {
     if (names.isEmpty) return;
     c.inbox.add(Message(
       c.today,
-      tr('Nachwuchsteam'),
-      tr('Neue Talente im Nachwuchsteam'),
-      tr('Neu bei {0}: {1}.', [team?.name, names.join(', ')]),
+      tr('Development team'),
+      tr('New talents in the development team'),
+      tr('New at {0}: {1}.', [team?.name, names.join(', ')]),
     ));
   }
 }

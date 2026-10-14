@@ -57,29 +57,29 @@ class FinanceScreen extends StatelessWidget {
           Row(
             children: [
               figure(
-                tr('Kasse'),
+                tr('Balance'),
                 '${euro(eco.balance)} €',
                 color: eco.balance < 0 ? TeamColors.red : null,
               ),
               const SizedBox(width: 12),
               figure(
-                tr('Sponsorengeld {0}', [career.year]),
+                tr('Sponsor money {0}', [career.year]),
                 '${euro(eco.budget)} €',
-                note: tr('kommt in zwölf Monatsraten'),
+                note: tr('arrives in twelve monthly instalments'),
               ),
               const SizedBox(width: 12),
               figure(
-                tr('Gehälter {0}', [career.year]),
+                tr('Wages {0}', [career.year]),
                 '${euro(wages)} €',
-                note: tr('{0} % des Sponsorengelds', [
+                note: tr('{0} % of the sponsor money', [
                   (100 * wages / eco.budget).round(),
                 ]),
               ),
               const SizedBox(width: 12),
               figure(
-                tr('Vertrauen der Teamleitung'),
-                tr('{0} von 100', [eco.confidence.round()]),
-                note: tr('bestimmt, was Sponsoren künftig bieten'),
+                tr('Board confidence'),
+                tr('{0} of 100', [eco.confidence.round()]),
+                note: tr('decides what sponsors will offer in future'),
               ),
             ],
           ),
@@ -95,7 +95,7 @@ class FinanceScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Label(tr('Saisonziele {0}', [career.year])),
+                        Label(tr('Season goals {0}', [career.year])),
                         const SizedBox(height: 8),
                         for (final g in eco.goals)
                           Padding(
@@ -117,7 +117,7 @@ class FinanceScreen extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(3),
                                   ),
                                   child: Text(
-                                    g.achieved() ? tr('ERREICHT') : tr('OFFEN'),
+                                    g.achieved() ? tr('ACHIEVED') : tr('OPEN'),
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
@@ -131,7 +131,7 @@ class FinanceScreen extends StatelessWidget {
                                 const SizedBox(width: 10),
                                 Expanded(child: Text(g.text)),
                                 Text(
-                                  tr('Gewicht {0}', [g.weight]),
+                                  tr('Weight {0}', [g.weight]),
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: TeamColors.muted,
@@ -143,7 +143,7 @@ class FinanceScreen extends StatelessWidget {
                         const SizedBox(height: 12),
                         Text(
                           tr(
-                            'Stand heute: {0} Siege. Die Ziele werden am Jahresende bewertet; der Stand in der Teamrangliste kann sich bis dahin ändern.',
+                            'As of today: {0} wins. The goals are assessed at the end of the year; the place in the team ranking can still change until then.',
                             [eco.wins],
                           ),
                           style: const TextStyle(
@@ -153,14 +153,14 @@ class FinanceScreen extends StatelessWidget {
                         ),
                         if (career.history.isNotEmpty) ...[
                           const SizedBox(height: 16),
-                          Label(tr('Bisherige Saisons')),
+                          Label(tr('Past seasons')),
                           const SizedBox(height: 4),
                           for (final h in career.history.reversed)
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 2),
                               child: Text(
                                 tr(
-                                  '{0}: Platz {1} der Teamrangliste, {2} Punkte',
+                                  '{0}: place {1} in the team ranking, {2} points',
                                   [h.year, h.rank, h.points.round()],
                                 ),
                               ),
@@ -186,14 +186,14 @@ class FinanceScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Label(tr('Monatsabrechnung')),
+                        Label(tr('Monthly statement')),
                         const SizedBox(height: 6),
                         Expanded(
                           child: eco.ledger.isEmpty
                               ? Center(
                                   child: Text(
                                     tr(
-                                      'Die erste Abrechnung kommt am Monatsersten.',
+                                      'The first statement arrives on the first of the month.',
                                     ),
                                     style: TextStyle(color: TeamColors.muted),
                                   ),
@@ -203,7 +203,7 @@ class FinanceScreen extends StatelessWidget {
                                   rows: eco.ledger.reversed.toList(),
                                   columns: [
                                     Col(
-                                      tr('Monat'),
+                                      tr('Month'),
                                       80,
                                       (m, _) => cellText(
                                         '${m.month.month.toString().padLeft(2, '0')}.${m.month.year}',
@@ -216,25 +216,25 @@ class FinanceScreen extends StatelessWidget {
                                       numeric: true,
                                     ),
                                     Col(
-                                      tr('Preisgeld'),
+                                      tr('Prize money'),
                                       80,
                                       (m, _) => cellText(euro(m.prize)),
                                       numeric: true,
                                     ),
                                     Col(
-                                      tr('Gehälter'),
+                                      tr('Wages'),
                                       80,
                                       (m, _) => cellText(euro(-m.wages)),
                                       numeric: true,
                                     ),
                                     Col(
-                                      tr('Betrieb'),
+                                      tr('Operations'),
                                       80,
                                       (m, _) => cellText(euro(-m.costs)),
                                       numeric: true,
                                     ),
                                     Col(
-                                      tr('Ergebnis'),
+                                      tr('Result'),
                                       100,
                                       (m, _) => cellText(
                                         euro(m.result),
@@ -287,7 +287,7 @@ class _Sponsors extends StatelessWidget {
 
     return ListView(
       children: [
-        Label(tr('Sponsoren')),
+        Label(tr('Sponsors')),
         const SizedBox(height: 6),
         for (final (i, sp) in eco.sponsors.indexed) ...[
           Row(
@@ -302,7 +302,7 @@ class _Sponsors extends StatelessWidget {
                 ),
               ),
               Text(
-                tr('{0} € · bis {1}', [
+                tr('{0} € · until {1}', [
                   euro(sp.amount),
                   contractEnd(sp.endYear),
                 ]),
@@ -313,15 +313,15 @@ class _Sponsors extends StatelessWidget {
             ],
           ),
           Text(
-            '${i == 0 ? tr('Hauptsponsor') : tr('Co-Sponsor')}'
-            '${sp.demandPlace == null ? '' : tr(' · verlangt Platz {0} der Teamrangliste, sonst ein Fünftel weniger', [sp.demandPlace])}',
+            '${i == 0 ? tr('Main sponsor') : tr('Co-sponsor')}'
+            '${sp.demandPlace == null ? '' : tr(' · requires place {0} in the team ranking, otherwise a fifth less', [sp.demandPlace])}',
             style: const TextStyle(fontSize: 12, color: TeamColors.muted),
           ),
           if (eco.signed[i] case final next?)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                tr('Nachfolge geregelt: {0}, {1} € für {2} Jahre.', [
+                tr('Successor settled: {0}, {1} € for {2} years.', [
                   next.name,
                   euro(next.amount),
                   next.years,
@@ -339,12 +339,12 @@ class _Sponsors extends StatelessWidget {
                     Expanded(
                       child: Text(
                         '${o.name}: ${euro(o.amount)} € · ${o.years} '
-                        '${o.years == 1 ? tr('Jahr') : tr('Jahre')}'
-                        '${o.demandPlace == null ? '' : tr(' · verlangt Platz {0}', [o.demandPlace])}',
+                        '${o.years == 1 ? tr('Year') : tr('years')}'
+                        '${o.demandPlace == null ? '' : tr(' · requires place {0}', [o.demandPlace])}',
                       ),
                     ),
                     pill(
-                      tr('Annehmen'),
+                      tr('Accept'),
                       s.busy ? null : () => s.acceptSponsor(i, k),
                     ),
                   ],
@@ -355,11 +355,9 @@ class _Sponsors extends StatelessWidget {
                 Expanded(
                   child: Text(
                     eco.searches.containsKey(i)
-                        ? tr(
-                            'Die Teamleitung hört sich um; Antwort in einem Monat.',
-                          )
+                        ? tr('The board is asking around; answer in a month.')
                         : tr(
-                            'Ohne Wahl schließt die Teamleitung am Jahresende mit dem ersten Angebot ab.',
+                            'Without a choice the board signs the first offer at the end of the year.',
                           ),
                     style: const TextStyle(
                       fontSize: 12,
@@ -369,7 +367,7 @@ class _Sponsors extends StatelessWidget {
                 ),
                 if (!eco.searches.containsKey(i))
                   pill(
-                    tr('Weiter suchen'),
+                    tr('Keep searching'),
                     s.busy ? null : () => s.searchSponsor(i),
                   ),
               ],
@@ -378,7 +376,7 @@ class _Sponsors extends StatelessWidget {
             Padding(
               padding: EdgeInsets.only(top: 4),
               child: Text(
-                tr('Läuft zum Jahresende aus. Angebote kommen am 1. Juni.'),
+                tr('Expires at the end of the year. Offers arrive on 1 June.'),
                 style: TextStyle(fontSize: 12, color: TeamColors.gold),
               ),
             ),
@@ -386,11 +384,117 @@ class _Sponsors extends StatelessWidget {
         ],
         Text(
           tr(
-            'Zusammen {0} € im Jahr. Was neue Sponsoren bieten, hängt vom Vertrauen der Teamleitung ab.',
+            '{0} € a year in total. What new sponsors offer depends on the board\'s confidence.',
             [euro(eco.budget)],
           ),
           style: const TextStyle(fontSize: 12, color: TeamColors.muted),
         ),
+        const SizedBox(height: 18),
+        _Equipment(state: s, pill: pill),
+      ],
+    );
+  }
+}
+
+/// Bike and tyre suppliers of the team, and the offers while the contracts
+/// run out.
+class _Equipment extends StatelessWidget {
+  const _Equipment({required this.state, required this.pill});
+  final AppState state;
+  final Widget Function(String label, VoidCallback? onTap) pill;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = state;
+    final c = s.colors;
+    final career = s.career;
+    final eq = career.equipment;
+    final supply = eq.supplyOf(career.teamId);
+    String stars(double q) =>
+        '★' * (1 + (q * 4).round()) + '☆' * (4 - (q * 4).round());
+    String bike(BikeBrand b) => tr('{0} bikes {1}', [b.name, stars(b.quality)]);
+    String tyres(TyreBrand b) =>
+        tr('{0} tyres {1}', [b.name, stars(b.quality)]);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Label(tr('Material')),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '${bike(supply.bike)} · ${tyres(supply.tyres)}',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Text(
+              tr('{0} € · until {1}', [
+                euro(supply.fee),
+                contractEnd(supply.until),
+              ]),
+              style: TextStyle(
+                color: supply.until == career.year
+                    ? TeamColors.gold
+                    : TeamColors.text,
+              ),
+            ),
+          ],
+        ),
+        Text(
+          tr(
+            'The suppliers pay for being on the team\'s bikes and lower the cost of material. Better bikes are more aerodynamic or lighter, better tyres roll more easily or puncture less; the difference between the best and the weakest is about a second per kilometre in a time trial.',
+          ),
+          style: const TextStyle(fontSize: 12, color: TeamColors.muted),
+        ),
+        if (eq.accepted case final o?)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              tr('From next season: {0} and {1}, {2} € a year for {3} years.', [
+                o.bike.name,
+                o.tyres.name,
+                euro(o.fee),
+                o.years,
+              ]),
+              style: const TextStyle(color: TeamColors.green),
+            ),
+          )
+        else if (eq.offers.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          for (final (i, o) in eq.offers.indexed)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${bike(o.bike)} · ${tyres(o.tyres)} · ${euro(o.fee)} € · ${o.years} '
+                      '${o.years == 1 ? tr('Year') : tr('years')}',
+                    ),
+                  ),
+                  pill(tr('Accept'), s.busy ? null : () => s.acceptSupply(i)),
+                ],
+              ),
+            ),
+          Text(
+            tr('Without a choice the board renews with the current suppliers.'),
+            style: const TextStyle(fontSize: 12, color: TeamColors.muted),
+          ),
+        ] else if (supply.until == career.year)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              tr(
+                'Expires at the end of the year. Offers arrive on 1 September.',
+              ),
+              style: const TextStyle(fontSize: 12, color: TeamColors.gold),
+            ),
+          ),
+        Divider(height: 18, color: c.line),
       ],
     );
   }

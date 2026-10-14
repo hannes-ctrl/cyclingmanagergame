@@ -27,7 +27,7 @@ class TeamPage extends StatelessWidget {
     final career = s.career;
     final team = career.teams[teamId];
     if (team == null) {
-      return Center(child: Text(tr('Das Team gibt es nicht mehr.')));
+      return Center(child: Text(tr('The team no longer exists.')));
     }
     final book = career.staff;
     final squad = [...?career.squads[teamId]]
@@ -66,7 +66,7 @@ class TeamPage extends StatelessWidget {
 
     /// Strength of a rider as the scouts see it.
     String strength(SimRider r) {
-      final (low, high) = book.range(r.id, 'Stärke', Economy.rating(r));
+      final (low, high) = book.range(r.id, 'Strength', Economy.rating(r));
       return low == high ? '$low' : '$low–$high';
     }
 
@@ -96,11 +96,15 @@ class TeamPage extends StatelessWidget {
                           [
                             team.country,
                             free
-                                ? tr('vereinslos')
+                                ? tr('free agent')
                                 : development
-                                ? tr('Nachwuchsteam')
+                                ? tr('Development team')
                                 : career.licences.of(teamId).label,
                             if (team.manager.isNotEmpty) team.manager,
+                            if (!free)
+                              tr('Style: {0}', [career.styleOf(teamId).label]),
+                            if (!free)
+                              '${career.equipment.supplyOf(teamId).bike.name} · ${career.equipment.supplyOf(teamId).tyres.name}',
                           ].join(' · '),
                           style: const TextStyle(color: TeamColors.muted),
                         ),
@@ -114,13 +118,13 @@ class TeamPage extends StatelessWidget {
                   final path = s.exportCsv(
                     team.abbr.isEmpty ? 'team' : team.abbr,
                     [
-                      tr('Fahrer'),
+                      tr('Rider'),
                       tr('Nat'),
-                      tr('Alter'),
-                      tr('Stärke'),
-                      tr('Punkte'),
-                      tr('Siege'),
-                      tr('Vertrag'),
+                      tr('Age'),
+                      tr('Strength'),
+                      tr('Points'),
+                      tr('Wins'),
+                      tr('Contract'),
                     ],
                     [
                       for (final r in squad)
@@ -139,30 +143,30 @@ class TeamPage extends StatelessWidget {
                     SnackBar(
                       content: Text(
                         path == null
-                            ? tr('Die Datei ließ sich nicht schreiben.')
-                            : tr('Gespeichert: {0}', [path]),
+                            ? tr('The file could not be written.')
+                            : tr('Saved: {0}', [path]),
                       ),
                     ),
                   );
                 },
                 icon: const Icon(LucideIcons.download, size: 16),
-                label: Text(tr('Als CSV')),
+                label: Text(tr('As CSV')),
               ),
-              TextButton(onPressed: s.closeTeam, child: Text(tr('Zurück'))),
+              TextButton(onPressed: s.closeTeam, child: Text(tr('Back'))),
             ],
           ),
           const SizedBox(height: 14),
           Row(
             children: [
-              tile(tr('Fahrer'), '${squad.length}'),
-              tile(tr('Ø Alter'), dec(age)),
+              tile(tr('Rider'), '${squad.length}'),
+              tile(tr('Avg. age'), dec(age)),
               if (!free) ...[
-                tile(tr('Punkte {0}', [career.year]), '$points'),
+                tile(tr('Points {0}', [career.year]), '$points'),
                 tile(
-                  tr('Rang {0}', [career.year]),
+                  tr('Rank {0}', [career.year]),
                   place > 0 ? '$place.' : '–',
                 ),
-                tile(tr('Siege {0}', [career.year]), '$wins'),
+                tile(tr('Wins {0}', [career.year]), '$wins'),
               ],
             ],
           ),
@@ -177,21 +181,21 @@ class TeamPage extends StatelessWidget {
                 columns: [
                   Col('', 30, (r, _) => watchStar(s, r)),
                   Col(
-                    tr('Fahrer'),
+                    tr('Rider'),
                     230,
                     (r, _) => cellText(career.fullName(r.id)),
                     sortKey: (r) => r.lastName,
                   ),
                   Col(tr('Nat'), 70, (r, _) => flagCell(r.country)),
                   Col(
-                    tr('Alter'),
+                    tr('Age'),
                     60,
                     (r, _) => cellText('${career.year - r.born ~/ 10000}'),
                     numeric: true,
                     sortKey: (r) => -r.born,
                   ),
                   Col(
-                    tr('Typ'),
+                    tr('Type'),
                     130,
                     (r, _) => cellText(
                       book.knowledge(r.id) >= 1 ? tr(riderType(r)) : '?',
@@ -199,14 +203,14 @@ class TeamPage extends StatelessWidget {
                     ),
                   ),
                   Col(
-                    tr('Stärke'),
+                    tr('Strength'),
                     80,
                     (r, _) => cellText(strength(r)),
                     numeric: true,
                     sortKey: (r) => Economy.rating(r),
                   ),
                   Col(
-                    tr('Punkte'),
+                    tr('Points'),
                     80,
                     (r, _) =>
                         cellText('${(career.riderPoints[r.id] ?? 0).round()}'),
@@ -214,14 +218,14 @@ class TeamPage extends StatelessWidget {
                     sortKey: (r) => career.riderPoints[r.id] ?? 0,
                   ),
                   Col(
-                    tr('Siege'),
+                    tr('Wins'),
                     70,
                     (r, _) => cellText('${career.winsOf(r.id, career.year)}'),
                     numeric: true,
                     sortKey: (r) => career.winsOf(r.id, career.year),
                   ),
                   Col(
-                    tr('Vertrag'),
+                    tr('Contract'),
                     80,
                     (r, _) => cellText(
                       switch (career.economy.contracts[r.id]?.endYear) {

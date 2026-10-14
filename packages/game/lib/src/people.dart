@@ -59,14 +59,14 @@ class Personality {
   /// @param value One of the values of a personality.
   /// @returns It as a word.
   static String word(double value) => value >= 0.75
-      ? tr('sehr hoch')
+      ? tr('very high')
       : value >= 0.58
-          ? tr('hoch')
+          ? tr('high')
           : value >= 0.42
-              ? tr('mittel')
+              ? tr('medium')
               : value >= 0.25
-                  ? tr('niedrig')
-                  : tr('sehr niedrig');
+                  ? tr('low')
+                  : tr('very low');
 
   /// The personality in one term, in the manner of football management
   /// games. The most striking trait names it; a rider without one is
@@ -78,24 +78,24 @@ class Personality {
 
   (String, int) get _label {
     final p = professionalism, a = ambition, l = loyalty, k = consistency;
-    if (p >= 0.8 && a >= 0.55 && l >= 0.45) return ('Musterprofi', 1);
-    if (p >= 0.75 && a >= 0.75) return ('Perfektionist', 1);
-    if (a >= 0.78 && l <= 0.3) return ('Söldner', -1);
-    if (p <= 0.2) return ('Nachlässig', -1);
-    if (k <= 0.18) return ('Launisch', -1);
-    if (l <= 0.18) return ('Unbeständig', -1);
-    if (a <= 0.18) return ('Ohne Ehrgeiz', -1);
-    if (l >= 0.82) return ('Dem Team ergeben', 1);
-    if (p >= 0.7) return ('Professionell', 1);
-    if (a >= 0.8) return ('Sehr ehrgeizig', 0);
-    if (a >= 0.68 && p >= 0.5) return ('Zielstrebig', 1);
+    if (p >= 0.8 && a >= 0.55 && l >= 0.45) return ('Model professional', 1);
+    if (p >= 0.75 && a >= 0.75) return ('Perfectionist', 1);
+    if (a >= 0.78 && l <= 0.3) return ('Mercenary', -1);
+    if (p <= 0.2) return ('Slack', -1);
+    if (k <= 0.18) return ('Temperamental', -1);
+    if (l <= 0.18) return ('Fickle', -1);
+    if (a <= 0.18) return ('Unambitious', -1);
+    if (l >= 0.82) return ('Devoted', 1);
+    if (p >= 0.7) return ('Professional', 1);
+    if (a >= 0.8) return ('Very ambitious', 0);
+    if (a >= 0.68 && p >= 0.5) return ('Driven', 1);
     if (l >= 0.68) return ('Loyal', 1);
-    if (a >= 0.66) return ('Ehrgeizig', 0);
-    if (k >= 0.8) return ('Verlässlich', 1);
-    if (p >= 0.6) return ('Recht professionell', 1);
-    if (p <= 0.33) return ('Lässig', -1);
-    if (a <= 0.32) return ('Genügsam', 0);
-    return ('Ausgeglichen', 0);
+    if (a >= 0.66) return ('Ambitious', 0);
+    if (k >= 0.8) return ('Reliable', 1);
+    if (p >= 0.6) return ('Fairly professional', 1);
+    if (p <= 0.33) return ('Casual', -1);
+    if (a <= 0.32) return ('Easily content', 0);
+    return ('Balanced', 0);
   }
 }
 
@@ -103,11 +103,11 @@ class Personality {
 /// management. It says what he may expect: a star and a leader want to ride
 /// for themselves in the races that matter, a helper does not.
 enum TeamRole {
-  star('Star'),
-  leader('Kapitän'),
-  keyHelper('Edelhelfer'),
-  helper('Helfer'),
-  prospect('Talent');
+  star('Star rider'),
+  leader('Leader'),
+  keyHelper('Key domestique'),
+  helper('Domestique'),
+  prospect('Prospect');
 
   const TeamRole(this._label);
   final String _label;
@@ -122,11 +122,11 @@ enum TeamRole {
 /// What the player can promise a rider.
 enum PromiseKind {
   /// He starts in the race; for a whole season: in a Grand Tour.
-  start('Start'),
+  start('A start'),
 
   /// He rides the race as leader, co-leader or sprinter; for a whole
   /// season: at least one WorldTour race.
-  leader('Kapitänsrolle');
+  leader('Leading role');
 
   const PromiseKind(this._label);
   final String _label;
@@ -230,14 +230,14 @@ class People {
   /// @param value A morale value.
   /// @returns It as a word.
   static String moraleWord(double value) => value >= 1.2
-      ? tr('begeistert')
+      ? tr('delighted')
       : value >= 0.4
-          ? tr('zufrieden')
+          ? tr('content')
           : value > -0.4
-              ? tr('in Ordnung')
+              ? tr('fine')
               : value > -1.2
-                  ? tr('unzufrieden')
-                  : tr('sehr unzufrieden');
+                  ? tr('unhappy')
+                  : tr('very unhappy');
 
   bool _own(int riderId) => c.riderById[riderId]?.teamId == c.teamId;
 
@@ -329,9 +329,9 @@ class People {
     int rank(TeamRole x) => x == TeamRole.prospect ? 3 : x.index;
     final step = rank(before) - rank(role);
     if (step > 0) {
-      move(riderId, 0.4, tr('Aufgewertet: {0}', [role.label]));
+      move(riderId, 0.4, tr('Moved up: {0}', [role.label]));
     } else if (step < 0) {
-      move(riderId, -0.6, tr('Zurückgestuft: {0}', [role.label]));
+      move(riderId, -0.6, tr('Moved down: {0}', [role.label]));
     }
   }
 
@@ -347,7 +347,7 @@ class People {
     ownGoals.add(riderId);
     if (mine.remove(raceId)) return null;
     if (mine.length >= maxGoals) {
-      return tr('Ein Fahrer kann höchstens {0} Saisonziele haben.', [maxGoals]);
+      return tr('A rider can have at most {0} season goals.', [maxGoals]);
     }
     mine.add(raceId);
     // A goal he is not planned for makes no sense.
@@ -404,15 +404,15 @@ class People {
   /// @returns null on success, otherwise the reason.
   String? promise(int riderId, int raceId, PromiseKind kind) {
     if (promiseOf(riderId, c.year) != null) {
-      return tr('Er hat für diese Saison schon ein Versprechen.');
+      return tr('He already has a promise for this season.');
     }
     if (c.progress.containsKey(raceId)) {
-      return tr('Das Rennen läuft schon oder ist vorbei.');
+      return tr('The race is already running or over.');
     }
     promises.add(RiderPromise(riderId, raceId, kind, c.year));
     final race = c.calendar.where((r) => r.info.id == raceId).firstOrNull;
     move(riderId, 0.6,
-        tr('Versprechen: {0} bei {1}', [kind.label, race?.info.name ?? '']));
+        tr('Promise: {0} at {1}', [kind.label, race?.info.name ?? '']));
     return null;
   }
 
@@ -431,8 +431,8 @@ class People {
   /// @param kind A kind of promise.
   /// @returns What it means when it covers a season.
   static String seasonText(PromiseKind kind) => kind == PromiseKind.start
-      ? tr('Start bei einer Grand Tour')
-      : tr('Kapitän in einem WorldTour-Rennen');
+      ? tr('A start in a Grand Tour')
+      : tr('Leader in a WorldTour race');
 
   /// How much less a rider asks when the offer comes with a promise.
   static const promiseDiscount = 0.08;
@@ -450,11 +450,8 @@ class People {
       // A rider who is injured or ill sees for himself that he cannot
       // start; nobody has broken his word.
       if (!started && c.isInjured(rider.id, p.race.start)) {
-        move(
-            rider.id,
-            0,
-            tr('Versprechen entfällt, er ist nicht fit: {0}',
-                [p.race.info.name]));
+        move(rider.id, 0,
+            tr('Promise lapses, he is not fit: {0}', [p.race.info.name]));
         continue;
       }
       final kept = started &&
@@ -473,15 +470,15 @@ class People {
   void _settle(SimRider rider, RiderPromise promise, String what, bool kept,
       {int? raceId}) {
     if (kept) {
-      move(rider.id, 0.4, tr('Versprechen gehalten: {0}', [what]));
+      move(rider.id, 0.4, tr('Promise kept: {0}', [what]));
       return;
     }
-    move(rider.id, -1.2, tr('Versprechen gebrochen: {0}', [what]));
+    move(rider.id, -1.2, tr('Promise broken: {0}', [what]));
     c.inbox.add(Message(
       c.today,
-      tr('Berater'),
-      tr('{0} fühlt sich getäuscht', [rider.name]),
-      tr('Du hattest ihm etwas zugesagt ({0}: {1}) und es nicht gehalten. Das merkt er sich, auch bei der nächsten Vertragsverhandlung.',
+      tr('Agent'),
+      tr('{0} feels deceived', [rider.name]),
+      tr('You had promised him something ({0}: {1}) and did not keep it. He will remember, also in the next contract talks.',
           [promise.kind.label, what]),
       raceId: raceId,
     ));
@@ -512,24 +509,24 @@ class People {
         final standing = roleOf(id);
         final works = c.planUsed(race.info.id, 0).roleOf(id).works;
         if (standing.leads && works) {
-          move(id, -0.2, tr('Als Helfer eingesetzt: {0}', [race.info.name]));
+          move(id, -0.2, tr('Used as a domestique: {0}', [race.info.name]));
         } else if (!standing.leads && leads) {
           move(id, 0.25,
-              tr('Durfte auf eigene Rechnung fahren: {0}', [race.info.name]));
+              tr('Was allowed to ride for himself: {0}', [race.info.name]));
         }
       }
     }
     final winner = result.placings.firstOrNull?.rider;
     if (winner != null) {
       move(winner.id, race.tier.factor >= 5 ? 0.6 : 0.35,
-          tr('Sieg: {0}', [race.info.name]));
+          tr('Win: {0}', [race.info.name]));
     }
     if (!p.finished) return;
     final order = race.isStageRace
         ? [for (final e in p.run.standings.last.general) e.rider]
         : [for (final x in result.placings) x.rider];
     for (var i = race.isStageRace ? 0 : 1; i < 3 && i < order.length; i++) {
-      move(order[i].id, 0.25, tr('{0}. Platz: {1}', [i + 1, race.info.name]));
+      move(order[i].id, 0.25, tr('Place {0}: {1}', [i + 1, race.info.name]));
     }
   }
 
@@ -566,7 +563,7 @@ class People {
       for (final r in squad) {
         if (c.isInjured(r.id, c.today) || (outDays[r.id] ?? 0) >= 21) continue;
         if (of(r.id).ambition > 0.55 && days(r) < 0.55 * mean) {
-          move(r.id, -0.3, tr('Zu wenige Renntage im Programm'));
+          move(r.id, -0.3, tr('Too few race days in his programme'));
         }
       }
     }

@@ -48,7 +48,7 @@ const _iso = {
   'DEN': 'DK', 'NED': 'NL', 'SLO': 'SI', 'GER': 'DE', 'SWI': 'CH', //
   'POR': 'PT', 'LAT': 'LV', 'UAE': 'AE', 'KOS': 'XK', 'KUW': 'KW',
   'ROM': 'RO', 'MOL': 'MD', 'SAR': 'ZA', 'SWD': 'SE', 'CRO': 'HR',
-  'URU': 'UY', 'OMA': 'OM', 'CHI': 'CN', 'BUL': 'BG', 'BER': 'BM',
+  'URU': 'UY', 'OMA': 'OM', 'CHI': 'CN', 'BUL': 'MTN', 'BER': 'BM',
   'GRE': 'GR', 'MAS': 'MY', 'SER': 'RS', 'CRC': 'CR', 'ZIM': 'ZW',
 };
 
@@ -237,12 +237,12 @@ class Pill extends StatelessWidget {
 /// one entry.
 enum TierGroup {
   grandTour('Grand Tours', [RaceTier.grandTour]),
-  monument('Monumente', [RaceTier.monument]),
+  monument('Monuments', [RaceTier.monument]),
   worldTour('WorldTour', [RaceTier.worldTour]),
   proSeries('ProSeries', [RaceTier.proSeries]),
-  class1('Klasse 1', [RaceTier.class1]),
-  class2('Klasse 2 und U23', [RaceTier.class2, RaceTier.under23]),
-  championship('Meisterschaften', [RaceTier.championship]);
+  class1('Class 1', [RaceTier.class1]),
+  class2('Class 2 and U23', [RaceTier.class2, RaceTier.under23]),
+  championship('Championships', [RaceTier.championship]);
 
   const TierGroup(this._label, this.tiers);
   final String _label;
@@ -280,7 +280,7 @@ class TierPills extends StatelessWidget {
     runSpacing: 6,
     children: [
       Pill(
-        label: tr('Alle'),
+        label: tr('All'),
         selected: selected.isEmpty,
         colors: colors,
         onTap: () => onChanged({}),
@@ -477,8 +477,8 @@ class SeasonTimeline extends StatelessWidget {
   final void Function(int) onMonth;
 
   static const _names = [
-    'Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', //
-    'Nov', 'Dez',
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', //
+    'Nov', 'Dec',
   ];
 
   @override
@@ -582,59 +582,67 @@ class SeasonTimeline extends StatelessWidget {
 /// Explanations of the figures the game shows, by the label or column
 /// heading they appear under.
 const statHelp = <String, String>{
-  'Persönlichkeit': 'Die Person in einem Wort, aus Professionalität, Ehrgeiz, Treue und Konstanz. Grün ist ein gutes Zeichen (etwa Musterprofi, Professionell, Loyal), rot eine Warnung (etwa Söldner, Nachlässig, Launisch); die meisten Fahrer sind ausgeglichen. Sie steht fest, sobald die Karriere beginnt.',
-  'Stellung im Team': 'Was ein Fahrer in seinem Team erwarten darf: Star und Kapitän wollen in wichtigen Rennen auf eigene Rechnung fahren, Edelhelfer, Helfer und Talente nicht. Sie folgt aus Stärke und Alter; bei deinen Fahrern änderst du sie. Eine Aufwertung hebt die Moral, eine Rückstufung drückt sie, ebenso ein Star, der Helferdienste leisten muss.',
-  'Moral': 'Wie zufrieden ein Fahrer ist, in jedem Team. Siege, Podien, gehaltene Versprechen und eine Rolle über seiner Stellung heben sie; gebrochene Versprechen, eine Rückstufung und zu wenige Renntage drücken sie. Wer verletzt oder krank ist, nimmt ein verpasstes Rennen nicht übel. Sie verschiebt seine Form um bis zu knapp ein Prozent in jede Richtung und seine Gehaltsforderung.',
-  'Saisonziele': 'Bis zu drei Rennen, auf die ein Fahrer seine Saison ausrichtet. Dort startet er sicher und ist gut ein Prozent stärker, in den übrigen Rennen eine Spur schwächer. Der Sportliche Leiter setzt sie aus dem Saisonplan; mit der Zielscheibe änderst du sie.',
-  'Versprechen': 'Eine Zusage: ein Startplatz oder eine Kapitänsrolle in einem Rennen, oder im Vertragsgespräch für die ganze erste Saison (Start bei einer Grand Tour, Kapitän in einem WorldTour-Rennen). Gehalten hebt sie die Moral, gebrochen fällt die Moral tief. Fällt der Fahrer verletzt oder krank aus, entfällt sie ohne Folgen.',
-  'Professionalität': 'Wie ernst ein Fahrer Training und Erholung nimmt. Hohe Professionalität lässt ihn bis zu zehn Prozent schneller reifen, niedrige entsprechend langsamer.',
-  'Ehrgeiz': 'Wie sehr ein Fahrer Ergebnisse und eine eigene Rolle will. Ehrgeizige Fahrer reagieren stärker auf alles, was ihre Moral bewegt, und beschweren sich über zu wenige Renntage.',
-  'Treue': 'Wie sehr ein Fahrer an seinem Team hängt. Treue Fahrer verlangen weniger, um zu verlängern.',
-  'Konstanz': 'Wie wenig die Form eines Fahrers von Rennen zu Rennen schwankt.',
-  'Form': 'Leistungsfaktor am Start eines Rennens. 0 % ist der Stand bei normalem Training ohne Rennen. Renntage in den Beinen und Erholung heben ihn bis etwa +4 %, Erschöpfung drückt ihn bis etwa −3 %.',
-  'Fitness': 'Langfristige Trainings- und Rennbelastung der letzten rund sechs Wochen. Mehr Fitness bedeutet bessere Form, sobald die Ermüdung abgeklungen ist.',
-  'Ermüdung': 'Belastung der letzten Woche. Sie steigt mit Rennen und hartem Training schnell und fällt in wenigen Ruhetagen wieder.',
-  'Frische': 'Fitness minus Ermüdung. Unter −20 ist ein Fahrer müde, unter −40 würde ein Sportlicher Leiter ihn nicht aufstellen.',
-  'Stärke': 'Gesamtwert aus den besten Fähigkeiten des Fahrers. Bestimmt Marktwert und Gehaltsforderung.',
-  'Potenzial': 'Wie stark sich der Fahrer bis etwa 27 noch verbessern kann, von 1 bis 6. Ab 4,5 lohnt sich Geduld.',
-  'Pot': 'Potenzial von 1 bis 6: wie stark sich der Fahrer noch verbessert.',
-  'Eignung': 'Wie gut die Fähigkeiten des Fahrers zu den Strecken dieses Rennens passen, gemittelt über seine drei besten Etappen.',
-  'Renntage': 'Renntage in dieser Saison. Ab 80 schont ein Sportlicher Leiter den Fahrer.',
-  'Belastung': 'Trainingsumfang: schonend erholt, hart baut schneller Fitness auf und macht müde.',
-  'Schwerpunkt': 'Im Training: Diese Fähigkeiten entwickeln sich schneller, die übrigen langsamer. Bei Sportlichen Leitern: die Rennart, die er am besten führt.',
-  'Marktwert': 'Jahresgehalt, das der Fahrer auf dem Markt erzielen würde.',
-  'Aussicht für zwölf Monate': 'Erwartete Veränderung je Fähigkeit in einem Jahr bei normalem Training und durchschnittlichem Trainer. Ab 32 geht es abwärts.',
-  'Können': 'Hauptwert der Person von 1 bis 20. Beim Sportlichen Leiter die Taktik, beim Trainer die Entwicklung der Fahrer, beim Arzt die Dauer von Ausfällen, beim Scout die Genauigkeit der Berichte.',
-  'Rennlesen': 'Wie gut der Sportliche Leiter auf Angriffe reagiert und Fahrer in die Gruppe des Tages bringt, von 1 bis 20.',
-  'Motivation': 'Wie sehr der Sportliche Leiter die Form seiner Fahrer am Renntag hebt, von 1 bis 20.',
-  'Flach': 'Tempo auf flachen Strecken und im Wind.',
-  'Berg': 'Lange Anstiege über mehrere Kilometer.',
-  'Mittelgebirge': 'Mittlere Anstiege und welliges Gelände.',
-  'Hügel': 'Kurze, steile Anstiege.',
-  'Zeitfahren': 'Einzelzeitfahren über längere Distanzen.',
-  'Prolog': 'Kurze Zeitfahren unter acht Kilometern.',
-  'Kopfsteinpflaster': 'Pflastersektoren und schlechte Straßen.',
-  'Sprint': 'Endgeschwindigkeit im Sprint.',
-  'Antritt': 'Beschleunigung: Angriffe und der Beginn des Sprints.',
-  'Abfahrt': 'Tempo und Sicherheit bergab.',
-  'Ausreißer': 'Chance, in die Gruppe des Tages zu kommen, und Arbeit darin.',
-  'Ausdauer': 'Wie langsam die Kraft über einen langen Renntag nachlässt.',
-  'Widerstand': 'Wie lange der Fahrer über seiner Schwelle fahren kann.',
-  'Regeneration': 'Erholung von Etappe zu Etappe in Rundfahrten.',
-  'FL': 'Flach: Tempo auf flachen Strecken und im Wind.',
-  'BG': 'Berg: lange Anstiege.',
-  'MB': 'Mittelgebirge: mittlere Anstiege und welliges Gelände.',
-  'HÜ': 'Hügel: kurze, steile Anstiege.',
-  'ZF': 'Zeitfahren.',
-  'PR': 'Prolog: kurze Zeitfahren.',
-  'KO': 'Kopfsteinpflaster.',
-  'SP': 'Sprint.',
-  'ANT': 'Antritt: Beschleunigung.',
-  'ABF': 'Abfahrt.',
-  'AUS': 'Ausreißer: Chance auf die Gruppe des Tages.',
-  'AD': 'Ausdauer über einen langen Renntag.',
-  'WID': 'Widerstand: Zeit über der Schwelle.',
-  'REG': 'Regeneration zwischen Etappen.',
+  'Normalised power': 'The power a rider could have held evenly for the same strain: hard efforts weigh more than easy riding. Divided by the threshold it gives the intensity (IF); above 0.85 a stage was very hard.',
+  'VAM': 'Metres climbed per hour on a climb. Around 1,700 is what the best manage on a long climb at the end of a hard stage.',
+  'Team style': 'How a team\'s sports directors race and plan: sprint, general classification, classics, youth, experience or all-round. It follows from the squad and is worked out again every season; for your team you can set it under Delegation.',
+  'Tyres': 'Narrow tyres roll best on smooth roads and puncture more on bad ones; wide tyres roll better and puncture less on cobbles and gravel and are a little slower on tarmac. The sports director chooses them per stage; in the race preparation you can fix them for the race.',
+  'Mechanics': 'They prepare the bikes and change wheels in the race: good mechanics lose less time at a puncture or a crash and prevent some defects. One for about eight riders.',
+  'Physiotherapists': 'Soigneurs and physiotherapists: in stage races good ones let the riders win back more of their fatigue overnight and on rest days. One for about ten riders.',
+  'Personality': 'The person in a word, from professionalism, ambition, loyalty and consistency. Green is a good sign (such as model professional, professional, loyal), red a warning (such as mercenary, slack, temperamental); most riders are balanced. It is fixed once the career begins.',
+  'Standing in the team': 'What a rider may expect in his team: a star and a leader want to ride for themselves in important races; key domestiques, domestiques and prospects do not. It follows from strength and age; for your riders you can change it. Moving a rider up lifts his morale, moving him down lowers it, and so does a star who has to work for others.',
+  'Morale': 'How content a rider is, in every team. Wins, podiums, kept promises and a role above his standing raise it; broken promises, being moved down and too few race days lower it. A rider who is injured or ill does not resent a race he misses. It shifts his form by up to just under one per cent either way, and the wage he asks.',
+  'Season goals': 'Up to three races a rider builds his season around. He is sure to start there and is a good one per cent stronger, a touch weaker in the other races. The sports director sets them from the season plan; the target changes them.',
+  'Promise': 'A commitment: a start or a leading role in one race, or, in contract talks, for the whole first season (a start in a Grand Tour, leader in a WorldTour race). Kept, it lifts morale; broken, morale falls far. If the rider is out injured or ill, it lapses without consequences.',
+  'Professionalism': 'How seriously a rider takes training and recovery. High professionalism lets him develop up to ten per cent faster, low professionalism correspondingly slower.',
+  'Ambition': 'How much a rider wants results and a role of his own. Ambitious riders react more strongly to everything that moves their morale, and complain about too few race days.',
+  'Loyalty':
+      'How attached a rider is to his team. Loyal riders ask less to renew.',
+  'Consistency': 'How little a rider\'s form varies from race to race.',
+  'Form': 'Power factor at the start of a race. 0 % is the level with normal training and no racing. Race days in the legs plus recovery raise it to about +4 %, exhaustion pushes it down to about −3 %.',
+  'Fitness': 'Long-term training and racing load of roughly the last six weeks. More fitness means better form once the fatigue has faded.',
+  'Fatigue': 'Load of the last week. It rises quickly with racing and hard training and falls again within a few rest days.',
+  'Freshness': 'Fitness minus fatigue. Below −20 a rider is tired; below −40 a sports director would not select him.',
+  'Strength': 'Overall value from the rider\'s best attributes. Decides market value and wage demand.',
+  'Potential': 'How much the rider can still improve until about 27, from 1 to 6. From 4.5 patience pays off.',
+  'Pot': 'Potential from 1 to 6: how much the rider will still improve.',
+  'Fit': 'How well the rider\'s attributes suit the routes of this race, averaged over his three best stages.',
+  'Race days':
+      'Race days this season. From 80 on a sports director rests the rider.',
+  'Training load': 'Training volume: easy lets the rider recover, hard builds fitness faster and tires him.',
+  'Focus': 'In training: these attributes develop faster, the others more slowly. For sports directors: the kind of race he directs best.',
+  'Market value': 'Yearly wage the rider would get on the market.',
+  'Outlook for twelve months': 'Expected change per attribute in a year with normal training and an average coach. From 32 it goes downhill.',
+  'Skill': 'The person\'s main value from 1 to 20. For a sports director the tactics, for a coach the development of the riders, for a doctor the length of lay-offs, for a scout the accuracy of the reports.',
+  'Race reading': 'How well the sports director reacts to attacks and gets riders into the break of the day, from 1 to 20.',
+  'Motivation': 'How much the sports director lifts his riders\' form on race day, from 1 to 20.',
+  'Flat': 'Pace on flat roads and in the wind.',
+  'Mountain': 'Long climbs over several kilometres.',
+  'Medium mountain': 'Mid-length climbs and rolling terrain.',
+  'Hill': 'Short, steep climbs.',
+  'Time trial': 'Individual time trials over longer distances.',
+  'Prologue': 'Short time trials of less than eight kilometres.',
+  'Cobbles': 'Cobbled sectors and bad roads.',
+  'Sprint': 'Top speed in the sprint.',
+  'Acceleration': 'Acceleration: attacks and the start of the sprint.',
+  'Downhill': 'Speed and safety downhill.',
+  'Breakaway': 'Chance of making the break of the day, and work rate in it.',
+  'Stamina': 'How slowly his power fades over a long day of racing.',
+  'Resistance': 'How long the rider can ride above his threshold.',
+  'Recovery': 'Recovery from stage to stage in stage races.',
+  'FL': 'Flat: pace on flat roads and in the wind.',
+  'MTN': 'Mountain: long climbs.',
+  'MED': 'Medium mountain: mid-length climbs and rolling terrain.',
+  'HIL': 'Hill: short, steep climbs.',
+  'TT': 'Time trial.',
+  'PRL': 'Prologue: short time trials.',
+  'COB': 'Cobbles.',
+  'SPR': 'Sprint.',
+  'ACC': 'Acceleration.',
+  'DH': 'Downhill.',
+  'BRK': 'Breakaway: chance of making the break of the day.',
+  'STA': 'Stamina over a long day of racing.',
+  'RES': 'Resistance: time above threshold.',
+  'REC': 'Recovery between stages.',
 };
 
 /// Wraps a widget in a tooltip with the explanation of a figure, shown
@@ -645,7 +653,7 @@ const statHelp = <String, String>{
 /// @param child The widget to explain.
 /// @returns The widget, with a tooltip if the label is known.
 Widget withHelp(String label, Widget child) {
-  // The label arrives translated; the table is keyed by the German one.
+  // The label arrives translated; the table is keyed by the English one.
   final text = statHelp.entries
       .where((e) => e.key == label || tr(e.key) == label)
       .map((e) => tr(e.value))

@@ -5,33 +5,41 @@ import 'stage_sim.dart' show suitability;
 /// A rider's job in the race.
 enum Role {
   /// Rides for the team's main goal and is protected.
-  leader('Kapitän'),
+  leader('Leader'),
 
   /// Second card; may follow moves and attack himself.
-  coLeader('Co-Kapitän'),
+  coLeader('Co-leader'),
 
   /// Protected, but without a goal of his own.
-  protected('Geschützter Fahrer'),
+  protected('Protected rider'),
 
   /// Should make the break of the day and ride for the stage win.
-  stageHunter('Etappenjäger'),
+  stageHunter('Stage hunter'),
   sprinter('Sprinter'),
 
   /// Last men in front of the sprinter.
-  leadOut('Anfahrer'),
+  leadOut('Lead-out man'),
 
   /// Sets the pace on climbs for the leader.
-  climbDomestique('Berghelfer'),
+  climbDomestique('Climbing domestique'),
 
   /// Controls the field on the flat and brings groups back.
-  tempo('Tempomacher'),
+  tempo('Tempo rider'),
 
   /// Should make the break as a relay for the leader.
-  breakaway('Ausreißer'),
-  domestique('Wasserträger'),
+  breakaway('Breakaway'),
+  domestique('Water carrier'),
 
   /// Decides for himself as the race unfolds.
-  freeRole('Freie Rolle');
+  freeRole('Free role'),
+
+  /// Goes into the breaks of mountain stages and takes the points on the
+  /// climbs, for the mountains jersey.
+  mountainHunter('Mountains jersey hunter'),
+
+  /// Goes into the breaks of flat stages and sprints at the intermediate
+  /// sprints, for the points jersey.
+  pointsHunter('Points jersey hunter');
 
   const Role(this._label);
   final String _label;
@@ -72,6 +80,42 @@ enum Approach {
 
   /// Set a hard pace on the climbs before the finale.
   makeHard,
+
+  /// Split the field in the crosswind: the team rides in the gutter on
+  /// open roads wherever the wind allows it, and controls the race
+  /// otherwise.
+  echelon,
+}
+
+/// How a team's sports directors like to race and to build their squad.
+/// The same rules decide for every team; the style only shifts weights.
+enum TeamStyle {
+  /// No preference.
+  balanced('All-round'),
+
+  /// Built around the sprinters: controls flat stages, values races with
+  /// many of them.
+  sprint('Sprint'),
+
+  /// Built around the general classification: makes mountain stages hard,
+  /// values stage races.
+  gc('General classification'),
+
+  /// Built for the classics: makes one-day races hard, values cobbles and
+  /// hills.
+  classics('Classics'),
+
+  /// Builds on young riders and develops them.
+  youth('Youth'),
+
+  /// Builds on experienced riders.
+  experience('Experience');
+
+  const TeamStyle(this._label);
+  final String _label;
+
+  /// The label in the current language.
+  String get label => tr(_label);
 }
 
 /// What the team does about the break of the day.
@@ -244,9 +288,17 @@ class PlanWish {
 /// @param gcGaps Gaps in the general classification before the stage. With
 ///   them, strong riders who no longer matter overall become stage hunters
 ///   on hard days.
+/// @param styles Style of each team; teams without one race balanced.
+/// @param crosswindKm Kilometres of open road in a strong crosswind, as
+///   the team cars know it from the forecast.
+/// @param mountainLeaders Riders who lead or are close to the lead of the
+///   mountains classification.
 /// @returns One plan per team id.
 Map<int, TeamPlan> autoPlans(SimRoute route, List<SimRider> riders,
-    {Map<int, double> gcGaps = const {}}) {
+    {Map<int, double> gcGaps = const {},
+    Map<int, TeamStyle> styles = const {},
+    double crosswindKm = 0,
+    Set<int> mountainLeaders = const {}}) {
   final teams = <int, List<SimRider>>{};
   for (final r in riders) {
     teams.putIfAbsent(r.teamId, () => []).add(r);
@@ -264,6 +316,17 @@ Map<int, TeamPlan> autoPlans(SimRoute route, List<SimRider> riders,
   final rank = {
     for (var i = 0; i < byStrength.length; i++) byStrength[i]: i,
   };
+
+  // Teams by the strength of their four best riders on the flat, for the
+  // crosswind.
+  double flat(int team) {
+    final values = [for (final r in teams[team]!) r.attributes.flat]
+      ..sort((a, b) => b.compareTo(a));
+    return values.take(4).fold(0.0, (s, v) => s + v);
+  }
+
+  final flatStrength = teams.keys.toList()
+    ..sort((a, b) => flat(b).compareTo(flat(a)));
 
   // A stage hunter must be strong enough: at least as good as the 40th best rider.
   final allFits = [for (final r in riders) fit(r)]
@@ -320,15 +383,52 @@ Map<int, TeamPlan> autoPlans(SimRoute route, List<SimRider> riders,
         roles[rest.removeAt(at).id] = Role.stageHunter;
       }
     }
-    final hunter = take((r) => r.attributes.breakaway, atLeast: 70);
-    if (hunter != null) roles[hunter.id] = Role.breakaway;
-
+    final style = styles[entry.key] ?? TeamStyle.balanced;
     final place = rank[entry.key]!;
-    final approach = place == 0 && route.selectivity > 1500
+    // In a stage race a team without a leader for the overall goes for the
+    // mountains jersey on the hard days: with the rider who is already in
+    // the running, or with its best climber among the breakaway riders.
+    final jerseyDay = gcGaps.isNotEmpty &&
+        !route.sprintStage &&
+        route.selectivity > 1200 &&
+        (place >= 6 || rest.any((r) => mountainLeaders.contains(r.id)));
+    final hunter = jerseyDay
+        ? take(
+            (r) =>
+                (mountainLeaders.contains(r.id) ? 30 : 0) +
+                0.6 * r.attributes.breakaway +
+                0.4 * r.attributes.mountain,
+            atLeast: 66)
+        : take((r) => r.attributes.breakaway, atLeast: 70);
+    if (hunter != null) {
+      roles[hunter.id] = jerseyDay ? Role.mountainHunter : Role.breakaway;
+    }
+
+    // The style shifts how far down the order a team still takes on the
+    // race: a sprint team controls flat stages, a team built for the
+    // overall makes the mountains hard, a classics team the hilly days.
+    final hard = route.selectivity > 1500;
+    final hilly = !route.sprintStage && !hard && route.selectivity > 600;
+    final makesHard = hard
+        ? place < (style == TeamStyle.gc ? 2 : 1)
+        : hilly && style == TeamStyle.classics && place < 3;
+    final controls =
+        place < (route.sprintStage ? (style == TeamStyle.sprint ? 7 : 5) : 3);
+    // A strong crosswind: the teams with the strongest rouleurs split the
+    // field rather than wait for it.
+    final flatRank = flatStrength.indexOf(entry.key);
+    final echelons = crosswindKm >= 8 &&
+        !hard &&
+        flatRank >= 0 &&
+        flatRank <
+            (style == TeamStyle.classics || style == TeamStyle.sprint ? 3 : 2);
+    final approach = makesHard
         ? Approach.makeHard
-        : place < (route.sprintStage ? 5 : 3)
-            ? Approach.control
-            : Approach.wait;
+        : echelons
+            ? Approach.echelon
+            : controls
+                ? Approach.control
+                : Approach.wait;
     plans[entry.key] = TeamPlan(
       roles: roles,
       approach: approach,

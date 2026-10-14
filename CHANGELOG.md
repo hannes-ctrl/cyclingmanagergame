@@ -1,9 +1,25 @@
 # Changelog
 
-## Unreleased (0.3.0)
+## 0.3.0 alpha (2026-10-14)
 
-Race realism.
+Races that hold up better, riders as people, a season plan for every team, material and staff, and a lot of comfort. Calibrated on the seasons 2023 to 2026; still not balanced.
 
+Known gaps: the middle of the field finishes too close to the winner, breakaways win too rarely and sector races end solo too rarely; the effects of material, staff and team styles are estimates; money is not balanced.
+
+- Power figures after every stage: average and normalised power, W/kg, intensity, kilojoules, six power zones, and W/kg, VAM and time on every climb; in the race report under "Power", kept for the player's riders and the first ten.
+- Radio when a leader crashes or punctures: two helpers wait, the whole team waits, or nobody. Every team's sports director decides the same way; the whole team waits for a leader of the general classification.
+- Weather forecast in the race preparation instead of the exact weather, blurred by the days ahead, with a warning of echelons. New approach "split in the crosswind"; the teams with the strongest rouleurs choose it themselves when the crosswind is strong.
+- Roles "mountains jersey hunter" and "points jersey hunter": into the break, all out for the points. Teams without a leader for the overall send one on the hard days of stage races.
+- Team styles from the squad (all-round, sprint, general classification, classics, youth, experience), acting on the season planner, the market and the tactics of every team; the player's style can be set under "Delegation".
+- Mechanics and physiotherapists as new staff for every team: faster wheel changes, fewer punctures, better recovery in stage races. Older saves get them.
+- Material of real bike and tyre suppliers for every team, with payments and offers on 1 September; tyres and the time trial bike chosen per race by every sports director, overruled by the player in the race preparation.
+- Single race in the start menu: any race with any WorldTeam or ProTeam, own approach, break policy, tyres and seed.
+- Warnings before a line-up is confirmed, and "line-up of last year".
+- Progress and a stop button while days run to a date, and one summary message after a week or more.
+- Ctrl+S quick save, number keys 1 to 9 for the pages, F1 for the help.
+- Colour vision setting (daltonised colours for deuteranopia, protanopia, tritanopia).
+- Bug report as a ZIP file with save, settings, tuning values and version.
+- English is now the language of the source texts; German is a translation table (`i18n_de.dart`), so a further language is one more table. A few English terms that stood for two different German ones were separated (for example "Resume" and "Continue", "Training load" and "Load"). Muted inbox topics of older saves are carried over; filters saved by the rider search start afresh.
 - Stages are cut into 200 m segments instead of 500 m; the steepest ramp of a categorised climb, which the profile smooths away, is put back.
 - Physics: every rider rides with his own weight and height from the WorldDB; thinner air at altitude means less drag and less power; head-, tail- and crosswind.
 - Weather by month and country: temperature, rain and wind. Heat and cold cost energy, rain makes descents slower and crashes more likely. The race report names the weather.
@@ -23,6 +39,7 @@ Race realism.
 - Dropped favourites are brought back by their helpers.
 - The race preparation shows the weather of the first stage.
 - Calibration: breakaway wins count again, per race and as a frequency per race type. Sector races are reported as their own type. The search changes about three parameters per attempt instead of ten, and the frequency terms weight the race types by the square root of their number of races.
+- Calibration: a candidate must now be better by a margin (0.1, `--margin`) on both draws of random numbers. Without it the search accepted changes that were no better and drifted away from a good setting: measured on fresh random numbers, the runs since the evening of 12 October ended at 10.5 against 9.55 for the setting of that evening, which is therefore back in `tuning.json`. `bin/compare.dart` compares tuning files that way.
 - Calibration on the seasons 2023 to 2026 only: of the fields of 2021 and 2022 the database covers too little (58 % and 67 % of the finishers). `bin/seasons.dart` shows the coverage per season, and the report lists the error per season.
 - Removed: what was left of the trial run in the race screen. A preview run remains in the application state for the screen tests only.
 - A test guards that watching, skipping and "simulate to a date" give the same race (`app/test/one_simulation_test.dart`).

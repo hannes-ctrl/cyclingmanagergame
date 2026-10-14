@@ -9,12 +9,14 @@ import '../settings.dart';
 import '../ui.dart';
 import '../widgets.dart';
 import 'found_screen.dart';
+import 'single_race_screen.dart';
 
 /// Sections of the start menu.
 enum _Section {
-  load('Spielstand laden', LucideIcons.folderOpen),
-  create('Neue Karriere', LucideIcons.plus),
-  settings('Einstellungen', LucideIcons.settings);
+  load('Load game', LucideIcons.folderOpen),
+  create('New career', LucideIcons.plus),
+  single('Single race', LucideIcons.flag),
+  settings('Settings', LucideIcons.settings);
 
   const _Section(this._label, this.icon);
   final String _label;
@@ -106,7 +108,7 @@ class _StartScreenState extends State<StartScreen> {
                 children: [
                   Text('RADMANAGER', style: headStyle(44)),
                   Text(
-                    tr('Radsport-Managerspiel · Version {0}', [appVersion]),
+                    tr('Cycling management game · version {0}', [appVersion]),
                     style: TextStyle(color: TeamColors.muted),
                   ),
                   const SizedBox(height: 34),
@@ -132,7 +134,7 @@ class _StartScreenState extends State<StartScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    tr('FORTSETZEN'),
+                                    tr('RESUME'),
                                     style: TextStyle(
                                       fontFamily: headFont,
                                       fontSize: 19,
@@ -177,7 +179,7 @@ class _StartScreenState extends State<StartScreen> {
                   ],
                   const Spacer(),
                   entry(
-                    tr('Beenden'),
+                    tr('Quit'),
                     LucideIcons.logOut,
                     onTap: () {
                       s.flush();
@@ -195,6 +197,7 @@ class _StartScreenState extends State<StartScreen> {
                 child: switch (_section) {
                   _Section.load => _load(),
                   _Section.create => _create(),
+                  _Section.single => SingleRacePanel(state: widget.state),
                   _Section.settings => _settings(),
                 },
               ),
@@ -213,19 +216,19 @@ class _StartScreenState extends State<StartScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(tr('Spielstand laden'), style: headStyle(24)),
+        Text(tr('Load game'), style: headStyle(24)),
         const SizedBox(height: 4),
         Text(
           _message ??
               tr(
-                'Benannte Spielstände legst du im Spiel unter „Spielstände" an. Die laufende Karriere wird beim Laden ersetzt.',
+                'You create named saves in the game under "Save games". Loading replaces the running career.',
               ),
           style: const TextStyle(color: TeamColors.muted),
         ),
         const SizedBox(height: 14),
         if (saves.isEmpty)
           Text(
-            tr('Noch kein benannter Spielstand vorhanden.'),
+            tr('No named save yet.'),
             style: TextStyle(color: TeamColors.muted),
           ),
         Expanded(
@@ -256,7 +259,7 @@ class _StartScreenState extends State<StartScreen> {
                               ),
                             ),
                             Text(
-                              tr('{0} · Stand {1} · gespeichert {2}', [
+                              tr('{0} · game date {1} · saved {2}', [
                                 info.team,
                                 _date(info.gameDate),
                                 _date(info.savedAt),
@@ -282,7 +285,7 @@ class _StartScreenState extends State<StartScreen> {
                                   setState(() => _message = error);
                                 }
                               },
-                        child: Text(tr('Laden')),
+                        child: Text(tr('Load')),
                       ),
                     ],
                   ),
@@ -305,11 +308,11 @@ class _StartScreenState extends State<StartScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(tr('Neue Karriere'), style: headStyle(24)),
+        Text(tr('New career'), style: headStyle(24)),
         const SizedBox(height: 4),
         Text(
           tr(
-            'Übernimm ein WorldTeam oder ProTeam, oder gründe dein eigenes. Die laufende Karriere wird ersetzt; sichere sie vorher unter einem Namen, wenn du sie behalten willst.',
+            'Take over a WorldTeam or ProTeam, or found your own. The running career is replaced; save it under a name first if you want to keep it.',
           ),
           style: TextStyle(color: TeamColors.muted),
         ),
@@ -372,7 +375,7 @@ class _StartScreenState extends State<StartScreen> {
                       widget.onPlay();
                     },
               child: Text(
-                tr('KARRIERE STARTEN'),
+                tr('START CAREER'),
                 style: TextStyle(
                   fontFamily: headFont,
                   fontSize: 15,
@@ -396,7 +399,7 @@ class _StartScreenState extends State<StartScreen> {
                 await showFoundScreen(context, s);
                 if (mounted && s.team.id != before) widget.onPlay();
               },
-              child: Text(tr('Eigenes Team gründen …')),
+              child: Text(tr('Found your own team …')),
             ),
           ],
         ),
@@ -438,12 +441,12 @@ class _StartScreenState extends State<StartScreen> {
       builder: (context, _) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(tr('Einstellungen'), style: headStyle(24)),
+          Text(tr('Settings'), style: headStyle(24)),
           const SizedBox(height: 8),
           row(
-            tr('Sprache'),
+            tr('Language'),
             tr(
-              'Gilt für alle neuen Texte. Nachrichten und Rennberichte, die es schon gibt, bleiben in ihrer Sprache.',
+              'Applies to all new texts. Messages and race reports that already exist keep their language.',
             ),
             Row(
               mainAxisSize: MainAxisSize.min,
@@ -486,8 +489,8 @@ class _StartScreenState extends State<StartScreen> {
             ),
           ),
           row(
-            tr('Darstellungsgröße'),
-            tr('Zeichnet die ganze Oberfläche größer oder kleiner.'),
+            tr('Interface size'),
+            tr('Draws the whole interface larger or smaller.'),
             Wrap(
               spacing: 6,
               children: [
@@ -502,8 +505,8 @@ class _StartScreenState extends State<StartScreen> {
             ),
           ),
           row(
-            tr('Seitenübergänge'),
-            tr('Blendet Seiten beim Wechsel sanft ein.'),
+            tr('Page transitions'),
+            tr('Fades pages in when you switch between them.'),
             Switch(
               value: set.animations,
               activeThumbColor: c.accent,
@@ -511,8 +514,8 @@ class _StartScreenState extends State<StartScreen> {
             ),
           ),
           row(
-            tr('Vollbild'),
-            tr('Öffnet das Fenster ohne Rahmen über den ganzen Bildschirm.'),
+            tr('Full screen'),
+            tr('Opens the window without a frame across the whole screen.'),
             Switch(
               value: set.fullScreen,
               activeThumbColor: c.accent,
@@ -523,9 +526,28 @@ class _StartScreenState extends State<StartScreen> {
             ),
           ),
           row(
-            tr('Debug-Modus'),
+            tr('Colour vision'),
             tr(
-              'Zeigt alle Fahrerwerte genau, interne Größen im Fahrerprofil und eine Debug-Seite mit Testaktionen.',
+              'Shifts all colours so that red and green, or blue and yellow, can be told apart.',
+            ),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final v in ColorVision.values)
+                  Pill(
+                    label: v.label,
+                    selected: set.vision == v,
+                    colors: c,
+                    onTap: () => set.vision = v,
+                  ),
+              ],
+            ),
+          ),
+          row(
+            tr('Debug mode'),
+            tr(
+              'Shows all rider values exactly, internal figures on the rider page and a debug page with test actions.',
             ),
             Switch(
               value: set.debug,
@@ -536,7 +558,7 @@ class _StartScreenState extends State<StartScreen> {
           const SizedBox(height: 10),
           Text(
             tr(
-              'Funk, Aufgebote, Training und Scouting stellst du je Karriere im Spiel unter „Aufgabenverteilung" ein.',
+              'Radio, line-ups, training and scouting are set per career in the game under "Delegation".',
             ),
             style: TextStyle(color: TeamColors.muted),
           ),

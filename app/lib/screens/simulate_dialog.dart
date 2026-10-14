@@ -5,7 +5,7 @@ import 'package:game/game.dart';
 import '../app_state.dart';
 import '../ui.dart';
 
-const _weekdays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const _weekdays = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
 String _long(DateTime d) =>
     '${tr(_weekdays[d.weekday - 1])}, ${d.day.toString().padLeft(2, '0')}.'
@@ -78,10 +78,10 @@ class _SimulateDialogState extends State<_SimulateDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(tr('Simulieren bis …'), style: headStyle(22)),
+              Text(tr('Simulate to …'), style: headStyle(22)),
               const SizedBox(height: 2),
               Text(
-                tr('Heute ist {0}.', [_long(s.career.today)]),
+                tr('Today is {0}.', [_long(s.career.today)]),
                 style: const TextStyle(color: TeamColors.muted),
               ),
               Theme(
@@ -118,7 +118,7 @@ class _SimulateDialogState extends State<_SimulateDialog> {
                         padding: EdgeInsets.only(top: 6),
                         child: Text(
                           tr(
-                            'Ohne Halt: Der Sportliche Leiter stellt bis dahin die Aufgebote auf und entscheidet im Rennen selbst.',
+                            'Without stops: until then the sports director picks the line-ups and decides in the race himself.',
                           ),
                         ),
                       ),
@@ -131,14 +131,14 @@ class _SimulateDialogState extends State<_SimulateDialog> {
                   padding: EdgeInsets.only(left: 48, top: 2),
                   child: Text(
                     tr(
-                      'Sonst hält die Simulation an, sobald ein Aufgebot oder eine Funkantwort gebraucht wird.',
+                      'Otherwise the simulation stops whenever a line-up or a radio answer is needed.',
                     ),
                     style: TextStyle(fontSize: 12, color: TeamColors.muted),
                   ),
                 ),
               const SizedBox(height: 12),
               Text(
-                tr('Anhalten, sobald eine Nachricht zu diesen Themen kommt:'),
+                tr('Stop as soon as a message on these topics arrives:'),
                 style: const TextStyle(fontSize: 13),
               ),
               const SizedBox(height: 6),
@@ -162,7 +162,7 @@ class _SimulateDialogState extends State<_SimulateDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: Text(tr('Abbrechen')),
+                    child: Text(tr('Cancel')),
                   ),
                   const Spacer(),
                   FilledButton(
@@ -188,10 +188,10 @@ class _SimulateDialogState extends State<_SimulateDialog> {
                             );
                           },
                     child: Text(
-                      tr('BIS {0} · {1} {2}', [
+                      tr('UNTIL {0} · {1} {2}', [
                         _long(_target).substring(4, 10),
                         days,
-                        days == 1 ? tr('TAG') : tr('TAGE'),
+                        days == 1 ? tr('DAY') : tr('DAYS'),
                       ]),
                       style: const TextStyle(
                         fontFamily: headFont,

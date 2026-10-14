@@ -81,3 +81,121 @@ class RiderTrace {
 
 /// Mishaps a rider can have during a stage, mildest first.
 enum RiderIncident { none, puncture, crash }
+
+/// What a rider's power meter would have shown after a stage.
+class PowerStats {
+  PowerStats(this.seconds, this.averageW, this.normalizedW, this.kilojoules,
+      this.ftpW, this.massKg, this.zones, this.climbs);
+
+  /// Riding time in seconds.
+  final double seconds;
+
+  /// Average power in watts.
+  final double averageW;
+
+  /// Normalised power in watts: weighs hard efforts as the body feels them.
+  final double normalizedW;
+
+  /// Work done in kilojoules.
+  final double kilojoules;
+
+  /// Threshold power at the start of the stage, in watts.
+  final double ftpW;
+
+  /// Body weight in kg.
+  final double massKg;
+
+  /// Seconds in the six power zones, relative to the threshold: below
+  /// 55 %, 55–75 %, 75–90 %, 90–105 %, 105–120 % and above 120 %.
+  final List<double> zones;
+
+  /// Power on each categorised climb, in the order of the route.
+  final List<ClimbPower> climbs;
+
+  /// Average power per kg of body weight.
+  double get averageWkg => averageW / massKg;
+
+  /// Normalised power relative to the threshold.
+  double get intensity => ftpW <= 0 ? 0 : normalizedW / ftpW;
+
+  /// @returns The figures as a compact list.
+  List<Object> toJson() => [
+        seconds.round(),
+        averageW.round(),
+        normalizedW.round(),
+        kilojoules.round(),
+        ftpW.round(),
+        massKg,
+        [for (final z in zones) z.round()],
+        [for (final c in climbs) c.toJson()],
+      ];
+
+  /// @param j A list written by [toJson].
+  /// @returns The figures.
+  static PowerStats fromJson(List<dynamic> j) => PowerStats(
+        (j[0] as num).toDouble(),
+        (j[1] as num).toDouble(),
+        (j[2] as num).toDouble(),
+        (j[3] as num).toDouble(),
+        (j[4] as num).toDouble(),
+        (j[5] as num).toDouble(),
+        [for (final z in j[6] as List) (z as num).toDouble()],
+        [for (final c in j[7] as List) ClimbPower.fromJson(c as List)],
+      );
+}
+
+/// A rider's effort on one climb.
+class ClimbPower {
+  ClimbPower(this.name, this.topKm, this.category, this.seconds, this.averageW,
+      this.gainM, this.massKg);
+
+  /// Name of the climb.
+  final String name;
+
+  /// Race kilometre of the top.
+  final double topKm;
+
+  /// Category, 1 for hors catégorie up to 5 for the fourth.
+  final int category;
+
+  /// Seconds from the foot to the top.
+  final double seconds;
+
+  /// Average power in watts.
+  final double averageW;
+
+  /// Metres climbed.
+  final double gainM;
+
+  /// Body weight in kg.
+  final double massKg;
+
+  /// Average power per kg of body weight.
+  double get averageWkg => averageW / massKg;
+
+  /// Metres climbed per hour.
+  double get vam => seconds <= 0 ? 0 : gainM / seconds * 3600;
+
+  /// @returns The figures as a compact list.
+  List<Object> toJson() => [
+        name,
+        topKm,
+        category,
+        seconds.round(),
+        averageW.round(),
+        gainM.round(),
+        massKg,
+      ];
+
+  /// @param j A list written by [toJson].
+  /// @returns The figures.
+  static ClimbPower fromJson(List<dynamic> j) => ClimbPower(
+        j[0] as String,
+        (j[1] as num).toDouble(),
+        j[2] as int,
+        (j[3] as num).toDouble(),
+        (j[4] as num).toDouble(),
+        (j[5] as num).toDouble(),
+        (j[6] as num).toDouble(),
+      );
+}

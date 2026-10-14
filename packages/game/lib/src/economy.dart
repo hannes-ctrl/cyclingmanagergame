@@ -204,9 +204,9 @@ class Economy {
     if (names.isEmpty) return;
     c.inbox.add(Message(
       c.today,
-      tr('Teamleitung'),
-      tr('Sponsorensuche {0}', [c.year + 1]),
-      tr('Zum Jahresende laufen aus: {0}. Unter Finanzen liegen Angebote für die Nachfolge. Wer bis Dezember nichts wählt, überlässt den Abschluss der Teamleitung.',
+      tr('Board'),
+      tr('Sponsor search {0}', [c.year + 1]),
+      tr('Expiring at the end of the year: {0}. Offers for a successor are under Finances. If you choose nothing by December, the board signs.',
           [names.join(', ')]),
     ));
   }
@@ -218,9 +218,10 @@ class Economy {
   /// @returns null on success, otherwise the reason.
   String? searchSponsor(int slot) {
     if (!offers.containsKey(slot))
-      return tr('Für diesen Platz wird nicht gesucht.');
-    if (signed.containsKey(slot)) return tr('Hier ist schon abgeschlossen.');
-    if (_searched.contains(slot)) return tr('Mehr gibt der Markt nicht her.');
+      return tr('No search is running for this slot.');
+    if (signed.containsKey(slot)) return tr('This has already been signed.');
+    if (_searched.contains(slot))
+      return tr('The market has nothing more to offer.');
     _searched.add(slot);
     searches[slot] = c.today.add(const Duration(days: 30));
     return null;
@@ -234,16 +235,16 @@ class Economy {
   String? acceptSponsor(int slot, int index) {
     final list = offers[slot];
     if (list == null || index < 0 || index >= list.length) {
-      return tr('Das Angebot gibt es nicht mehr.');
+      return tr('The offer no longer exists.');
     }
-    if (signed.containsKey(slot)) return tr('Hier ist schon abgeschlossen.');
+    if (signed.containsKey(slot)) return tr('This has already been signed.');
     signed[slot] = list[index];
     searches.remove(slot);
     c.inbox.add(Message(
       c.today,
-      tr('Teamleitung'),
-      tr('{0} wird Sponsor', [list[index].name]),
-      tr('{0} zahlt ab {1} für {2} Jahre {3} im Jahr.', [
+      tr('Board'),
+      tr('{0} becomes a sponsor', [list[index].name]),
+      tr('{0} pays {3} a year for {2} years from {1}.', [
         list[index].name,
         c.year + 1,
         list[index].years,
@@ -266,9 +267,9 @@ class Economy {
       offers[slot]?.add(offer);
       c.inbox.add(Message(
         c.today,
-        tr('Teamleitung'),
-        tr('Weiteres Sponsorenangebot'),
-        tr('{0} bietet {1} im Jahr für {2} Jahre.',
+        tr('Board'),
+        tr('Another sponsor offer'),
+        tr('{0} offers {1} a year for {2} years.',
             [offer.name, _euro(offer.amount), offer.years]),
       ));
     }
@@ -286,7 +287,7 @@ class Economy {
         if (place != null && rank > place) {
           s.amount *= 0.8;
           lines.add(tr(
-              '{0} kürzt um ein Fünftel, weil Platz {1} in der Teamrangliste verfehlt wurde',
+              '{0} cuts a fifth because place {1} in the team ranking was missed',
               [s.name, place]));
         }
         continue;
@@ -297,7 +298,7 @@ class Economy {
               ? list.first
               : SponsorOffer(s.name, _offerBase(s) * 0.9, 1));
       if (!signed.containsKey(i)) {
-        lines.add(tr('Die Teamleitung hat mit {0} abgeschlossen', [next.name]));
+        lines.add(tr('The board has signed with {0}', [next.name]));
       }
       sponsors[i] = Sponsor(next.name, next.amount, c.year + next.years,
           demandPlace: next.demandPlace);
@@ -434,21 +435,21 @@ class Economy {
   String? offer(int riderId, int wage, int years, {PromiseKind? promise}) {
     final r = c.riderById[riderId];
     final k = contracts[riderId];
-    if (r == null || k == null) return tr('Fahrer nicht gefunden.');
+    if (r == null || k == null) return tr('Rider not found.');
     if (!expiring(r))
-      return tr('Der Vertrag läuft noch oder ist schon geregelt.');
+      return tr('The contract is still running or already settled.');
     if (!windowOpen)
-      return tr('Vertragsgespräche sind erst ab dem 1. August möglich.');
+      return tr('Contract talks are only possible from 1 August.');
     if (k.refusedUntil?.isAfter(c.today) ?? false) {
       return tr(
-          'Er möchte nach der letzten Absage noch nicht wieder verhandeln.');
+          'After the last refusal he does not want to negotiate again yet.');
     }
     if (squadNextSeason(c.teamId) >= 30) {
-      return tr('Der Kader für die nächste Saison ist mit 30 Fahrern voll.');
+      return tr('The squad for next season is full with 30 riders.');
     }
     if (wageBill(c.teamId, nextSeason: true) + wage > budget * 0.72) {
       return tr(
-          'Die Teamleitung gibt das Gehalt nicht frei: Das Budget für Gehälter wäre überschritten.');
+          'The board does not approve the wage: the wage budget would be exceeded.');
     }
     final wanted = promise == null
         ? demand(r)
@@ -457,8 +458,8 @@ class Economy {
       k.refusedUntil = c.today.add(const Duration(days: 14));
       // The agent only names the ballpark.
       final hint = (wanted / 50000).ceil() * 50000;
-      return tr('Abgelehnt. Sein Berater spricht von mindestens {0} im Jahr.',
-          [_euro(hint)]);
+      return tr(
+          'Declined. His agent speaks of at least {0} a year.', [_euro(hint)]);
     }
     k
       ..nextTeam = c.teamId
@@ -467,15 +468,15 @@ class Economy {
     if (promise != null) c.people.promiseSeason(riderId, promise);
     c.inbox.add(Message(
       c.today,
-      tr('Berater'),
+      tr('Agent'),
       r.teamId == c.teamId
-          ? tr('{0} verlängert', [r.name])
-          : tr('{0} unterschreibt für {1}', [r.name, c.year + 1]),
-      tr('{0} hat für {1} im Jahr bis {2} unterschrieben.',
+          ? tr('{0} extends', [r.name])
+          : tr('{0} signs for {1}', [r.name, c.year + 1]),
+      tr('{0} has signed for {1} a year until {2}.',
               [c.fullName(r.id), _euro(wage), k.nextEnd]) +
           (promise == null
               ? ''
-              : ' ${tr('Zugesagt für {0}: {1}.', [
+              : ' ${tr('Promised for {0}: {1}.', [
                       c.year + 1,
                       People.seasonText(promise)
                     ])}'),
@@ -484,7 +485,7 @@ class Economy {
   }
 
   static String _euro(num v) => v >= 1000000
-      ? tr('{0} Mio. €', [dec(v / 1000000, 2)])
+      ? tr('{0} m €', [dec(v / 1000000, 2)])
       : '${(v / 1000).round()}.000 €';
 
   // --- Daily routine ----------------------------------------------------------
@@ -531,8 +532,10 @@ class Economy {
       budget / 12,
       _prize,
       wageBill(c.teamId) / 12,
-      // Travel and equipment as a flat rate, plus staff wages.
-      budget * 0.15 / 12 +
+      // Travel and equipment as a flat rate, less what the suppliers pay,
+      // plus staff wages.
+      budget * 0.15 / 12 -
+          c.equipment.supplyOf(c.teamId).fee / 12 +
           c.staff.wages(c.teamId) / 12 +
           c.devTeam.cost / 12 +
           _charged,
@@ -573,7 +576,12 @@ class Economy {
       if (target == 0) continue;
       var signed = 0;
       final level = c.teamStrength(team.id);
-      for (final r in pool) {
+      // Every team looks at the market through its style.
+      final style = c.styleOf(team.id);
+      final wanted = [...pool]..sort((a, b) =>
+          (rating(b) + styleBonus(b, style))
+              .compareTo(rating(a) + styleBonus(a, style)));
+      for (final r in wanted) {
         if (signed >= 2 || (sizes[team.id] ?? 0) >= target) break;
         if (!expiring(r) || r.teamId == team.id) continue;
         // Nobody moves to a clearly weaker team, and no team gets a rider far
@@ -585,6 +593,32 @@ class Economy {
         signed++;
       }
     }
+  }
+
+  /// How much a rider is worth to a team of a style beyond his rating.
+  ///
+  /// @param r The rider.
+  /// @param style Style of the team.
+  /// @returns Points on the rating scale.
+  double styleBonus(SimRider r, TeamStyle style) {
+    final a = r.attributes;
+    final age = c.year - r.born ~/ 10000;
+    return switch (style) {
+      TeamStyle.sprint => a.sprint >= 76 ? 3 : 0,
+      TeamStyle.gc => a.mountain >= 75 ? 3 : 0,
+      TeamStyle.classics => a.cobble >= 74 || a.hill >= 76 ? 3 : 0,
+      TeamStyle.youth => age <= 24
+          ? 3
+          : age >= 31
+              ? -3
+              : 0,
+      TeamStyle.experience => age >= 29
+          ? 2
+          : age <= 22
+              ? -2
+              : 0,
+      TeamStyle.balanced => 0,
+    };
   }
 
   /// Target size of a squad: as large as at the start of the career.
@@ -638,17 +672,17 @@ class Economy {
     if (kept.isEmpty && released.isEmpty) return;
     c.inbox.add(Message(
       c.today,
-      tr('Teamleitung'),
-      tr('Auslaufende Verträge geregelt'),
+      tr('Board'),
+      tr('Expiring contracts settled'),
       tr(
-          '{0}{1}Wer das selbst entscheiden will, schaltet die automatische Verlängerung im Transferbereich ab.',
+          '{0}{1}To decide this yourself, switch off automatic renewals in the transfer section.',
           [
             kept.isEmpty
                 ? ''
-                : tr('Um zwei Jahre verlängert: {0}. ', [kept.join(', ')]),
+                : tr('Renewed for two years: {0}. ', [kept.join(', ')]),
             released.isEmpty
                 ? ''
-                : tr('Ohne neues Angebot: {0}. ', [released.join(', ')])
+                : tr('Without a new offer: {0}. ', [released.join(', ')])
           ]),
     ));
   }
@@ -670,9 +704,9 @@ class Economy {
         c.today,
         'Scouting',
         teamId == r.teamId
-            ? tr('{0} verlängert bei {1}', [r.name, team])
-            : tr('{0} wechselt zu {1}', [r.name, team]),
-        tr('Der Fahrer stand auf deiner Beobachtungsliste. Sein neuer Vertrag läuft bis {0}.',
+            ? tr('{0} renews with {1}', [r.name, team])
+            : tr('{0} moves to {1}', [r.name, team]),
+        tr('The rider was on your shortlist. His new contract runs until {0}.',
             [c.year + years]),
       ));
     }
@@ -690,8 +724,8 @@ class Economy {
     c.inbox.add(Message(
       c.today,
       'Scouting',
-      tr('Beobachtungsliste: {0} Fahrer sind zu haben', [free.length]),
-      tr('Die Verträge dieser Fahrer laufen aus, und noch hat keiner woanders unterschrieben: {0}.',
+      tr('Shortlist: {0} riders are available', [free.length]),
+      tr('The contracts of these riders run out, and none of them has signed elsewhere yet: {0}.',
           [free.map((r) => r.name).join(', ')]),
     ));
   }
@@ -706,7 +740,7 @@ class Economy {
     for (final g in goals) {
       final ok = g.achieved();
       change += g.weight * (ok ? 7 : -9);
-      lines.add('${ok ? tr('Erreicht') : tr('Verfehlt')}: ${g.text}');
+      lines.add('${ok ? tr('Achieved') : tr('Missed')}: ${g.text}');
     }
     confidence = (confidence + change).clamp(0.0, 100.0);
     final oldBudget = budget;
@@ -748,10 +782,10 @@ class Economy {
 
     c.inbox.add(Message(
       c.today,
-      tr('Teamleitung'),
-      tr('Saisonbilanz {0}', [c.year]),
+      tr('Board'),
+      tr('Season review {0}', [c.year]),
       tr(
-          '{0}. Vertrauen der Teamleitung: {1} von 100. Budget {2}: {3} ({4}{5} %). {6}{7}{8}',
+          '{0}. Board confidence: {1} of 100. Budget {2}: {3} ({4}{5} %). {6}{7}{8}',
           [
             lines.join('. '),
             confidence.round(),
@@ -759,12 +793,12 @@ class Economy {
             _euro(budget),
             budget >= oldBudget ? '+' : '',
             ((budget / oldBudget - 1) * 100).round(),
-            joined.isEmpty ? '' : tr('Zugänge: {0}. ', [joined.join(', ')]),
-            left.isEmpty ? '' : tr('Abgänge: {0}. ', [left.join(', ')]),
+            joined.isEmpty ? '' : tr('Arrivals: {0}. ', [joined.join(', ')]),
+            left.isEmpty ? '' : tr('Departures: {0}. ', [left.join(', ')]),
             emergency.isEmpty
                 ? ''
                 : tr(
-                    'Weil der Kader zu klein war, hat die Teamleitung selbst verpflichtet: {0}.',
+                    'Because the squad was too small, the board signed on its own: {0}.',
                     [emergency.join(', ')])
           ]),
     ));
@@ -979,23 +1013,15 @@ class Economy {
   Goal _goal(GoalKind kind, int target) => switch (kind) {
         GoalKind.ranking => Goal(
             kind,
-            tr('Teamrangliste: mindestens Platz {0}', [target]),
+            tr('Team ranking: at least place {0}', [target]),
             3,
             target,
             () => ownRank <= target && c.teamPoints.containsKey(c.teamId)),
-        GoalKind.grandTourPodium => Goal(
-            kind,
-            tr('Podium bei einer großen Rundfahrt'),
-            2,
-            target,
-            () => grandTourPodium),
-        GoalKind.grandTourStage => Goal(
-            kind,
-            tr('Etappensieg bei einer großen Rundfahrt'),
-            2,
-            target,
-            () => grandTourStage),
-        GoalKind.wins => Goal(kind, tr('Mindestens {0} Siege', [target]), 1,
+        GoalKind.grandTourPodium => Goal(kind, tr('Podium in a Grand Tour'), 2,
+            target, () => grandTourPodium),
+        GoalKind.grandTourStage => Goal(kind, tr('Stage win in a Grand Tour'),
+            2, target, () => grandTourStage),
+        GoalKind.wins => Goal(kind, tr('At least {0} wins', [target]), 1,
             target, () => wins >= target),
       };
   static int? _ms(DateTime? d) => d?.millisecondsSinceEpoch;

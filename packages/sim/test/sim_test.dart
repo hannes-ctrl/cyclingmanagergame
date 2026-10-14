@@ -9,6 +9,7 @@ import 'synthetic.dart';
 /// Runs on a synthetic field, so no world database is needed.
 void main() {
   final field = syntheticField();
+  materialTests();
 
   group('route', () {
     test('is cut into 200 m segments with their altitude', () {
@@ -358,3 +359,194 @@ const _flat70 = Attributes(
   recovery: 70,
   breakaway: 70,
 );
+
+/// Material, staff, styles, the power meter and the new roles.
+void materialTests() {
+  final field = syntheticField();
+
+  group('power meter', () {
+    test('records plausible figures for every rider', () {
+      final r = simulateStage(mountainStageWithTops(), field, seed: 3);
+      final best = r.power[r.placings.first.rider.id]!;
+      expect(best.averageW, inInclusiveRange(150, 380));
+      expect(best.normalizedW, greaterThanOrEqualTo(best.averageW));
+      expect(best.kilojoules,
+          closeTo(best.averageW * best.seconds / 1000, best.kilojoules * 0.01));
+      expect(best.zones.reduce((a, b) => a + b), closeTo(best.seconds, 5));
+      expect(best.climbs, isNotEmpty);
+      final last = best.climbs.last;
+      expect(last.averageWkg, inInclusiveRange(3.5, 7.5));
+      expect(last.vam, inInclusiveRange(800, 2200));
+      final json = PowerStats.fromJson(best.toJson());
+      expect(json.climbs.length, best.climbs.length);
+      expect(r.power.length, field.length);
+    });
+
+    test('also in a time trial', () {
+      final r = simulateStage(timeTrial(), field.take(20).toList(), seed: 1);
+      final p = r.power[r.placings.first.rider.id]!;
+      expect(p.intensity, inInclusiveRange(0.85, 1.2));
+    });
+  });
+
+  group('material', () {
+    test('the road bike wins a mountain time trial, not a flat one', () {
+      expect(suggestTimeTrialBike(timeTrial()), isTrue);
+      expect(suggestTimeTrialBike(mountainTimeTrial()), isFalse);
+    });
+
+    test('wide tyres for cobbles, standard for a dry road stage', () {
+      expect(suggestTyres(cobbledClassic(), const Weather()), Tyres.wide);
+      expect(suggestTyres(flatStage(), const Weather()), Tyres.standard);
+    });
+
+    test('wide tyres puncture less on cobbles', () {
+      final t = SimTuning({'punctureRate': 0.001, 'crashRate': 0});
+      int punctures(Tyres tyres) {
+        final kits = {
+          for (final r in field) r.teamId: TeamKit(tyres: tyres),
+        };
+        var n = 0;
+        for (var seed = 0; seed < 4; seed++) {
+          final r = simulateStage(cobbledClassic(), field,
+              seed: seed, tuning: t, kits: kits);
+          n += r.traces.values
+              .where((x) => x.incident == RiderIncident.puncture)
+              .length;
+        }
+        return n;
+      }
+
+      expect(punctures(Tyres.wide), lessThan(punctures(Tyres.narrow) * 0.75));
+    });
+
+    test('good physios win back more overnight', () {
+      double debtOf(double physios) {
+        final run = StageRaceRun(field, seed: 5);
+        final kits = {
+          for (final r in field)
+            r.teamId: TeamKit(physios: r.teamId == 1 ? physios : 0.5),
+        };
+        // Overnight recovery shows from the second stage on.
+        run.nextStage(mountainStage(), kits: kits);
+        run.nextStage(mountainStage(), kits: kits);
+        final team = field.where((r) => r.teamId == 1);
+        return team.fold(0.0, (s, r) => s + (run.debt[r.id] ?? 0));
+      }
+
+      expect(debtOf(1), lessThan(debtOf(0)));
+    });
+
+    test('kits survive a save', () {
+      final kits = {
+        for (final r in field)
+          r.teamId: TeamKit(
+              aero: 0.99,
+              tyres: Tyres.wide,
+              mechanics: 0.8,
+              style: TeamStyle.gc),
+      };
+      final run = StageRaceRun(field, seed: 9);
+      run.nextStage(flatStage(), kits: kits);
+      final pool = {for (var i = 0; i < field.length; i++) field[i]: i};
+      final copy = StageRaceRun.fromJson(run.toJson((r) => pool[r]!),
+          rider: (i) => field[i], routeOf: (i) => flatStage());
+      final a = run.replay(0, flatStage(), radioTeam: 1);
+      final b = copy.replay(0, flatStage(), radioTeam: 1);
+      expect([for (final p in b.placings) p.rider.id],
+          [for (final p in a.placings) p.rider.id]);
+      expect(copy.results.first.power.length, run.results.first.power.length);
+    });
+  });
+
+  group('tactics', () {
+    test('the team car asks when a leader crashes or punctures', () {
+      final t = SimTuning({'punctureRate': 0.001, 'crashRate': 0.003});
+      RadioCall? call;
+      var seed = 0, team = 0;
+      for (; seed < 30 && call == null; seed++) {
+        for (team = 1; team <= 4 && call == null; team++) {
+          final r = simulateStage(cobbledClassic(), field,
+              seed: seed,
+              tuning: t,
+              radioTeam: team,
+              askRadio: true,
+              radio: const {
+                RadioKind.breakGone: 0,
+                RadioKind.finale: 0,
+                RadioKind.rivalAttack: 0,
+              });
+          if (r.openCall?.kind == RadioKind.mishap) call = r.openCall;
+        }
+      }
+      expect(call, isNotNull);
+      expect(call!.options, hasLength(3));
+      // Every answer lets the stage run to the end.
+      for (var answer = 0; answer < 3; answer++) {
+        final r = simulateStage(cobbledClassic(), field,
+            seed: seed - 1,
+            tuning: t,
+            radioTeam: team - 1,
+            askRadio: true,
+            radio: {
+              RadioKind.breakGone: 0,
+              RadioKind.finale: 0,
+              RadioKind.rivalAttack: 0,
+              RadioKind.mishap: answer,
+            });
+        expect(r.openCall, isNull);
+        expect(r.placings, isNotEmpty);
+      }
+    });
+
+    test('a crosswind brings out teams that split the field', () {
+      bool echelon(double km) => autoPlans(flatStage(), field, crosswindKm: km)
+          .values
+          .any((p) => p.approach == Approach.echelon);
+      expect(echelon(0), isFalse);
+      expect(echelon(20), isTrue);
+    });
+
+    test('teams without a leader hunt the mountains jersey', () {
+      final gaps = {
+        for (var i = 0; i < field.length; i++) field[i].id: i * 30.0
+      };
+      final plans = autoPlans(mountainStage(), field, gcGaps: gaps);
+      expect(
+          plans.values
+              .expand((p) => p.roles.values)
+              .where((r) => r == Role.mountainHunter),
+          isNotEmpty);
+    });
+
+    test('a mountains hunter takes more points on the climbs', () {
+      final route = mountainStageWithTops();
+      final auto = autoPlans(route, field);
+      // A good breakaway rider of a team that does not ride for the stage.
+      final climber = field
+          .where((r) => auto[r.teamId]!.approach == Approach.wait)
+          .reduce((a, b) => a.attributes.breakaway + a.attributes.mountain >=
+                  b.attributes.breakaway + b.attributes.mountain
+              ? a
+              : b);
+      final plan = auto[climber.teamId]!;
+      int points(Role role) {
+        var sum = 0;
+        for (var seed = 0; seed < 6; seed++) {
+          final r = simulateStage(route, field, seed: seed, plans: {
+            climber.teamId: TeamPlan(
+                roles: {...plan.roles, climber.id: role},
+                breakPolicy: BreakPolicy.join),
+          });
+          for (final a in r.awards) {
+            final at = a.order.indexWhere((x) => x.id == climber.id);
+            if (a.point.category > 0 && at >= 0) sum += 15 - at;
+          }
+        }
+        return sum;
+      }
+
+      expect(points(Role.mountainHunter), greaterThan(points(Role.domestique)));
+    });
+  });
+}

@@ -155,14 +155,12 @@ void main() {
       expect(people.moraleOf(sick.id), 0);
       expect(
         people.notes[sick.id]!.map((n) => n[0]),
-        contains(
-          tr('Versprechen entfällt, er ist nicht fit: {0}', [first.info.name]),
-        ),
+        contains(tr('Promise lapses, he is not fit: {0}', [first.info.name])),
       );
       if (started.any((r) => r.id == starter.id)) {
         expect(
           people.notes[starter.id]!.map((n) => n[0]),
-          contains(tr('Versprechen gehalten: {0}', [first.info.name])),
+          contains(tr('Promise kept: {0}', [first.info.name])),
         );
       }
       final role = started.any((r) => r.id == helper.id)
@@ -174,7 +172,7 @@ void main() {
         expect(people.moraleOf(helper.id), lessThan(before));
         expect(
           career.inbox.map((m) => m.subject),
-          contains(tr('{0} fühlt sich getäuscht', [helper.name])),
+          contains(tr('{0} feels deceived', [helper.name])),
         );
       }
 

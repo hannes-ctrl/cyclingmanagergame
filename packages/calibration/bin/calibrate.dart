@@ -2,7 +2,7 @@
 //
 //   dart run bin/calibrate.dart report [--runs n]
 //       Compares the current tuning with the real races.
-//   dart run bin/calibrate.dart run [--hours h] [--runs n]
+//   dart run bin/calibrate.dart run [--hours h] [--runs n] [--margin m]
 //       Searches for better tuning values for h hours (default 8).
 //       Every improvement is written to data/calibration/tuning.json at
 //       once; the run can be interrupted at any time and resumed later.
@@ -43,6 +43,7 @@ Future<void> main(List<String> argv) async {
   final dry = args.remove('--dry');
   final hours = option('--hours', 8);
   final runs = option('--runs', 4).round();
+  final margin = option('--margin', 0.1);
   const year = 2026;
   final root = Platform.script.resolve('../../../data/').toFilePath();
   final tuningFile = File('${root}calibration/tuning.json');
@@ -113,6 +114,7 @@ Future<void> main(List<String> argv) async {
         start: tuning,
         budget: Duration(seconds: (hours * 3600).round()),
         runs: runs,
+        margin: margin,
         seed: DateTime.now().millisecondsSinceEpoch % 1000000,
         log: log,
         onImprove: (best, loss, evaluations) {

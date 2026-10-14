@@ -8,14 +8,14 @@ class RaceArticle {
 }
 
 /// @param seconds A time gap.
-/// @returns The gap as German prose, e.g. "1:23 Minuten".
+/// @returns The gap as prose, e.g. "1:23 minutes".
 String _gap(double seconds) {
   final s = seconds.round();
-  if (s == 0) return tr('zeitgleich');
+  if (s == 0) return tr('same time');
   final m = s ~/ 60, rest = s % 60;
   return m == 0
-      ? tr('{0} Sekunden zurück', [s])
-      : tr('{0}:{1} Minuten zurück', [m, rest.toString().padLeft(2, '0')]);
+      ? tr('{0} seconds back', [s])
+      : tr('{0}:{1} minutes back', [m, rest.toString().padLeft(2, '0')]);
 }
 
 /// Writes a neutral report from the result and the events of a stage.
@@ -47,33 +47,32 @@ RaceArticle writeArticle({
 
   final String headline;
   if (route.kind != StageKind.road) {
-    headline = tr('{0} gewinnt das Zeitfahren in {1}', [winner.name, place]);
+    headline = tr('{0} wins the time trial in {1}', [winner.name, place]);
   } else if (result.breakSurvived) {
     headline = firstGroup == 1
-        ? tr('{0} vollendet die Flucht als Solist', [winner.name])
-        : tr('{0} gewinnt aus der Ausreißergruppe', [winner.name]);
+        ? tr('{0} completes the breakaway solo', [winner.name])
+        : tr('{0} wins from the breakaway', [winner.name]);
   } else if (firstGroup == 1) {
-    headline = tr('{0} siegt in {1} als Solist', [winner.name, place]);
+    headline = tr('{0} wins solo in {1}', [winner.name, place]);
   } else if (firstGroup <= 10) {
-    headline = tr('{0} gewinnt den Sprint einer kleinen Gruppe', [winner.name]);
+    headline = tr('{0} wins the sprint of a small group', [winner.name]);
   } else {
-    headline = tr('{0} gewinnt den Massensprint in {1}', [winner.name, place]);
+    headline = tr('{0} wins the bunch sprint in {1}', [winner.name, place]);
   }
 
   final paragraphs = <String>[];
   final lead = StringBuffer(
-      tr('{0} ({1}) hat in {2} gewonnen.', [winner.name, winner.team, place]));
+      tr('{0} ({1}) has won in {2}.', [winner.name, winner.team, place]));
   if (second != null) {
-    lead.write(tr(' Zweiter wurde {0} ({1}), {2}',
+    lead.write(tr(' {0} ({1}) was second, {2}',
         [second.rider.name, second.rider.team, _gap(gapToSecond)]));
     if (p.length > 2) {
-      lead.write(tr(', Dritter {0} ({1})', [p[2].rider.name, p[2].rider.team]));
+      lead.write(tr(', {0} ({1}) third', [p[2].rider.name, p[2].rider.team]));
     }
     lead.write('.');
   }
   if (route.kind == StageKind.road && firstGroup > 10) {
-    lead.write(
-        tr(' {0} Fahrer kamen in der ersten Gruppe ins Ziel.', [firstGroup]));
+    lead.write(tr(' {0} riders finished in the first group.', [firstGroup]));
   }
   paragraphs.add(lead.toString());
 
@@ -102,21 +101,21 @@ RaceArticle writeArticle({
   // 1. The start of the day: weather, the break and how far it got.
   final opening = <String>[];
   for (final e in of(EventType.weather)) {
-    opening.add(tr('Gefahren wurde bei {0}', [after(e)]));
+    opening.add(tr('The race was ridden in {0}', [after(e)]));
   }
   final moves = of(EventType.breakaway);
   // The first event names the group; later ones are riders who bridged.
   final formed = moves.where((e) => e.text.contains(': ')).firstOrNull;
   if (formed != null) {
-    opening.add(tr('Die Gruppe des Tages bildete sich nach {0} Kilometern: {1}',
+    opening.add(tr('The break of the day formed after {0} kilometres: {1}',
         [formed.km.round(), after(formed)]));
   }
   for (final e in moves) {
     if (!identical(e, formed)) opening.add(e.text);
   }
   for (final e in of(EventType.maxGap)) {
-    opening.add(
-        tr('Der größte Vorsprung der Spitze betrug {0} Minuten', [after(e)]));
+    opening
+        .add(tr('The biggest lead of the front was {0} minutes', [after(e)]));
   }
   for (final e in of(EventType.echelon)) {
     opening.add(e.text);
@@ -130,15 +129,15 @@ RaceArticle writeArticle({
   if (crashes.length <= 2) {
     mishaps.addAll(crashes.map((e) => e.text));
   } else {
-    mishaps.add(tr('Es gab {0} Stürze; der letzte {1} km vor dem Ziel',
+    mishaps.add(tr(
+        'There were {0} crashes, the last one {1} km from the finish',
         [crashes.length, (route.raceKm - crashes.last.km).round()]));
   }
   final flats = of(EventType.puncture);
   if (flats.length <= 2) {
     mishaps.addAll(flats.map((e) => e.text));
   } else {
-    mishaps.add(tr('{0} Fahrer aus dem Kreis der Favoriten hatten einen Defekt',
-        [flats.length]));
+    mishaps.add(tr('{0} of the favourites had a puncture', [flats.length]));
   }
   mishaps.addAll(of(EventType.abandon).map((e) => e.text));
   mishaps.addAll(of(EventType.timeCut).map((e) => e.text));
@@ -153,7 +152,7 @@ RaceArticle writeArticle({
   } else {
     finale
       ..add(attacks.first.text)
-      ..add(tr('Es folgten {0} weitere Angriffe', [attacks.length - 2]))
+      ..add(tr('{0} more attacks followed', [attacks.length - 2]))
       ..add(attacks.last.text);
   }
   finale.addAll(of(EventType.dropped).map((e) => e.text));
@@ -162,24 +161,26 @@ RaceArticle writeArticle({
   if (caught != null) {
     final rest = RegExp(r'(\d+)[.,]\d km').firstMatch(caught.text)?[1];
     finale.add(rest == null
-        ? tr('Die Ausreißer wurden gestellt')
-        : tr('Rund {0} Kilometer vor dem Ziel war die Flucht beendet', [rest]));
+        ? tr('The breakaway was caught')
+        : tr('The breakaway was over about {0} kilometres from the finish',
+            [rest]));
   }
-  if (result.breakSurvived) finale.add(tr('Das Feld kam nicht mehr heran'));
+  if (result.breakSurvived)
+    finale.add(tr('The field did not get back to them'));
   paragraph(finale);
 
   final close = StringBuffer();
   if (standings != null && standings.general.length > 1) {
     final gc = standings.general;
     close.write(finalStage
-        ? tr('{0} ({1}) gewinnt {2}, {3} wird Zweiter, {4}. ', [
+        ? tr('{0} ({1}) wins {2}, {3} is second, {4}. ', [
             gc.first.rider.name,
             gc.first.rider.team,
-            raceName ?? tr('die Rundfahrt'),
+            raceName ?? tr('the race'),
             gc[1].rider.name,
             _gap(gc[1].timeS - gc.first.timeS)
           ])
-        : tr('In der Gesamtwertung führt {0} ({1}), {2} liegt {3}. ', [
+        : tr('{0} ({1}) leads the general classification, {2} is {3}. ', [
             gc.first.rider.name,
             gc.first.rider.team,
             gc[1].rider.name,
@@ -189,7 +190,7 @@ RaceArticle writeArticle({
   if (teamId != null) {
     final own = p.indexWhere((x) => x.rider.teamId == teamId);
     if (own > 0) {
-      close.write(tr('Bester Fahrer des eigenen Teams war {0} auf Platz {1}.',
+      close.write(tr('The best rider of our team was {0} in place {1}.',
           [p[own].rider.name, own + 1]));
     }
   }
@@ -208,23 +209,24 @@ RaceArticle writeArticle({
         mine.where((x) => x.$3?.role.ridesForHimself ?? false).firstOrNull;
     if (leader != null && leader.$3!.lostKm != null) {
       final rest = route.raceKm - leader.$3!.lostKm!;
-      team.write(
-          tr('{0} verlor {1} den Anschluss an die Favoriten und wurde {2}. ', [
-        leader.$2.rider.name,
-        rest < 1
-            ? tr('auf dem letzten Kilometer')
-            : tr('{0} Kilometer vor dem Ziel', [rest.round()]),
-        leader.$1 + 1
-      ]));
+      team.write(tr(
+          '{0} lost contact with the favourites {1} and finished in place {2}. ',
+          [
+            leader.$2.rider.name,
+            rest < 1
+                ? tr('in the final kilometre')
+                : tr('{0} kilometres from the finish', [rest.round()]),
+            leader.$1 + 1
+          ]));
     }
     final escapees = [
       for (final x in mine)
         if (x.$3?.inBreak ?? false) x.$2.rider.name,
     ];
     if (escapees.isNotEmpty) {
-      team.write(tr('{0} {1} in der Gruppe des Tages. ', [
-        escapees.join(tr(' und ')),
-        escapees.length == 1 ? tr('war') : tr('waren')
+      team.write(tr('{0} {1} in the break of the day. ', [
+        escapees.join(tr(' and ')),
+        escapees.length == 1 ? tr('was') : tr('were')
       ]));
     }
     final worker = mine
@@ -234,7 +236,7 @@ RaceArticle writeArticle({
             (best, x) =>
                 best == null || x.$3!.frontKm > best.$3!.frontKm ? x : best);
     if (worker != null && worker.$3!.frontKm >= 20) {
-      team.write(tr('{0} führte das Feld über {1} Kilometer an.',
+      team.write(tr('{0} led the peloton for {1} kilometres.',
           [worker.$2.rider.name, worker.$3!.frontKm.round()]));
     }
     if (team.isNotEmpty) paragraphs.add(team.toString().trim());

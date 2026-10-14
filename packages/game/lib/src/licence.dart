@@ -150,9 +150,9 @@ class Licences {
       c.inbox.add(Message(
         c.today,
         'UCI',
-        tr('Einladungen {0}', [c.year + 1]),
+        tr('Invitations {0}', [c.year + 1]),
         tr(
-            'Als beste ProTeams der Saison dürfen {0} im nächsten Jahr bei allen WorldTour-Rennen starten.{1}',
+            'As the best ProTeams of the season, {0} may start in every WorldTour race next year.{1}',
             [
               names(wildcards),
               () {
@@ -160,7 +160,7 @@ class Licences {
                 return at < 0
                     ? ''
                     : tr(
-                        ' In der Dreijahreswertung {0}–{1} liegt unser Team auf Platz {2}.',
+                        ' In the three-year ranking {0}–{1} our team is in place {2}.',
                         [cycleStart, cycleEnd, at + 1]);
               }()
             ]),
@@ -194,32 +194,32 @@ class Licences {
     }
     final own = _level[c.teamId];
     final before = up.contains(c.teamId) || best.contains(c.teamId)
-        ? 'Aufstieg'
+        ? 'Promotion'
         : down.contains(c.teamId) || weakest.contains(c.teamId)
-            ? 'Abstieg'
+            ? 'Relegation'
             : null;
     // With the licence, what sponsors pay changes.
-    if (before == 'Aufstieg') c.economy.scaleSponsors(1.25);
-    if (before == 'Abstieg') c.economy.scaleSponsors(0.75);
+    if (before == 'Promotion') c.economy.scaleSponsors(1.25);
+    if (before == 'Relegation') c.economy.scaleSponsors(0.75);
     c.inbox.add(Message(
       c.today,
       'UCI',
-      tr('Lizenzen {0}–{1} vergeben', [c.year + 1, c.year + 3]),
-      tr('{0} Neue ProTeams: {1}; künftig Continental: {2}. {3}', [
+      tr('Licences {0}–{1} awarded', [c.year + 1, c.year + 3]),
+      tr('{0} New ProTeams: {1}; Continental from now on: {2}. {3}', [
         up.isEmpty
-            ? tr('In der WorldTour bleibt alles beim Alten.')
-            : tr('Neu in der WorldTour: {0}. Abgestiegen: {1}.',
+            ? tr('Nothing changes in the WorldTour.')
+            : tr('New in the WorldTour: {0}. Relegated: {1}.',
                 [names(up), names(down)]),
         names(best),
         names(weakest),
         before == null
-            ? tr('Unser Team fährt weiter als {0}.', [own?.label])
+            ? tr('Our team continues as a {0}.', [own?.label])
             : tr(
-                '{0}: Unser Team fährt ab jetzt als {1}, das Sponsorenbudget {2} um ein Viertel.',
+                '{0}: Our team now rides as a {1}; the sponsor budget {2} by a quarter.',
                 [
                     tr(before),
                     own?.label,
-                    before == 'Aufstieg' ? tr('steigt') : tr('sinkt')
+                    before == 'Promotion' ? tr('rises') : tr('falls')
                   ])
       ]),
     ));

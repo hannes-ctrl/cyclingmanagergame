@@ -8,23 +8,23 @@ import '../ui.dart';
 import '../widgets.dart';
 import 'rider_dialog.dart';
 
-/// Attributes a minimum can be asked for: German name (the key of the
+/// Attributes a minimum can be asked for: name (the key of the
 /// translation), code (the key of the scouting ranges) and value.
 const _minimums = <(String, String, double Function(Attributes))>[
-  ('Berg', 'BG', _mountain),
-  ('Mittelgebirge', 'MB', _medium),
-  ('Hügel', 'HÜ', _hill),
-  ('Flach', 'FL', _flat),
-  ('Zeitfahren', 'ZF', _timeTrial),
-  ('Prolog', 'PR', _prologue),
-  ('Kopfsteinpflaster', 'KO', _cobble),
-  ('Sprint', 'SP', _sprint),
-  ('Antritt', 'ANT', _acceleration),
-  ('Abfahrt', 'ABF', _downhill),
-  ('Ausreißer', 'AUS', _breakaway),
-  ('Ausdauer', 'AD', _endurance),
-  ('Widerstand', 'WID', _resistance),
-  ('Regeneration', 'REG', _recovery),
+  ('Mountain', 'MTN', _mountain),
+  ('Medium mountain', 'MED', _medium),
+  ('Hill', 'HIL', _hill),
+  ('Flat', 'FL', _flat),
+  ('Time trial', 'TT', _timeTrial),
+  ('Prologue', 'PRL', _prologue),
+  ('Cobbles', 'COB', _cobble),
+  ('Sprint', 'SPR', _sprint),
+  ('Acceleration', 'ACC', _acceleration),
+  ('Downhill', 'DH', _downhill),
+  ('Breakaway', 'BRK', _breakaway),
+  ('Stamina', 'STA', _endurance),
+  ('Resistance', 'RES', _resistance),
+  ('Recovery', 'REC', _recovery),
 ];
 
 double _mountain(Attributes a) => a.mountain;
@@ -47,8 +47,8 @@ const _levels = [
   'WorldTeam',
   'ProTeam',
   'Continental',
-  'Nachwuchsteam',
-  'Vereinslos',
+  'Development team',
+  'Free agent',
 ];
 
 /// Rider search: every rider of the database, filtered by name, team,
@@ -128,8 +128,8 @@ class _SearchScreenState extends State<SearchScreen> {
   String _levelOf(SimRider r) {
     final career = widget.state.career;
     final division = career.teams[r.teamId]?.division ?? 'Free';
-    if (division == 'Free') return 'Vereinslos';
-    if (division == 'Under23') return 'Nachwuchsteam';
+    if (division == 'Free') return 'Free agent';
+    if (division == 'Under23') return 'Development team';
     return switch (career.licences.of(r.teamId)) {
       Licence.worldTour => 'WorldTeam',
       Licence.pro => 'ProTeam',
@@ -187,7 +187,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 (_types.isEmpty || _types.contains(riderType(r))) &&
                 year - r.born ~/ 10000 >= _ages.start &&
                 year - r.born ~/ 10000 <= _ages.end &&
-                known(r, 'Stärke', Economy.rating(r)) >= _strength &&
+                known(r, 'Strength', Economy.rating(r)) >= _strength &&
                 (_potential <= 1 ||
                     book.knowledge(r.id) >= 0.6 && r.potential >= _potential) &&
                 (pick == null ||
@@ -199,9 +199,9 @@ class _SearchScreenState extends State<SearchScreen> {
         ]..sort(
           (a, b) => known(
             b,
-            'Stärke',
+            'Strength',
             Economy.rating(b),
-          ).compareTo(known(a, 'Stärke', Economy.rating(a))),
+          ).compareTo(known(a, 'Strength', Economy.rating(a))),
         );
     final rows = found.take(500).toList();
 
@@ -287,21 +287,18 @@ class _SearchScreenState extends State<SearchScreen> {
                   ),
                   FilterHead(tr('Team')),
                   dropdown<int?>(_team, [
-                    DropdownMenuItem(
-                      value: null,
-                      child: Text(tr('Alle Teams')),
-                    ),
+                    DropdownMenuItem(value: null, child: Text(tr('All teams'))),
                     for (final t in teams)
                       DropdownMenuItem(
                         value: t.id,
                         child: Text(t.name, overflow: TextOverflow.ellipsis),
                       ),
                   ], (v) => _team = v),
-                  FilterHead(tr('Land')),
+                  FilterHead(tr('Country')),
                   dropdown<String?>(_country, [
                     DropdownMenuItem(
                       value: null,
-                      child: Text(tr('Alle Länder')),
+                      child: Text(tr('All countries')),
                     ),
                     for (final x in countries)
                       if (x.isNotEmpty)
@@ -316,7 +313,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           ),
                         ),
                   ], (v) => _country = v),
-                  FilterHead(tr('Ebene')),
+                  FilterHead(tr('Level')),
                   for (final l in _levels)
                     FilterOption(
                       label: tr(l),
@@ -328,7 +325,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                     ),
                   FilterHead(
-                    tr('Alter · {0} bis {1}', [
+                    tr('Age · {0} to {1}', [
                       _ages.start.round(),
                       _ages.end.round(),
                     ]),
@@ -355,37 +352,37 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                     ),
                   ),
-                  FilterHead(tr('Stärke ab {0}', [_strength.round()])),
+                  FilterHead(tr('Strength from {0}', [_strength.round()])),
                   slider(_strength, 50, 85, 35, (v) => _strength = v),
                   FilterHead(
                     _potential <= 1
-                        ? tr('Potenzial beliebig')
-                        : tr('Potenzial ab {0}', [dec(_potential)]),
+                        ? tr('Any potential')
+                        : tr('Potential from {0}', [dec(_potential)]),
                   ),
                   slider(_potential, 1, 6, 10, (v) => _potential = v),
-                  FilterHead(tr('Einzelner Wert')),
+                  FilterHead(tr('Single attribute')),
                   dropdown<String?>(_attribute, [
-                    DropdownMenuItem(value: null, child: Text(tr('Keiner'))),
+                    DropdownMenuItem(value: null, child: Text(tr('None'))),
                     for (final (name, _, _) in _minimums)
                       DropdownMenuItem(value: name, child: Text(tr(name))),
                   ], (v) => _attribute = v),
                   if (pick != null) ...[
                     const SizedBox(height: 6),
                     Text(
-                      tr('{0} ab {1}', [tr(pick.$1), _minimum.round()]),
+                      tr('{0} from {1}', [tr(pick.$1), _minimum.round()]),
                       style: const TextStyle(color: TeamColors.muted),
                     ),
                     slider(_minimum, 50, 85, 35, (v) => _minimum = v),
                   ],
-                  FilterHead(tr('Fahrertyp')),
+                  FilterHead(tr('Rider type')),
                   for (final t in const [
-                    'Kletterer',
+                    'Climber',
                     'Puncheur',
                     'Sprinter',
-                    'Zeitfahrer',
-                    'Pflasterfahrer',
+                    'Time trialist',
+                    'Cobbles specialist',
                     'Rouleur',
-                    'Allrounder',
+                    'All-rounder',
                   ])
                     FilterOption(
                       label: tr(t),
@@ -396,15 +393,15 @@ class _SearchScreenState extends State<SearchScreen> {
                             : _types.add(t),
                       ),
                     ),
-                  FilterHead(tr('Beobachtung')),
+                  FilterHead(tr('Shortlist')),
                   FilterOption(
-                    label: tr('Nur Beobachtungsliste'),
+                    label: tr('Shortlist only'),
                     selected: _watched,
                     onTap: () => setState(() => _watched = !_watched),
                   ),
-                  FilterHead(tr('Vertrag')),
+                  FilterHead(tr('Contract')),
                   FilterOption(
-                    label: tr('Vertrag läuft aus'),
+                    label: tr('Contract expires'),
                     selected: _expiring,
                     onTap: () => setState(() => _expiring = !_expiring),
                   ),
@@ -423,11 +420,11 @@ class _SearchScreenState extends State<SearchScreen> {
                     children: [
                       Label(
                         found.length > rows.length
-                            ? tr(
-                                '{0} Fahrer gefunden · die besten {1} gezeigt',
-                                [found.length, rows.length],
-                              )
-                            : tr('{0} Fahrer gefunden', [found.length]),
+                            ? tr('{0} riders found · the best {1} shown', [
+                                found.length,
+                                rows.length,
+                              ])
+                            : tr('{0} riders found', [found.length]),
                       ),
                       const SizedBox(width: 12),
                       TextButton.icon(
@@ -435,12 +432,12 @@ class _SearchScreenState extends State<SearchScreen> {
                           final path = s.exportCsv(
                             'fahrersuche',
                             [
-                              tr('Fahrer'),
+                              tr('Rider'),
                               'Team',
                               tr('Nat'),
-                              tr('Alter'),
-                              tr('Stärke'),
-                              tr('Vertrag'),
+                              tr('Age'),
+                              tr('Strength'),
+                              tr('Contract'),
                             ],
                             [
                               for (final r in found)
@@ -452,7 +449,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                   () {
                                     final (low, high) = book.range(
                                       r.id,
-                                      'Stärke',
+                                      'Strength',
                                       Economy.rating(r),
                                     );
                                     return low == high ? '$low' : '$low–$high';
@@ -465,19 +462,19 @@ class _SearchScreenState extends State<SearchScreen> {
                             SnackBar(
                               content: Text(
                                 path == null
-                                    ? tr('Die Datei ließ sich nicht schreiben.')
-                                    : tr('Gespeichert: {0}', [path]),
+                                    ? tr('The file could not be written.')
+                                    : tr('Saved: {0}', [path]),
                               ),
                             ),
                           );
                         },
                         icon: const Icon(LucideIcons.download, size: 16),
-                        label: Text(tr('Als CSV')),
+                        label: Text(tr('As CSV')),
                       ),
                       const Spacer(),
                       Text(
                         tr(
-                          'Spannen statt Zahlen: Diesen Fahrer hat noch kein Scout beobachtet.',
+                          'Ranges instead of numbers: no scout has watched this rider yet.',
                         ),
                         style: const TextStyle(
                           fontSize: 12,
@@ -496,7 +493,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       columns: [
                         Col('', 30, (r, _) => watchStar(s, r)),
                         Col(
-                          tr('Fahrer'),
+                          tr('Rider'),
                           190,
                           (r, _) => cellText(career.fullName(r.id)),
                           sortKey: (r) => r.lastName,
@@ -517,21 +514,21 @@ class _SearchScreenState extends State<SearchScreen> {
                           sortKey: (r) => r.country,
                         ),
                         Col(
-                          tr('Alter'),
+                          tr('Age'),
                           50,
                           (r, _) => cellText('${year - r.born ~/ 10000}'),
                           numeric: true,
                           sortKey: (r) => -r.born,
                         ),
                         Col(
-                          tr('Typ'),
+                          tr('Type'),
                           120,
                           (r, _) => cellText(
                             book.knowledge(r.id) >= 1 ? tr(riderType(r)) : '?',
                             color: TeamColors.muted,
                           ),
                         ),
-                        value('Stärke', Economy.rating),
+                        value('Strength', Economy.rating),
                         Col(
                           'Pot',
                           44,
@@ -544,16 +541,16 @@ class _SearchScreenState extends State<SearchScreen> {
                           sortKey: (r) => r.potential,
                         ),
                         value('FL', (r) => r.attributes.flat),
-                        value('BG', (r) => r.attributes.mountain),
-                        value('MB', (r) => r.attributes.mediumMountain),
-                        value('HÜ', (r) => r.attributes.hill),
-                        value('ZF', (r) => r.attributes.timeTrial),
-                        value('KO', (r) => r.attributes.cobble),
-                        value('SP', (r) => r.attributes.sprint),
-                        value('ANT', (r) => r.attributes.acceleration),
-                        value('AD', (r) => r.attributes.endurance),
+                        value('MTN', (r) => r.attributes.mountain),
+                        value('MED', (r) => r.attributes.mediumMountain),
+                        value('HIL', (r) => r.attributes.hill),
+                        value('TT', (r) => r.attributes.timeTrial),
+                        value('COB', (r) => r.attributes.cobble),
+                        value('SPR', (r) => r.attributes.sprint),
+                        value('ACC', (r) => r.attributes.acceleration),
+                        value('STA', (r) => r.attributes.endurance),
                         Col(
-                          tr('Vertrag bis'),
+                          tr('Contract until'),
                           92,
                           (r, _) =>
                               cellText(switch (eco.contracts[r.id]?.endYear) {
@@ -567,7 +564,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           sortKey: (r) => eco.contracts[r.id]?.endYear ?? 0,
                         ),
                         Col(
-                          tr('Marktwert'),
+                          tr('Market value'),
                           96,
                           (r, _) => cellText(
                             book.knowledge(r.id) >= 1

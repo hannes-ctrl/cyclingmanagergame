@@ -68,17 +68,17 @@ class _StaffScreenState extends State<StaffScreen> {
 
     List<Col<Staff>> columns({required bool hired}) => [
       Col(
-        tr('Aufgabe'),
+        tr('Role'),
         150,
         (m, _) => cellText(m.role.label),
         sortKey: (m) => m.role.index,
       ),
       Col('Name', 190, (m, _) => cellText(m.name), sortKey: (m) => m.name),
-      skill(tr('Können'), (m) => m.skill),
-      skill(tr('Rennlesen'), (m) => m.second, onlyDirector: true),
+      skill(tr('Skill'), (m) => m.skill),
+      skill(tr('Race reading'), (m) => m.second, onlyDirector: true),
       skill('Motivation', (m) => m.third, onlyDirector: true),
       Col(
-        tr('Schwerpunkt'),
+        tr('Focus'),
         110,
         (m, _) => cellText(
           m.role == StaffRole.director ? m.focus.label : '–',
@@ -86,25 +86,25 @@ class _StaffScreenState extends State<StaffScreen> {
         ),
       ),
       Col(
-        tr('Gehalt'),
+        tr('Wage'),
         80,
         (m, _) => cellText(euro(m.wage)),
         numeric: true,
         sortKey: (m) => m.wage,
       ),
       if (hired)
-        Col(tr('Einsatz'), 170, (m, _) {
+        Col(tr('Assignment'), 170, (m, _) {
           if (m.busyUntil?.isAfter(career.today) ?? false) {
             final race = career.calendar
                 .where((r) => r.info.id == m.atRace)
                 .map((r) => r.info.name)
                 .firstOrNull;
-            return cellText(race ?? tr('im Rennen'), color: TeamColors.green);
+            return cellText(race ?? tr('racing'), color: TeamColors.green);
           }
           if (book.jobs.any((j) => j.scoutId == m.id)) {
-            return cellText(tr('auf Beobachtung'), color: TeamColors.green);
+            return cellText(tr('scouting'), color: TeamColors.green);
           }
-          return cellText(tr('frei'), color: TeamColors.muted);
+          return cellText(tr('free'), color: TeamColors.muted);
         }),
       Col('', 110, (m, _) {
         return InkWell(
@@ -115,8 +115,8 @@ class _StaffScreenState extends State<StaffScreen> {
                   _message =
                       answer ??
                       (hired
-                          ? tr('{0} wurde entlassen.', [m.name])
-                          : tr('{0} gehört jetzt zum Team.', [m.name]));
+                          ? tr('{0} has been dismissed.', [m.name])
+                          : tr('{0} has joined the team.', [m.name]));
                 }),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
@@ -125,7 +125,7 @@ class _StaffScreenState extends State<StaffScreen> {
               borderRadius: BorderRadius.circular(11),
             ),
             child: Text(
-              hired ? tr('Entlassen') : tr('Einstellen'),
+              hired ? tr('Dismiss') : tr('Hire'),
               style: const TextStyle(fontSize: 12),
             ),
           ),
@@ -144,10 +144,12 @@ class _StaffScreenState extends State<StaffScreen> {
                 child: Text(
                   _message ??
                       tr(
-                        'Personalkosten {0} € im Jahr · Trainer beschleunigen die Entwicklung (einer je zehn Fahrer, derzeit betreut: {1} %), Ärzte verkürzen Ausfälle, Scouts machen fremde Fahrer einschätzbar.',
+                        'Staff costs {0} € a year · coaches speed up development (one per ten riders, currently covered: {1} %), doctors shorten lay-offs, scouts make other teams\' riders assessable, mechanics change wheels faster and prevent defects (quality {2} %), physiotherapists help the riders recover in stage races (quality {3} %).',
                         [
                           euro(book.wages(s.team.id)),
                           (book.coachCover(s.team.id) * 100).round(),
+                          (book.mechanicQuality(s.team.id) * 100).round(),
+                          (book.physioQuality(s.team.id) * 100).round(),
                         ],
                       ),
                   style: TextStyle(
@@ -167,7 +169,7 @@ class _StaffScreenState extends State<StaffScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Label(tr('Eigenes Personal · {0}', [own.length])),
+                  Label(tr('Own staff · {0}', [own.length])),
                   const SizedBox(height: 6),
                   Expanded(
                     child: DenseTable<Staff>(
@@ -193,7 +195,7 @@ class _StaffScreenState extends State<StaffScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Label(tr('Arbeitsmarkt · {0}', [market.length])),
+                        Label(tr('Job market · {0}', [market.length])),
                         const SizedBox(height: 6),
                         Expanded(
                           child: DenseTable<Staff>(
@@ -214,12 +216,12 @@ class _StaffScreenState extends State<StaffScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Label(tr('Scouts unterwegs')),
+                        Label(tr('Scouts on assignment')),
                         const SizedBox(height: 6),
                         if (book.jobs.isEmpty)
                           Text(
                             tr(
-                              'Niemand. Im Transfermarkt einen Fahrer wählen und „Beobachten lassen" drücken.',
+                              'Nobody. Select a rider in the transfer market and press "Scout him".',
                             ),
                             style: TextStyle(color: TeamColors.muted),
                           ),
@@ -232,7 +234,7 @@ class _StaffScreenState extends State<StaffScreen> {
                                   child: Text(career.fullName(j.riderId)),
                                 ),
                                 Text(
-                                  tr('bis {0}.{1}.', [
+                                  tr('until {0}.{1}.', [
                                     j.until.day.toString().padLeft(2, '0'),
                                     j.until.month.toString().padLeft(2, '0'),
                                   ]),

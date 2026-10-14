@@ -8,14 +8,15 @@ import '../ui.dart';
 import '../widgets.dart';
 
 const _approachLabels = {
-  Approach.wait: 'Abwarten',
-  Approach.control: 'Tempo kontrollieren',
-  Approach.makeHard: 'Rennen schwer machen',
+  Approach.wait: 'Wait',
+  Approach.control: 'Control the pace',
+  Approach.makeHard: 'Make the race hard',
+  Approach.echelon: 'Split in the crosswind',
 };
 const _breakLabels = {
-  BreakPolicy.ignore: 'Ignorieren',
-  BreakPolicy.join: 'Besetzen',
-  BreakPolicy.chase: 'Zurückholen',
+  BreakPolicy.ignore: 'Ignore',
+  BreakPolicy.join: 'Join',
+  BreakPolicy.chase: 'Chase down',
 };
 
 /// Opens the dialog for the team's tactics in the next stages of a running race.
@@ -196,7 +197,7 @@ class _TacticsDialogState extends State<_TacticsDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                tr('Taktik ab Etappe {0}', [p.stagesDone + 1]),
+                tr('Tactics from stage {0}', [p.stagesDone + 1]),
                 style: const TextStyle(
                   fontSize: 19,
                   fontWeight: FontWeight.w600,
@@ -210,7 +211,7 @@ class _TacticsDialogState extends State<_TacticsDialog> {
               const SizedBox(height: 4),
               Text(
                 tr(
-                  'Was du änderst, wird mit einer Nadel festgelegt und gilt für die restlichen Etappen. Alles andere plant der Sportliche Leiter für jede Etappe neu; zu sehen ist sein Plan für die nächste. Ein Klick auf die Nadel gibt die Vorgabe wieder frei.',
+                  'What you change is pinned and applies to the remaining stages. Everything else the sports director plans anew for every stage; shown is his plan for the next one. A click on the pin releases it again.',
                 ),
                 style: const TextStyle(fontSize: 12, color: TeamColors.muted),
               ),
@@ -219,7 +220,7 @@ class _TacticsDialogState extends State<_TacticsDialog> {
                 spacing: 6,
                 children: [
                   Pill(
-                    label: tr('Nur Geändertes festlegen'),
+                    label: tr('Pin only what I change'),
                     selected: !_fixAll,
                     colors: c,
                     onTap: () => setState(() {
@@ -231,7 +232,7 @@ class _TacticsDialogState extends State<_TacticsDialog> {
                     }),
                   ),
                   Pill(
-                    label: tr('Alles festlegen'),
+                    label: tr('Fix everything'),
                     selected: _fixAll,
                     colors: c,
                     onTap: () => setState(() => _setFixAll(true)),
@@ -243,7 +244,7 @@ class _TacticsDialogState extends State<_TacticsDialog> {
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     tr(
-                      'Alles gilt genau so für die restlichen Etappen; der Sportliche Leiter ändert nichts daran.',
+                      'Everything applies exactly as set for the remaining stages; the sports director changes nothing.',
                     ),
                     style: const TextStyle(
                       fontSize: 12,
@@ -308,14 +309,14 @@ class _TacticsDialogState extends State<_TacticsDialog> {
                         ),
                       ),
                     const SizedBox(height: 10),
-                    choice(tr('Rennverlauf'), _approachLabels, _approach, (v) {
+                    choice(tr('Race approach'), _approachLabels, _approach, (
+                      v,
+                    ) {
                       _approach = v;
                       _pinApproach = true;
                     }),
                     const SizedBox(height: 8),
-                    choice(tr('Ausreißergruppe'), _breakLabels, _breakPolicy, (
-                      v,
-                    ) {
+                    choice(tr('The break'), _breakLabels, _breakPolicy, (v) {
                       _breakPolicy = v;
                       _pinBreak = true;
                     }),
@@ -328,7 +329,7 @@ class _TacticsDialogState extends State<_TacticsDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: Text(tr('Abbrechen')),
+                    child: Text(tr('Cancel')),
                   ),
                   const SizedBox(width: 6),
                   OutlinedButton(
@@ -336,7 +337,7 @@ class _TacticsDialogState extends State<_TacticsDialog> {
                       s.setWish(raceId, null);
                       Navigator.pop(context);
                     },
-                    child: Text(tr('Sportlicher Leiter entscheidet')),
+                    child: Text(tr('Sports director decides')),
                   ),
                   const SizedBox(width: 6),
                   FilledButton(
@@ -359,7 +360,7 @@ class _TacticsDialogState extends State<_TacticsDialog> {
                       }
                       Navigator.pop(context);
                     },
-                    child: Text(tr('Übernehmen')),
+                    child: Text(tr('Apply')),
                   ),
                 ],
               ),

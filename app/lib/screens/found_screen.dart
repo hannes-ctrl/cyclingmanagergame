@@ -13,12 +13,12 @@ const _palette = [
 
 /// Filter for the rider list by the division of a rider's current team.
 enum _Pool {
-  all('Alle'),
+  all('All'),
   worldTour('WorldTour'),
   pro('ProTeams'),
   continental('Continental'),
   under23('U23'),
-  free('Vereinslos');
+  free('Free agent');
 
   const _Pool(this._label);
   final String _label;
@@ -213,21 +213,21 @@ class _FoundScreenState extends State<FoundScreen> {
             child: Row(
               children: [
                 Text(
-                  tr('Eigenes Team gründen'),
+                  tr('Found your own team'),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Text(
                     tr(
-                      'Beginnt eine neue Karriere am 1. Januar. Gewählte Fahrer wechseln sofort; ihre alten Teams füllen aus den Vereinslosen auf.',
+                      'Starts a new career on 1 January. Selected riders move at once; their old teams fill up from the free agents.',
                     ),
                     style: TextStyle(fontSize: 12, color: TeamColors.muted),
                   ),
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text(tr('Abbrechen')),
+                  child: Text(tr('Cancel')),
                 ),
               ],
             ),
@@ -266,7 +266,7 @@ class _FoundScreenState extends State<FoundScreen> {
                                   style: const TextStyle(fontSize: 13),
                                   decoration:
                                       field(
-                                        tr('Name oder Teamkürzel …'),
+                                        tr('Name or team abbreviation …'),
                                       ).copyWith(
                                         contentPadding: const EdgeInsets.all(8),
                                       ),
@@ -298,7 +298,7 @@ class _FoundScreenState extends State<FoundScreen> {
                                   ),
                                 ),
                                 Col(
-                                  tr('Fahrer'),
+                                  tr('Rider'),
                                   190,
                                   (r, _) => cellText(_names[r.id] ?? r.name),
                                   sortKey: (r) => r.lastName,
@@ -316,26 +316,26 @@ class _FoundScreenState extends State<FoundScreen> {
                                   sortKey: (r) => r.team,
                                 ),
                                 Col(
-                                  tr('Land'),
+                                  tr('Country'),
                                   70,
                                   (r, _) => flagCell(r.country),
                                   sortKey: (r) => r.country,
                                 ),
                                 Col(
-                                  tr('Alter'),
+                                  tr('Age'),
                                   54,
                                   (r, _) =>
                                       cellText('${year - r.born ~/ 10000}'),
                                   numeric: true,
                                   sortKey: (r) => -r.born,
                                 ),
-                                value(tr('Stärke'), Economy.rating),
+                                value(tr('Strength'), Economy.rating),
                                 value('FL', (r) => r.attributes.flat),
-                                value(tr('BG'), (r) => r.attributes.mountain),
-                                value(tr('HÜ'), (r) => r.attributes.hill),
-                                value(tr('ZF'), (r) => r.attributes.timeTrial),
-                                value(tr('KO'), (r) => r.attributes.cobble),
-                                value(tr('SP'), (r) => r.attributes.sprint),
+                                value(tr('MTN'), (r) => r.attributes.mountain),
+                                value(tr('HIL'), (r) => r.attributes.hill),
+                                value(tr('TT'), (r) => r.attributes.timeTrial),
+                                value(tr('COB'), (r) => r.attributes.cobble),
+                                value(tr('SPR'), (r) => r.attributes.sprint),
                                 Col(
                                   'Pot.',
                                   44,
@@ -349,7 +349,7 @@ class _FoundScreenState extends State<FoundScreen> {
                                   sortKey: (r) => r.potential,
                                 ),
                                 Col(
-                                  tr('Gehalt'),
+                                  tr('Wage'),
                                   76,
                                   (r, _) => cellText(euro(eco.marketWage(r))),
                                   numeric: true,
@@ -360,7 +360,7 @@ class _FoundScreenState extends State<FoundScreen> {
                           ),
                           Text(
                             tr(
-                              '{0} Fahrer · Klick wählt aus oder ab · Spaltenkopf sortiert',
+                              '{0} riders · click to select or deselect · column heading sorts',
                               [rows.length],
                             ),
                             style: const TextStyle(
@@ -390,7 +390,7 @@ class _FoundScreenState extends State<FoundScreen> {
                                   key: const ValueKey('name'),
                                   controller: _name,
                                   maxLength: 34,
-                                  decoration: field(tr('Teamname')),
+                                  decoration: field(tr('Team name')),
                                   onChanged: (_) => setState(() {}),
                                 ),
                               ),
@@ -400,7 +400,7 @@ class _FoundScreenState extends State<FoundScreen> {
                                   key: const ValueKey('kuerzel'),
                                   controller: _abbr,
                                   maxLength: 3,
-                                  decoration: field(tr('Kürzel')),
+                                  decoration: field(tr('Abbreviation')),
                                   onChanged: (_) => setState(() {}),
                                 ),
                               ),
@@ -434,8 +434,8 @@ class _FoundScreenState extends State<FoundScreen> {
                           ),
                           Divider(height: 20, color: c.line),
                           fact(
-                            tr('Fahrer'),
-                            tr('{0} ({1} bis {2})', [
+                            tr('Rider'),
+                            tr('{0} ({1} to {2})', [
                               picked.length,
                               FoundingRules.minRiders,
                               FoundingRules.maxRiders,
@@ -443,11 +443,11 @@ class _FoundScreenState extends State<FoundScreen> {
                             color: enough ? TeamColors.green : TeamColors.gold,
                           ),
                           fact(
-                            tr('Stärke (Mittel der besten acht)'),
+                            tr('Strength (mean of the best eight)'),
                             picked.isEmpty ? '–' : one(strength),
                           ),
                           fact(
-                            tr('Lizenz'),
+                            tr('Licence'),
                             FoundingRules.label(division),
                             color: division.startsWith('[1]')
                                 ? TeamColors.gold
@@ -457,7 +457,7 @@ class _FoundScreenState extends State<FoundScreen> {
                           ),
                           Text(
                             tr(
-                              'WorldTeam ab {0}, ProTeam ab {1}: so stark sind die schwächsten Teams dieser Lizenzen.',
+                              'WorldTeam from {0}, ProTeam from {1}: that is how strong the weakest teams of these licences are.',
                               [one(_rules.worldTour), one(_rules.pro)],
                             ),
                             style: const TextStyle(
@@ -465,18 +465,20 @@ class _FoundScreenState extends State<FoundScreen> {
                               color: TeamColors.muted,
                             ),
                           ),
-                          fact(tr('Gehälter im Jahr'), '${euro(wages)} €'),
+                          fact(tr('Wages per year'), '${euro(wages)} €'),
                           fact(
-                            tr('Sponsorengeld im Jahr'),
+                            tr('Sponsor money per year'),
                             '${euro(wages * 1.45 < 1000000 ? 1000000 : wages * 1.45)} €',
                           ),
                           Divider(height: 20, color: c.line),
-                          Label(tr('Kader')),
+                          Label(tr('Squad')),
                           const SizedBox(height: 4),
                           Expanded(
                             child: picked.isEmpty
                                 ? Text(
-                                    tr('Wähle links mindestens 16 Fahrer.'),
+                                    tr(
+                                      'Select at least 16 riders on the left.',
+                                    ),
                                     style: TextStyle(color: TeamColors.muted),
                                   )
                                 : ListView(
@@ -540,7 +542,7 @@ class _FoundScreenState extends State<FoundScreen> {
                                         },
                                   child: Text(
                                     tr(
-                                      'Ohne Auswahl: Continental-Team aus Vereinslosen',
+                                      'Without a selection: Continental team of free agents',
                                     ),
                                     style: TextStyle(fontSize: 12),
                                   ),
@@ -565,7 +567,7 @@ class _FoundScreenState extends State<FoundScreen> {
                                         );
                                         Navigator.pop(context);
                                       },
-                                child: Text(tr('TEAM GRÜNDEN')),
+                                child: Text(tr('FOUND TEAM')),
                               ),
                             ],
                           ),

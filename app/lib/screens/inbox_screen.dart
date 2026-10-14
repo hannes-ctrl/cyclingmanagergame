@@ -26,12 +26,12 @@ class InboxScreen extends StatefulWidget {
 
 /// Where the messages of a topic are dealt with: page and button text.
 const _areaOf = <String, (String, String)>{
-  'Medizin': ('squad:shape', 'Zu Form und Training'),
-  'Training und Nachwuchs': ('dev', 'Zum Nachwuchsteam'),
-  'Verträge': ('transfers', 'Zu den Transfers'),
-  'Lizenz': ('rankings', 'Zu den Ranglisten'),
-  'Teamleitung': ('finance', 'Zu Finanzen und Zielen'),
-  'Scouting': ('search', 'Zur Fahrersuche'),
+  'Medical': ('squad:shape', 'To form and training'),
+  'Training and youth': ('dev', 'To the development team'),
+  'Contracts': ('transfers', 'To the transfers'),
+  'Licence': ('rankings', 'To the rankings'),
+  'Board': ('finance', 'To finances and goals'),
+  'Scouting': ('search', 'To the rider search'),
 };
 
 /// State of the inbox: the selected message and the topic filter.
@@ -55,14 +55,14 @@ class _InboxScreenState extends State<InboxScreen> {
     ];
     // Which topics arrive at all, and whether busy days are summarised.
     final settings = PopupMenuButton<String>(
-      tooltip: tr('Einstellungen des Postfachs'),
+      tooltip: tr('Inbox settings'),
       icon: const Icon(LucideIcons.settings, size: 18),
       color: c.panel2,
       onSelected: (key) => key == 'digest'
           ? s.setDigest(!s.career.inboxDigest)
           : s.setTopic(key, s.career.mutedTopics.contains(key)),
       itemBuilder: (context) => [
-        PopupMenuItem(enabled: false, child: Text(tr('Diese Themen erhalten'))),
+        PopupMenuItem(enabled: false, child: Text(tr('Receive these topics'))),
         for (final key in Message.topics)
           CheckedPopupMenuItem(
             value: key,
@@ -73,7 +73,7 @@ class _InboxScreenState extends State<InboxScreen> {
         CheckedPopupMenuItem(
           value: 'digest',
           checked: s.career.inboxDigest,
-          child: Text(tr('Ab drei Meldungen je Thema und Tag zusammenfassen')),
+          child: Text(tr('Summarise three or more messages per topic and day')),
         ),
       ],
     );
@@ -83,9 +83,9 @@ class _InboxScreenState extends State<InboxScreen> {
           Center(
             child: Text(
               s.busy
-                  ? tr('Die Tage laufen …')
+                  ? tr('The days are running …')
                   : tr(
-                      'Noch keine Nachrichten. „Weiter" lässt die Saison laufen, bis etwas dein Team betrifft.',
+                      'No messages yet. "Continue" lets the season run until something concerns your team.',
                     ),
               style: const TextStyle(color: TeamColors.muted),
             ),
@@ -110,7 +110,7 @@ class _InboxScreenState extends State<InboxScreen> {
                   runSpacing: 6,
                   children: [
                     Pill(
-                      label: tr('Alle · {0}', [all.length]),
+                      label: tr('All · {0}', [all.length]),
                       selected: _topic == null,
                       colors: c,
                       onTap: () => setState(() => _topic = null),
@@ -128,15 +128,15 @@ class _InboxScreenState extends State<InboxScreen> {
               TextButton.icon(
                 onPressed: s.busy ? null : () => s.markAllRead(_topic),
                 icon: const Icon(LucideIcons.checkCheck, size: 16),
-                label: Text(tr('Alle gelesen')),
+                label: Text(tr('Mark all read')),
               ),
               TextButton.icon(
                 onPressed: s.busy ? null : () => s.deleteRead(_topic),
                 icon: const Icon(LucideIcons.trash2, size: 16),
                 label: Text(
                   _topic == null
-                      ? tr('Gelesene löschen')
-                      : tr('Gelesene in „{0}" löschen', [_topic]),
+                      ? tr('Delete read messages')
+                      : tr('Delete read messages in "{0}"', [_topic]),
                 ),
               ),
               TextButton.icon(
@@ -152,7 +152,7 @@ class _InboxScreenState extends State<InboxScreen> {
                                   builder: (context) => AlertDialog(
                                     content: Text(
                                       tr(
-                                        '{0} Nachrichten löschen, davon {1} ungelesen?',
+                                        'Delete {0} messages, {1} of them unread?',
                                         [messages.length, unread],
                                       ),
                                     ),
@@ -160,12 +160,12 @@ class _InboxScreenState extends State<InboxScreen> {
                                       TextButton(
                                         onPressed: () =>
                                             Navigator.pop(context, false),
-                                        child: Text(tr('Abbrechen')),
+                                        child: Text(tr('Cancel')),
                                       ),
                                       FilledButton(
                                         onPressed: () =>
                                             Navigator.pop(context, true),
-                                        child: Text(tr('Alle löschen')),
+                                        child: Text(tr('Delete all')),
                                       ),
                                     ],
                                   ),
@@ -176,8 +176,8 @@ class _InboxScreenState extends State<InboxScreen> {
                 icon: const Icon(LucideIcons.trash, size: 16),
                 label: Text(
                   _topic == null
-                      ? tr('Alle löschen')
-                      : tr('Alle in „{0}" löschen', [_topic]),
+                      ? tr('Delete all')
+                      : tr('Delete all in "{0}"', [_topic]),
                 ),
               ),
               settings,
@@ -269,7 +269,7 @@ class _InboxScreenState extends State<InboxScreen> {
                               ),
                             ),
                             IconButton(
-                              tooltip: tr('Nachricht löschen'),
+                              tooltip: tr('Delete message'),
                               onPressed: s.busy
                                   ? null
                                   : () => s.deleteMessage(selected),
@@ -303,7 +303,7 @@ class _InboxScreenState extends State<InboxScreen> {
                             ),
                             onPressed: () =>
                                 widget.onOpenRace(selected.raceId!),
-                            child: Text(tr('Zum Rennen')),
+                            child: Text(tr('To the race')),
                           ),
                         // Every topic has a place where it is dealt with.
                         if (_areaOf[selected.topicKey] case final area?)

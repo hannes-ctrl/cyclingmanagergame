@@ -95,6 +95,14 @@ void main() {
     );
     await tester.tap(find.text('100 %'));
     await tester.pumpAndSettle();
+    // A single race outside the career.
+    await tester.tap(find.text('Einzelrennen'));
+    await tester.pumpAndSettle();
+    expect(find.text('Rennen starten'), findsOneWidget);
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/einzelrennen.png'),
+    );
     // Continue leads into the game, the sidebar leads back.
     await tester.tap(find.text('FORTSETZEN'));
     await tester.pumpAndSettle();
@@ -687,6 +695,13 @@ void main() {
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/rennen_team.png'),
+    );
+    // What the power meters showed.
+    await tester.tap(find.text('Leistung').first);
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/leistung.png'),
     );
 
     await tester.tap(find.text('Berg'));

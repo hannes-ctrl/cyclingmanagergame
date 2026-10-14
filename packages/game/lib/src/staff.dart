@@ -7,10 +7,18 @@ import 'economy.dart';
 
 /// Job of a staff member.
 enum StaffRole {
-  director('Sportlicher Leiter', 'Sportliche Leiter'),
-  coach('Trainer', 'Trainer'),
-  doctor('Arzt', 'Ärzte'),
-  scout('Scout', 'Scouts');
+  director('Sports director', 'Sports directors'),
+  coach('Coach', 'Coach'),
+  doctor('Doctor', 'Doctors'),
+  scout('Scout', 'Scouts'),
+
+  /// Prepares and repairs the bikes: a quick wheel change, fewer punctures
+  /// and mechanical problems.
+  mechanic('Mechanic', 'Mechanics'),
+
+  /// Soigneur and physiotherapist: helps the riders recover overnight in
+  /// stage races.
+  physio('Physiotherapist', 'Physiotherapists');
 
   const StaffRole(this._label, this._plural);
   final String _label;
@@ -27,9 +35,9 @@ enum StaffRole {
 
 /// What a sports director is particularly good at.
 enum DirectorFocus {
-  stageRaces('Rundfahrten'),
-  classics('Klassiker'),
-  sprints('Sprintrennen');
+  stageRaces('Stage races'),
+  classics('Classics'),
+  sprints('Sprint races');
 
   const DirectorFocus(this._label);
   final String _label;
@@ -162,6 +170,7 @@ class StaffBook {
               : team.division.startsWith('[2]')
                   ? (3, 2, 1, 1)
                   : (2, 1, 1, 0);
+      final (mechanics, physios) = _careCrew(team.division);
       for (var i = 0; i < directors; i++) {
         // The team manager from the WorldDB is the first sports director.
         add(team.id, StaffRole.director, base + (i == 0 ? 1.5 : 0),
@@ -176,11 +185,91 @@ class StaffBook {
       for (var i = 0; i < scouts; i++) {
         add(team.id, StaffRole.scout, base);
       }
+      for (var i = 0; i < mechanics; i++) {
+        add(team.id, StaffRole.mechanic, base);
+      }
+      for (var i = 0; i < physios; i++) {
+        add(team.id, StaffRole.physio, base);
+      }
     }
     // Job market: a few free people of every kind and level.
-    for (var i = 0; i < 48; i++) {
-      add(0, StaffRole.values[i % 4], 5 + rng.nextDouble() * 11);
+    for (var i = 0; i < 12 * StaffRole.values.length; i++) {
+      add(0, StaffRole.values[i % StaffRole.values.length],
+          5 + rng.nextDouble() * 11);
     }
+  }
+
+  /// Mechanics and physiotherapists by tier.
+  static (int, int) _careCrew(String division) => division.startsWith('[1]')
+      ? (4, 3)
+      : division.startsWith('[2]')
+          ? (3, 2)
+          : (2, 1);
+
+  /// Gives every team mechanics and physiotherapists, for a save from
+  /// before they existed.
+  void _addCareCrew() {
+    final rng = Random(c.seed * 29 + 11);
+    final names = c.fullNames.values.toList();
+    var id = all.fold(0, (top, s) => max(top, s.id)) + 1;
+    int level(double base) =>
+        (base + rng.nextDouble() * 5 - 2.5).round().clamp(2, 20);
+    void add(int teamId, StaffRole role, double base) {
+      final skill = level(base);
+      final first = names[rng.nextInt(names.length)].split(' ').first;
+      final last = names[rng.nextInt(names.length)].split(' ').last;
+      all.add(Staff(
+          id++,
+          '$first $last',
+          role,
+          skill,
+          level(base),
+          level(base),
+          DirectorFocus.stageRaces,
+          (20000 + 2500 * skill + 450 * skill * skill) ~/ 1000 * 1000,
+          teamId));
+    }
+
+    for (final team in c.teams.values) {
+      if (team.division == 'Free') continue;
+      final base = ((c.teamStrength(team.id) - 60) * 0.55 + 5).clamp(4.0, 17.0);
+      final (mechanics, physios) = _careCrew(team.division);
+      for (var i = 0; i < mechanics; i++) {
+        add(team.id, StaffRole.mechanic, base);
+      }
+      for (var i = 0; i < physios; i++) {
+        add(team.id, StaffRole.physio, base);
+      }
+    }
+    for (var i = 0; i < 12; i++) {
+      add(0, i.isEven ? StaffRole.mechanic : StaffRole.physio,
+          5 + rng.nextDouble() * 11);
+    }
+  }
+
+  /// Quality of a team's mechanics, 0 to 1: the best one's skill, as far as
+  /// there are enough of them for the races of the season (about one for
+  /// eight riders).
+  ///
+  /// @param teamId Id of the team.
+  /// @returns 0 to 1; about 0.5 for an average professional team.
+  double mechanicQuality(int teamId) => _care(teamId, StaffRole.mechanic, 8);
+
+  /// Quality of a team's physiotherapists, 0 to 1, as for [mechanicQuality]
+  /// with one for ten riders.
+  ///
+  /// @param teamId Id of the team.
+  /// @returns 0 to 1.
+  double physioQuality(int teamId) => _care(teamId, StaffRole.physio, 10);
+
+  double _care(int teamId, StaffRole role, int perHead) {
+    final n = of(teamId, role).length;
+    if (n == 0) return 0;
+    final riders = c.squads[teamId]?.length ?? 0;
+    final cover = riders == 0 ? 1.0 : (n * perHead / riders).clamp(0.0, 1.0);
+    // Skill 14 is an average professional, 20 the best there is.
+    return ((_best(teamId, role) - 8) / 12 * (0.7 + 0.3 * cover))
+        .clamp(0.0, 1.0);
   }
 
   // --- Effects ----------------------------------------------------------------
@@ -270,6 +359,8 @@ class StaffBook {
     StaffRole.coach: 4,
     StaffRole.doctor: 2,
     StaffRole.scout: 3,
+    StaffRole.mechanic: 5,
+    StaffRole.physio: 4,
   };
 
   /// Hires someone from the job market.
@@ -278,9 +369,9 @@ class StaffBook {
   /// @returns null on success, otherwise the reason.
   String? hire(int staffId) {
     final s = all.where((x) => x.id == staffId).firstOrNull;
-    if (s == null || s.teamId != 0) return tr('Nicht mehr zu haben.');
+    if (s == null || s.teamId != 0) return tr('No longer available.');
     if (of(c.teamId, s.role).length >= limits[s.role]!) {
-      return tr('Mehr als {0} {1} sind nicht vorgesehen.',
+      return tr('More than {0} {1} are not allowed.',
           [limits[s.role], s.role.plural]);
     }
     s.teamId = c.teamId;
@@ -293,12 +384,13 @@ class StaffBook {
   /// @returns null on success, otherwise the reason.
   String? fire(int staffId) {
     final s = all.where((x) => x.id == staffId).firstOrNull;
-    if (s == null || s.teamId != c.teamId) return tr('Gehört nicht zum Team.');
+    if (s == null || s.teamId != c.teamId)
+      return tr('Does not belong to the team.');
     if (s.busyUntil?.isAfter(c.today) ?? false) {
-      return tr('Er ist gerade bei einem Rennen.');
+      return tr('He is at a race right now.');
     }
     if (jobs.any((j) => j.scoutId == staffId)) {
-      return tr('Er ist gerade auf Beobachtung.');
+      return tr('He is on a scouting assignment.');
     }
     s
       ..teamId = 0
@@ -354,17 +446,17 @@ class StaffBook {
   /// @param riderId Id of the rider.
   /// @returns null if a scout is on his way, otherwise the reason.
   String? scout(int riderId) {
-    if (knowledge(riderId) >= 1) return tr('Über ihn ist alles bekannt.');
+    if (knowledge(riderId) >= 1) return tr('Everything is known about him.');
     if (jobs.any((j) => j.riderId == riderId))
-      return tr('Er wird schon beobachtet.');
+      return tr('He is already being scouted.');
     final idle = of(c.teamId, StaffRole.scout)
         .where((s) => !jobs.any((j) => j.scoutId == s.id))
         .toList()
       ..sort((a, b) => b.skill.compareTo(a.skill));
     if (idle.isEmpty) {
       return of(c.teamId, StaffRole.scout).isEmpty
-          ? tr('Das Team hat keinen Scout.')
-          : tr('Alle Scouts sind unterwegs.');
+          ? tr('The team has no scout.')
+          : tr('All scouts are on assignment.');
     }
     final s = idle.first;
     // A good scout needs two weeks, a weak one five.
@@ -444,9 +536,9 @@ class StaffBook {
       c.inbox.add(Message(
         c.today,
         scoutName,
-        tr('Bericht zu {0}', [r.name]),
+        tr('Report on {0}', [r.name]),
         tr(
-            '{0} ({1}, {2}): Berg {3}, Hügel {4}, Zeitfahren {5}, Sprint {6}, Kopfsteinpflaster {7}, Flach {8}. Potenzial {9}. {10}',
+            '{0} ({1}, {2}): mountain {3}, hill {4}, time trial {5}, sprint {6}, cobbles {7}, flat {8}. Potential {9}. {10}',
             [
               c.fullName(r.id),
               c.year - r.born ~/ 10000,
@@ -459,8 +551,8 @@ class StaffBook {
               a.flat.round(),
               r.potential.toStringAsFixed(1),
               r.potential >= 5.5 && c.year - r.born ~/ 10000 < 24
-                  ? tr('Ein Talent, bei dem es sich lohnt, früh dran zu sein.')
-                  : tr('Seine Werte sind jetzt in der Marktliste genau.')
+                  ? tr('A talent worth getting to early.')
+                  : tr('His values are now exact in the market list.')
             ]),
       ));
     }
@@ -525,5 +617,6 @@ class StaffBook {
     scouted
       ..clear()
       ..addAll((j['scouted'] as List).cast<int>());
+    if (!all.any((s) => s.role == StaffRole.mechanic)) _addCareCrew();
   }
 }

@@ -224,6 +224,13 @@ class RadmanagerApp extends StatelessWidget {
           listenable: set,
           builder: (context, _) {
             final k = set.scale;
+            // Colours for colour-blind players, over everything.
+            if (set.vision.matrix case final m?) {
+              child = ColorFiltered(
+                colorFilter: ColorFilter.matrix(m),
+                child: child,
+              );
+            }
             if (k == 1) return child!;
             final size = MediaQuery.sizeOf(context);
             return OverflowBox(
@@ -247,7 +254,7 @@ class RadmanagerApp extends StatelessWidget {
               body: Center(
                 child: Text(
                   tr(
-                    'Die Weltdatenbank data\\world.sqlite wurde nicht gefunden.\nSie entsteht mit "worlddb import".',
+                    'The world database data\\world.sqlite was not found.\nIt is created with "worlddb import".',
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -260,21 +267,21 @@ class RadmanagerApp extends StatelessWidget {
 
 /// Pages of the sidebar with label and icon.
 enum _Page {
-  home('Übersicht', LucideIcons.house),
-  inbox('Postfach', LucideIcons.mail),
-  squad('Kader', LucideIcons.users),
-  dev('Nachwuchsteam', LucideIcons.graduationCap),
-  camps('Trainingslager', LucideIcons.mountain),
-  calendar('Kalender', LucideIcons.calendarDays),
-  planner('Rennplaner', LucideIcons.calendarCheck),
-  races('Rennen', LucideIcons.flag),
-  rankings('Ranglisten', LucideIcons.trophy),
+  home('Home', LucideIcons.house),
+  inbox('Inbox', LucideIcons.mail),
+  squad('Squad', LucideIcons.users),
+  dev('Development team', LucideIcons.graduationCap),
+  camps('Training camps', LucideIcons.mountain),
+  calendar('Calendar', LucideIcons.calendarDays),
+  planner('Race planner', LucideIcons.calendarCheck),
+  races('Races', LucideIcons.flag),
+  rankings('Rankings', LucideIcons.trophy),
   transfers('Transfers', LucideIcons.arrowLeftRight),
-  search('Fahrersuche', LucideIcons.search),
-  finance('Finanzen und Ziele', LucideIcons.landmark),
-  staff('Personal', LucideIcons.idCard),
-  delegation('Aufgabenverteilung', LucideIcons.clipboardList),
-  saves('Spielstände', LucideIcons.save),
+  search('Rider search', LucideIcons.search),
+  finance('Finances and goals', LucideIcons.landmark),
+  staff('Staff', LucideIcons.idCard),
+  delegation('Delegation', LucideIcons.clipboardList),
+  saves('Save games', LucideIcons.save),
   debug('Debug', LucideIcons.bug);
 
   const _Page(this._label, this.icon);
@@ -415,6 +422,18 @@ class _ShellState extends State<Shell> {
     final s = widget.state;
     final key = e.logicalKey;
     final keys = HardwareKeyboard.instance;
+    // Ctrl+S: a quick save with today's date in its name.
+    if (keys.isControlPressed && key == LogicalKeyboardKey.keyS) {
+      final answer = s.quickSave();
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(answer ?? tr('Saved as a quick save.'))),
+      );
+      return true;
+    }
+    if (key == LogicalKeyboardKey.f1) {
+      showHelpDialog(context, s);
+      return true;
+    }
     if (keys.isControlPressed && key == LogicalKeyboardKey.keyF) {
       setState(() {
         _page = _Page.search;
@@ -442,6 +461,18 @@ class _ShellState extends State<Shell> {
       _continue?.call();
       return true;
     }
+    // The number keys open the first nine pages of the sidebar.
+    final digit = _digits.indexOf(key);
+    if (digit >= 0 && !keys.isControlPressed && !keys.isAltPressed) {
+      setState(() {
+        _page = _Page.values[digit];
+        _sub = null;
+        _showPrep = false;
+        s.riderPage = null;
+        s.teamPage = null;
+      });
+      return true;
+    }
     // In a list the arrow keys move the cursor and Enter opens the row.
     if (s.riderPage == null && !_showPrep && DenseTable.handleKey(key)) {
       return true;
@@ -460,6 +491,18 @@ class _ShellState extends State<Shell> {
     }
     return false;
   }
+
+  static const _digits = [
+    LogicalKeyboardKey.digit1,
+    LogicalKeyboardKey.digit2,
+    LogicalKeyboardKey.digit3,
+    LogicalKeyboardKey.digit4,
+    LogicalKeyboardKey.digit5,
+    LogicalKeyboardKey.digit6,
+    LogicalKeyboardKey.digit7,
+    LogicalKeyboardKey.digit8,
+    LogicalKeyboardKey.digit9,
+  ];
 
   @override
   void dispose() {
@@ -650,7 +693,7 @@ class _ShellState extends State<Shell> {
                       child: Row(
                         children: [
                           IconButton(
-                            tooltip: tr('Zurück (Alt+←, Esc)'),
+                            tooltip: tr('Back (Alt+←, Esc)'),
                             visualDensity: VisualDensity.compact,
                             onPressed: _back.isEmpty ? null : _goBack,
                             // Not the colour of the theme: with some team
@@ -664,7 +707,7 @@ class _ShellState extends State<Shell> {
                             ),
                           ),
                           IconButton(
-                            tooltip: tr('Vor (Alt+→)'),
+                            tooltip: tr('Forward (Alt+→)'),
                             visualDensity: VisualDensity.compact,
                             onPressed: _forward.isEmpty ? null : _goForward,
                             icon: Icon(
@@ -682,13 +725,13 @@ class _ShellState extends State<Shell> {
                             children: [
                               Text(
                                 prep != null
-                                    ? tr('Rennvorbereitung')
+                                    ? tr('Race preparation')
                                     : s.riderPage != null
-                                    ? tr('Fahrerprofil')
+                                    ? tr('Rider profile')
                                     : s.teamPage != null
-                                    ? tr('Teamprofil')
+                                    ? tr('Team profile')
                                     : _page == _Page.finance
-                                    ? tr('Finanzen')
+                                    ? tr('Finances')
                                     : _page.label,
                                 style: headStyle(23),
                               ),
@@ -723,24 +766,58 @@ class _ShellState extends State<Shell> {
                               ),
                             ),
                           // While days run: what is being simulated.
-                          if (s.busy && s.working != null)
+                          if (s.busy &&
+                              (s.working != null || s.simulatingTo != null))
                             Padding(
                               padding: const EdgeInsets.only(right: 18),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.end,
+                              child: Row(
                                 children: [
-                                  Text(
-                                    tr('WIRD SIMULIERT'),
-                                    style: TextStyle(
-                                      fontSize: 10.5,
-                                      letterSpacing: 0.8,
-                                      color: TeamColors.gold,
-                                    ),
+                                  Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        tr('SIMULATING'),
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          letterSpacing: 0.8,
+                                          color: TeamColors.gold,
+                                        ),
+                                      ),
+                                      Text(
+                                        s.working ?? tr('Days without races'),
+                                        style: const TextStyle(fontSize: 13),
+                                      ),
+                                      // Progress of a run to a date.
+                                      if (s.simulatingTo != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 3,
+                                          ),
+                                          child: SizedBox(
+                                            width: 120,
+                                            child: LinearProgressIndicator(
+                                              value: s.runProgress,
+                                              minHeight: 3,
+                                              color: TeamColors.gold,
+                                              backgroundColor: c.line,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
-                                  Text(
-                                    s.working!,
-                                    style: const TextStyle(fontSize: 13),
+                                  const SizedBox(width: 10),
+                                  Tooltip(
+                                    message: tr('Stop after the current day'),
+                                    child: IconButton(
+                                      onPressed: s.stopRequested
+                                          ? null
+                                          : s.stopRun,
+                                      icon: const Icon(
+                                        LucideIcons.circleStop,
+                                        size: 18,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -753,7 +830,7 @@ class _ShellState extends State<Shell> {
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    tr('NÄCHSTES RENNEN'),
+                                    tr('NEXT RACE'),
                                     style: TextStyle(
                                       fontSize: 10.5,
                                       letterSpacing: 0.8,
@@ -763,10 +840,10 @@ class _ShellState extends State<Shell> {
                                   Text(
                                     '${next.info.name} · '
                                     '${days == 0
-                                        ? tr('heute')
+                                        ? tr('today')
                                         : days == 1
-                                        ? tr('morgen')
-                                        : tr('in {0} Tagen', [days])}',
+                                        ? tr('tomorrow')
+                                        : tr('in {0} days', [days])}',
                                     style: const TextStyle(fontSize: 13),
                                   ),
                                 ],
@@ -776,7 +853,7 @@ class _ShellState extends State<Shell> {
                           // The date opens a small calendar to simulate up
                           // to a chosen day.
                           Tooltip(
-                            message: tr('Bis zu einem Datum simulieren'),
+                            message: tr('Simulate to a date'),
                             child: InkWell(
                               onTap: s.busy || career.seasonOver
                                   ? null
@@ -796,7 +873,7 @@ class _ShellState extends State<Shell> {
                                     const SizedBox(width: 8),
                                     Text(
                                       career.seasonOver
-                                          ? tr('Saison {0} beendet', [
+                                          ? tr('Season {0} finished', [
                                               career.year,
                                             ])
                                           : _longDate(career.today),
@@ -830,18 +907,18 @@ class _ShellState extends State<Shell> {
                                 children: [
                                   Text(
                                     loading != null
-                                        ? tr('LÄDT {0} %', [
+                                        ? tr('LOADING {0} %', [
                                             (loading * 100).round(),
                                           ])
                                         : s.busy
-                                        ? tr('LÄUFT …')
+                                        ? tr('RUNNING …')
                                         : s.radio != null
-                                        ? tr('FUNK …')
+                                        ? tr('RADIO …')
                                         : career.seasonOver
-                                        ? tr('NEUE SAISON')
+                                        ? tr('NEW SEASON')
                                         : pending != null
-                                        ? tr('ZUM AUFGEBOT')
-                                        : tr('WEITER'),
+                                        ? tr('TO THE LINE-UP')
+                                        : tr('CONTINUE'),
                                     style: const TextStyle(
                                       fontFamily: headFont,
                                       fontSize: 16,
@@ -1050,7 +1127,7 @@ class _Sidebar extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        tr('Saison {0}', [state.career.year]),
+                        tr('Season {0}', [state.career.year]),
                         style: TextStyle(fontSize: 11.5, color: faded),
                       ),
                     ],
@@ -1066,15 +1143,15 @@ class _Sidebar extends StatelessWidget {
           item(_Page.squad),
           item(_Page.dev),
           item(_Page.camps),
-          group(tr('Rennen')),
+          group(tr('Races')),
           item(_Page.calendar),
           item(_Page.planner, badge: open > 0 ? '$open' : null),
           item(_Page.races),
           item(_Page.rankings),
-          group(tr('Markt')),
+          group(tr('Market')),
           item(_Page.transfers),
           item(_Page.search),
-          group(tr('Führung')),
+          group(tr('Management')),
           item(_Page.finance),
           item(_Page.staff),
           item(_Page.delegation),
@@ -1092,7 +1169,7 @@ class _Sidebar extends StatelessWidget {
                   Icon(LucideIcons.circleQuestionMark, size: 18, color: faded),
                   const SizedBox(width: 11),
                   Text(
-                    tr('Hilfe'),
+                    tr('Help'),
                     style: TextStyle(fontSize: 14, color: c.onSide),
                   ),
                 ],
@@ -1109,7 +1186,7 @@ class _Sidebar extends StatelessWidget {
                   Icon(LucideIcons.logOut, size: 18, color: faded),
                   const SizedBox(width: 11),
                   Text(
-                    tr('Hauptmenü'),
+                    tr('Main menu'),
                     style: TextStyle(fontSize: 14, color: c.onSide),
                   ),
                 ],
@@ -1154,7 +1231,7 @@ class _Badge extends StatelessWidget {
   );
 }
 
-const _weekdays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const _weekdays = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
 String _longDate(DateTime d) =>
     '${tr(_weekdays[d.weekday - 1])}, ${d.day.toString().padLeft(2, '0')}.'

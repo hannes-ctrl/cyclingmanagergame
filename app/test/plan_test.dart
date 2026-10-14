@@ -35,7 +35,7 @@ void main() {
     // The sports director reports it.
     expect(
       career.inbox.map((m) => m.subject),
-      contains(tr('Der Saisonplan steht')),
+      contains(tr('The season plan is ready')),
     );
 
     // Spread over the squad: nobody idle, nobody overloaded.
@@ -77,7 +77,7 @@ void main() {
     expect(career.program[tour.info.id], isNot(contains(best.id)));
     expect(career.program[tour.info.id]!.length, before);
     expect(career.programClashes(), isEmpty);
-    expect(career.inbox.last.subject, tr('Ersatz für {0}', [best.name]));
+    expect(career.inbox.last.subject, tr('Replacement for {0}', [best.name]));
 
     // A plan made by hand is kept; planning anew replaces it.
     final first = races.firstWhere((r) => r.start.isAfter(career.today));

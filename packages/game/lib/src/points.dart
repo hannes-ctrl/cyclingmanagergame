@@ -6,10 +6,10 @@ enum RaceTier {
   monument('Monument', 8),
   worldTour('WorldTour', 5),
   proSeries('ProSeries', 2),
-  class1('Klasse 1', 1.25),
-  class2('Klasse 2', 0.4),
+  class1('Class 1', 1.25),
+  class2('Class 2', 0.4),
   under23('U23', 0.3),
-  championship('Meisterschaft', 0);
+  championship('Championship', 0);
 
   const RaceTier(this._label, this.factor);
   final String _label;

@@ -5,11 +5,11 @@ import 'career.dart';
 
 /// Kind of training camp with its focus, price and effect.
 enum CampType {
-  altitude('Höhenlager', TrainingFocus.climbing, 260, 0.012),
-  classics('Klassiker-Lager', TrainingFocus.classics, 180, 0.006),
-  timeTrial('Zeitfahr-Lager', TrainingFocus.timeTrial, 190, 0.006),
-  sprint('Sprint-Lager', TrainingFocus.sprint, 170, 0.006),
-  base('Grundlagen-Lager', TrainingFocus.stamina, 140, 0.006);
+  altitude('Altitude camp', TrainingFocus.climbing, 260, 0.012),
+  classics('Classics camp', TrainingFocus.classics, 180, 0.006),
+  timeTrial('Time trial camp', TrainingFocus.timeTrial, 190, 0.006),
+  sprint('Sprint camp', TrainingFocus.sprint, 170, 0.006),
+  base('Base camp', TrainingFocus.stamina, 140, 0.006);
 
   const CampType(this._label, this.focus, this.costPerDay, this.peak);
   final String _label;
@@ -103,32 +103,32 @@ class Camps {
   /// @returns null on success, otherwise the reason as shown to the player.
   String? book(CampType type, DateTime start, int days, List<int> riderIds) {
     final riders = riderIds.toSet();
-    if (start.isBefore(c.today))
-      return tr('Der Beginn liegt in der Vergangenheit.');
+    if (start.isBefore(c.today)) return tr('The start lies in the past.');
     if (start.year != c.year)
-      return tr('Lager gibt es nur in der laufenden Saison.');
+      return tr('Camps can only be booked in the running season.');
     if (days < minDays || days > maxDays) {
-      return tr('Ein Lager dauert {0} bis {1} Tage.', [minDays, maxDays]);
+      return tr('A camp lasts {0} to {1} days.', [minDays, maxDays]);
     }
-    if (riders.isEmpty) return tr('Kein Fahrer gewählt.');
+    if (riders.isEmpty) return tr('No rider selected.');
     if (riders.length > maxRiders) {
-      return tr('Mehr als {0} Fahrer passen nicht in ein Lager.', [maxRiders]);
+      return tr('A camp does not take more than {0} riders.', [maxRiders]);
     }
     final end = start.add(Duration(days: days - 1));
     for (final id in riders) {
       final r = c.riderById[id];
-      if (r == null || r.teamId != c.teamId) return tr('Fahrer nicht im Team.');
+      if (r == null || r.teamId != c.teamId)
+        return tr('Rider not in the team.');
       if (c.isBusy(id, start)) {
-        return tr('{0} ist zu Beginn des Lagers nicht verfügbar.', [r.name]);
+        return tr('{0} is not available when the camp starts.', [r.name]);
       }
       if (blocks(id, start, end)) {
-        return tr(
-            '{0} ist in dieser Zeit schon in einem anderen Lager.', [r.name]);
+        return tr('{0} is already in another camp at that time.', [r.name]);
       }
     }
     final camp = Camp(type, start, days, riders);
     if (camp.cost > c.economy.balance) {
-      return tr('Das Lager kostet {0}.000 €, so viel ist nicht in der Kasse.',
+      return tr(
+          'The camp costs {0},000 €; there is not that much in the account.',
           [camp.cost ~/ 1000]);
     }
     all.add(camp);
@@ -164,9 +164,9 @@ class Camps {
       }
       c.inbox.add(Message(
         c.today,
-        tr('Trainer'),
-        tr('{0} beendet', [k.type.label]),
-        tr('Zurück aus dem Lager: {0}. Die beste Form ist in ein bis vier Wochen zu erwarten.',
+        tr('Coach'),
+        tr('{0} finished', [k.type.label]),
+        tr('Back from camp: {0}. The best form can be expected in one to four weeks.',
             [names.join(', ')]),
       ));
     }

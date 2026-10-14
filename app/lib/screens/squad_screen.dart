@@ -67,7 +67,7 @@ class _SquadScreenState extends State<SquadScreen> {
         );
 
     // Name with a marker for riders who cannot race and for champions.
-    final name = Col<SimRider>(tr('Fahrer'), 220, (r, _) {
+    final name = Col<SimRider>(tr('Rider'), 220, (r, _) {
       final injured = career.isInjured(r.id, career.today);
       final champion = career.titlesHeld(r.id).isNotEmpty;
       return Row(
@@ -101,14 +101,14 @@ class _SquadScreenState extends State<SquadScreen> {
       );
     }, sortKey: (r) => career.fullName(r.id));
     final age = Col<SimRider>(
-      tr('Alter'),
+      tr('Age'),
       52,
       (r, _) => cellText('${year - r.born ~/ 10000}'),
       numeric: true,
       sortKey: (r) => -r.born,
     );
     final type = Col<SimRider>(
-      tr('Typ'),
+      tr('Type'),
       104,
       (r, _) => cellText(tr(riderType(r)), color: TeamColors.muted),
       sortKey: riderType,
@@ -159,7 +159,7 @@ class _SquadScreenState extends State<SquadScreen> {
         ),
         age,
         type,
-        number(tr('Stärke'), 64, Economy.rating, color: attributeColor),
+        number(tr('Strength'), 64, Economy.rating, color: attributeColor),
         Col<SimRider>(
           'Pot',
           44,
@@ -171,19 +171,19 @@ class _SquadScreenState extends State<SquadScreen> {
           sortKey: (r) => r.potential,
         ),
         attribute('FL', (a) => a.flat),
-        attribute(tr('BG'), (a) => a.mountain),
-        attribute(tr('MB'), (a) => a.mediumMountain),
-        attribute(tr('HÜ'), (a) => a.hill),
-        attribute(tr('ZF'), (a) => a.timeTrial),
-        attribute(tr('PR'), (a) => a.prologue),
-        attribute(tr('KO'), (a) => a.cobble),
-        attribute(tr('SP'), (a) => a.sprint),
-        attribute(tr('ANT'), (a) => a.acceleration),
-        attribute(tr('ABF'), (a) => a.downhill),
-        attribute(tr('AUS'), (a) => a.breakaway),
-        attribute(tr('AD'), (a) => a.endurance),
-        attribute(tr('WID'), (a) => a.resistance),
-        attribute(tr('REG'), (a) => a.recovery),
+        attribute(tr('MTN'), (a) => a.mountain),
+        attribute(tr('MED'), (a) => a.mediumMountain),
+        attribute(tr('HIL'), (a) => a.hill),
+        attribute(tr('TT'), (a) => a.timeTrial),
+        attribute(tr('PRL'), (a) => a.prologue),
+        attribute(tr('COB'), (a) => a.cobble),
+        attribute(tr('SPR'), (a) => a.sprint),
+        attribute(tr('ACC'), (a) => a.acceleration),
+        attribute(tr('DH'), (a) => a.downhill),
+        attribute(tr('BRK'), (a) => a.breakaway),
+        attribute(tr('STA'), (a) => a.endurance),
+        attribute(tr('RES'), (a) => a.resistance),
+        attribute(tr('REC'), (a) => a.recovery),
       ],
       _View.shape => [
         name,
@@ -204,7 +204,7 @@ class _SquadScreenState extends State<SquadScreen> {
               : TeamColors.text,
         ),
         number(
-          tr('Moral'),
+          tr('Morale'),
           110,
           (r) => career.people.moraleOf(r.id),
           text: People.moraleWord,
@@ -215,9 +215,9 @@ class _SquadScreenState extends State<SquadScreen> {
               : TeamColors.muted,
         ),
         number('Fitness', 70, (r) => shape(r).fitness),
-        number(tr('Ermüdung'), 96, (r) => shape(r).fatigue),
+        number(tr('Fatigue'), 96, (r) => shape(r).fatigue),
         number(
-          tr('Frische'),
+          tr('Freshness'),
           70,
           (r) => shape(r).freshness,
           text: (v) => '${v >= 0 ? '+' : ''}${v.round()}',
@@ -227,12 +227,12 @@ class _SquadScreenState extends State<SquadScreen> {
               ? TeamColors.green
               : TeamColors.text,
         ),
-        number(tr('Renntage'), 84, (r) => shape(r).raceDays.toDouble()),
+        number(tr('Race days'), 84, (r) => shape(r).raceDays.toDouble()),
         Col<SimRider>('Status', 150, (r, _) {
           final until = shape(r).injuredUntil;
           if (until != null && until.isAfter(career.today)) {
             return cellText(
-              tr('fällt aus bis {0}.{1}.', [
+              tr('out until {0}.{1}.', [
                 until.day.toString().padLeft(2, '0'),
                 until.month.toString().padLeft(2, '0'),
               ]),
@@ -240,13 +240,13 @@ class _SquadScreenState extends State<SquadScreen> {
             );
           }
           if (career.camps.campOf(r.id, career.today) != null) {
-            return cellText(tr('Trainingslager'), color: TeamColors.gold);
+            return cellText(tr('Training camps'), color: TeamColors.gold);
           }
           return career.isBusy(r.id, career.today)
-              ? cellText(tr('im Rennen'), color: TeamColors.green)
+              ? cellText(tr('racing'), color: TeamColors.green)
               : cellText('Training', color: TeamColors.muted);
         }),
-        Col<SimRider>(tr('Schwerpunkt'), 130, (r, _) {
+        Col<SimRider>(tr('Focus'), 130, (r, _) {
           return DropdownButton<TrainingFocus>(
             value: shape(r).focus,
             isDense: true,
@@ -264,7 +264,7 @@ class _SquadScreenState extends State<SquadScreen> {
             ],
           );
         }),
-        Col<SimRider>(tr('Belastung'), 250, (r, _) {
+        Col<SimRider>(tr('Training load'), 250, (r, _) {
           return Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -303,31 +303,31 @@ class _SquadScreenState extends State<SquadScreen> {
         name,
         age,
         type,
-        number(tr('Stärke'), 64, Economy.rating, color: attributeColor),
+        number(tr('Strength'), 64, Economy.rating, color: attributeColor),
         number(
-          tr('Gehalt'),
+          tr('Wage'),
           90,
           (r) => (eco.contracts[r.id]?.wage ?? 0).toDouble(),
           text: (v) => euro(v),
         ),
         number(
-          tr('Marktwert'),
+          tr('Market value'),
           96,
           (r) => eco.marketWage(r).toDouble(),
           text: (v) => euro(v),
         ),
         number(
-          tr('Vertrag bis'),
+          tr('Contract until'),
           100,
           (r) => (eco.contracts[r.id]?.endYear ?? 0).toDouble(),
           color: (v) => v <= year ? TeamColors.gold : TeamColors.text,
         ),
-        Col<SimRider>(tr('Nächste Saison'), 240, (r, _) {
+        Col<SimRider>(tr('Next season'), 240, (r, _) {
           final k = eco.contracts[r.id];
           if (k == null) return const SizedBox();
           if (k.nextTeam == r.teamId) {
             return cellText(
-              tr('verlängert bis {0} · {1}', [
+              tr('renewed until {0} · {1}', [
                 contractEnd(k.nextEnd),
                 euro(k.nextWage),
               ]),
@@ -336,13 +336,13 @@ class _SquadScreenState extends State<SquadScreen> {
           }
           if (k.nextTeam != null) {
             return cellText(
-              tr('wechselt zu {0}', [career.teams[k.nextTeam]?.name ?? '?']),
+              tr('moves to {0}', [career.teams[k.nextTeam]?.name ?? '?']),
               color: TeamColors.red,
             );
           }
           return k.endYear <= year
-              ? cellText(tr('Vertrag läuft aus'), color: TeamColors.gold)
-              : cellText(tr('unter Vertrag'), color: TeamColors.muted);
+              ? cellText(tr('Contract expires'), color: TeamColors.gold)
+              : cellText(tr('under contract'), color: TeamColors.muted);
         }),
       ],
       _View.season => [
@@ -350,20 +350,20 @@ class _SquadScreenState extends State<SquadScreen> {
         age,
         type,
         number(
-          tr('Punkte'),
+          tr('Points'),
           76,
           (r) => career.riderPoints[r.id] ?? 0,
           color: (v) => v > 0 ? TeamColors.text : TeamColors.muted,
         ),
         number(
-          tr('Siege'),
+          tr('Wins'),
           64,
           (r) => career.winsOf(r.id, year).toDouble(),
           color: (v) => v > 0 ? TeamColors.gold : TeamColors.muted,
         ),
-        number(tr('Renntage'), 84, (r) => shape(r).raceDays.toDouble()),
+        number(tr('Race days'), 84, (r) => shape(r).raceDays.toDouble()),
         number(
-          tr('Geplant'),
+          tr('Planned'),
           80,
           plannedDays,
           color: (v) => v > 0 ? TeamColors.text : TeamColors.muted,
@@ -376,7 +376,7 @@ class _SquadScreenState extends State<SquadScreen> {
           // Where the form is heading since the last weekly record.
           suffix: (r) => widget.state.formTrend(r.id),
         ),
-        Col<SimRider>(tr('Letzter Erfolg'), 330, (r, _) {
+        Col<SimRider>(tr('Latest success'), 330, (r, _) {
           final last = career.palmares[r.id]?.lastOrNull;
           return cellText(
             last == null ? '–' : '${last[0]} · ${last[1]} · ${last[2]}',
@@ -392,15 +392,15 @@ class _SquadScreenState extends State<SquadScreen> {
         TabStrip<_View>(
           colors: c,
           tabs: {
-            _View.attributes: tr('Werte'),
-            _View.shape: tr('Form und Training'),
-            _View.contracts: tr('Verträge'),
-            _View.season: tr('Saison'),
+            _View.attributes: tr('Attributes'),
+            _View.shape: tr('Form and training'),
+            _View.contracts: tr('Contracts'),
+            _View.season: tr('Season'),
           },
           value: _view,
           onChanged: (v) => setState(() => _view = v),
           trailing: Text(
-            tr('{0} Fahrer · Gehälter {1} € · Ø {2} Jahre', [
+            tr('{0} riders · wages {1} € · avg. age {2}', [
               squad.length,
               euro(eco.wageBill(state.team.id)),
               (squad.fold(0, (sum, r) => sum + year - r.born ~/ 10000) /
@@ -425,7 +425,7 @@ class _SquadScreenState extends State<SquadScreen> {
                         children: [
                           for (final t in [null, ...types])
                             Pill(
-                              label: t == null ? tr('Alle') : tr(t),
+                              label: t == null ? tr('All') : tr(t),
                               selected: _type == t,
                               colors: c,
                               onTap: () => setState(() => _type = t),
@@ -434,7 +434,7 @@ class _SquadScreenState extends State<SquadScreen> {
                       ),
                     ),
                     SearchBox(
-                      hint: tr('Fahrer oder Land'),
+                      hint: tr('Rider or country'),
                       colors: c,
                       onChanged: (v) => setState(() => _search = v),
                     ),
@@ -455,16 +455,16 @@ class _SquadScreenState extends State<SquadScreen> {
                 Text(
                   switch (_view) {
                     _View.attributes => tr(
-                      'FL Flach · BG Berg · MB Mittelgebirge · HÜ Hügel · ZF Zeitfahren · PR Prolog · KO Kopfsteinpflaster · SP Sprint · ANT Antritt · ABF Abfahrt · AUS Ausreißer · AD Ausdauer · WID Widerstand · REG Regeneration · Klick auf einen Fahrer öffnet sein Profil',
+                      'FL flat · MTN mountain · MED medium mountain · HIL hill · TT time trial · PRL prologue · COB cobbles · SPR sprint · ACC acceleration · DH downhill · BRK breakaway · STA stamina · RES resistance · REC recovery · click a rider to open his profile',
                     ),
                     _View.shape => tr(
-                      'Fitness folgt der Belastung der letzten sechs Wochen, Ermüdung der letzten Woche. Frische ist die Differenz. Form ist der Aufschlag auf die Leistung am Start eines Rennens.',
+                      'Fitness follows the load of the last six weeks, fatigue that of the last week. Freshness is the difference. Form is the bonus on power at the start of a race.',
                     ),
                     _View.contracts => tr(
-                      'Gespräche über neue Verträge sind ab dem 1. August unter Transfers möglich. Der Marktwert ist das Gehalt, das ein Fahrer dieser Stärke üblicherweise bekommt.',
+                      'Talks about new contracts are possible under Transfers from 1 August. The market value is the wage a rider of this strength usually gets.',
                     ),
                     _View.season => tr(
-                      'Punkte zählen für die Rangliste, Siege sind Rennen, Etappen und Gesamtwertungen. Geplant sind die Renntage aus dem Rennplaner.',
+                      'Points count for the ranking; wins are races, stages and general classifications. Planned are the race days from the race planner.',
                     ),
                   },
                   style: const TextStyle(fontSize: 12, color: TeamColors.muted),

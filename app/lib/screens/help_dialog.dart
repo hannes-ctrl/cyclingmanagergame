@@ -8,28 +8,28 @@ import '../widgets.dart';
 /// How a season is played, in a few steps.
 const _steps = <(String, String)>[
   (
-    'Weiter',
-    'Der Knopf oben rechts (oder die Leertaste) lässt die Tage laufen, bis etwas dein Team betrifft: ein Rennen, eine Nachricht, eine Rückfrage aus dem Rennen.',
+    'Continue',
+    'The button at the top right (or the space bar) lets the days run until something concerns your team: a race, a message, a question from the race.',
   ),
   (
-    'Saisonplan',
-    'Der Sportliche Leiter hat alle Rennen der Saison geplant. Im Rennplaner änderst du einzelne Einsätze; auf der Fahrerseite setzt du mit der Zielscheibe Saisonziele, auf die ein Fahrer seine Form ausrichtet.',
+    'Season plan',
+    'The sports director has planned every race of the season. In the race planner you change single entries; on the rider page the target sets season goals a rider builds his form towards.',
   ),
   (
-    'Rennvorbereitung',
-    'Vor jedem Rennen bestätigst du das Aufgebot. Mit eigener Taktik legst du einzelne Rollen fest (Nadel) oder alles; den Rest plant der Sportliche Leiter je Etappe.',
+    'Race preparation',
+    'Before every race you confirm the line-up. With your own tactics you pin single roles or fix everything; the sports director plans the rest stage by stage.',
   ),
   (
-    'Funk',
-    'Im Rennen meldet sich der Sportliche Leiter bis zu dreimal. Die markierte Antwort ist seine Empfehlung. Unter „Aufgabenverteilung" lässt sich der Funk abschalten.',
+    'Radio',
+    'During a race the sports director calls in when it matters: the break, the finale, an attack of a rival, a crash or puncture of a leader. The marked answer is his recommendation. The radio can be switched off under "Delegation".',
   ),
   (
-    'Fahrer',
-    'Moral, Versprechen und Persönlichkeit stehen auf der Fahrerseite. Der Stern setzt fremde Fahrer auf die Beobachtungsliste, die Waage vergleicht zwei Fahrer.',
+    'Rider',
+    'Morale, promises and personality are on the rider page. The star puts riders of other teams on the shortlist, the scales compare two riders.',
   ),
   (
-    'Tastatur',
-    'Leertaste: weiter. Esc oder Alt+←: zurück. Strg+F: Fahrersuche. Pfeiltasten und Enter: durch Listen und von Fahrer zu Fahrer.',
+    'Keyboard',
+    'Space: continue. Esc or Alt+←: back. Ctrl+F: rider search. Ctrl+S: quick save. 1 to 9: the pages of the sidebar. F1: this help. Arrow keys and Enter: through lists and from rider to rider.',
   ),
 ];
 
@@ -61,10 +61,30 @@ Future<void> showHelpDialog(BuildContext context, AppState state) {
             children: [
               Row(
                 children: [
-                  Expanded(child: Text(tr('Hilfe'), style: headStyle(23))),
+                  Expanded(child: Text(tr('Help'), style: headStyle(23))),
+                  Tooltip(
+                    message: tr(
+                      'Packs the running save, the settings and a note with version and seed into a ZIP file in data/export, to send along with a bug report.',
+                    ),
+                    child: TextButton(
+                      onPressed: () {
+                        final path = state.bugReport();
+                        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              path == null
+                                  ? tr('The file could not be written.')
+                                  : tr('Saved: {0}', [path]),
+                            ),
+                          ),
+                        );
+                      },
+                      child: Text(tr('Create bug report')),
+                    ),
+                  ),
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: Text(tr('Schließen')),
+                    child: Text(tr('Close')),
                   ),
                 ],
               ),
@@ -72,7 +92,7 @@ Future<void> showHelpDialog(BuildContext context, AppState state) {
               Expanded(
                 child: ListView(
                   children: [
-                    Label(tr('So läuft eine Saison')),
+                    Label(tr('How a season goes')),
                     const SizedBox(height: 6),
                     for (final (title, text) in _steps)
                       Padding(
@@ -99,7 +119,7 @@ Future<void> showHelpDialog(BuildContext context, AppState state) {
                         ),
                       ),
                     const SizedBox(height: 10),
-                    Label(tr('Begriffe')),
+                    Label(tr('Glossary')),
                     const SizedBox(height: 6),
                     for (final e in terms)
                       Padding(

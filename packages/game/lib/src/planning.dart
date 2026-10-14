@@ -67,11 +67,41 @@ class SeasonPlanner {
   /// @returns A weight; a Grand Tour has 13, a class 2 race 0.4.
   double importance(RaceEntry race, [int? teamId]) =>
       race.tier.factor *
+      // What the team is built for.
+      styleWeight(race, c.styleOf(teamId ?? c.teamId)) *
       // What sponsor and board ask of the player's team this season.
       ((teamId ?? c.teamId) == c.teamId ? c.sponsorWeight(race) : 1) *
       (race.info.country == c.teams[teamId ?? c.teamId]?.country ? 1.25 : 1) *
       // The Tour comes before the other Grand Tours.
       (race.info.raceClass == 'CWTGTFrance' ? 1.2 : 1);
+
+  /// How much a team of a style values a race: a team built for the
+  /// overall the stage races, a classics team the one-day races, a sprint
+  /// team the races with many flat finishes.
+  ///
+  /// @param race The race.
+  /// @param style Style of the team.
+  /// @returns A factor around 1.
+  double styleWeight(RaceEntry race, TeamStyle style) {
+    switch (style) {
+      case TeamStyle.gc:
+        return race.tier == RaceTier.grandTour
+            ? 1.3
+            : race.isStageRace
+                ? 1.2
+                : 0.85;
+      case TeamStyle.classics:
+        return race.isStageRace ? 0.9 : 1.3;
+      case TeamStyle.sprint:
+        final sprints =
+            race.stages.where((s) => _coefficients(s.id)[7] >= 0.45).length;
+        return 0.9 + 0.45 * sprints / max(1, race.stages.length);
+      case TeamStyle.balanced:
+      case TeamStyle.youth:
+      case TeamStyle.experience:
+        return 1;
+    }
+  }
 
   final _fits = <int, Map<int, double>>{};
 

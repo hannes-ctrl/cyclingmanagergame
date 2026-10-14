@@ -1,6 +1,6 @@
 # Roadmap
 
-Where Radmanager goes after 0.2.0 alpha, and what it has to be before it is called a beta.
+Where Radmanager goes after 0.3.0 alpha, and what it has to be before it is called a beta.
 
 Nothing here is promised; priorities are set version by version. Ideas come from *Football Manager* (FM), *Pro Cycling Manager* (PCM) and the dev blogs of *Velo Victory* (VV), and from what their players ask for in the forums. Each item names its source in brackets; the links are at the end.
 
@@ -8,14 +8,14 @@ Nothing here is promised; priorities are set version by version. Ideas come from
 
 The working list, in order. It is rewritten whenever something on it is done; the sections below hold the full plan.
 
-1. **Close 0.3.0.** Evaluate the calibration run on the seasons 2023 to 2026 and fix what tuning cannot reach: the middle of the field finishes too close to the winner, flat stages are too closed, hilly stages end in a bunch too rarely, sector races end solo too rarely. Check with real fields whether the time limit takes too many sprinters out of Grand Tours. Then the version number and the release.
+1. **0.3.1: the race shape.** Fix what tuning cannot reach: riders who sit up once their work is done, a gruppetto on hilly days too, breakaways that survive more often, sector races that end solo. Check with real fields whether the time limit takes too many sprinters out of Grand Tours. Then one calibration run with the new acceptance margin, which also takes in the new behaviour (echelons, jersey hunters, waiting for a leader).
 2. **A world that lasts ten seasons.** The multi-season test first, because every later balance change is judged by it: finances, squad strength per tier, licences, age structure, top riders, and now also morale and goals over several seasons. Then money, the exceptional talents of the yearly intake, and the other teams promoting from their development teams.
 3. **The stage in fast motion.** The data for it exists (gaps and group sizes along the route, events with their kilometre, incidents), and with the simulation in the background nothing blocks it any more. It is the largest visible step.
 4. **The people, third step.** Personality, morale for every team, standing in the team and promises (also in contract talks) exist. Open: mentoring, leadership of the road captain, talks as a choice in the inbox, adaptability after a transfer, a rider who asks to leave, the other teams acting on the morale of their riders.
 5. **Scouting in stages and competition on the market,** once the money is balanced.
 6. **Comfort that is left:** multi-select in lists, saved column sets, export from every list, bookmarks, undo for a line-up, "simulate until" with a vacation mode that has rules.
 
-Done since the last version of this list: the simulation in the background, goals that steer the season plan, morale for every team, promises (also in contract talks), personalities by name, the standing in the team, a rider matrix that shows goals, and the small comfort items (links, filters that survive a restart, export, messages that lead to their page, stops for "simulate until", help and introduction).
+Done since the last version of this list: the simulation in the background, goals that steer the season plan, morale for every team, promises (also in contract talks), personalities by name, the standing in the team, a rider matrix that shows goals, and the small comfort items (links, filters that survive a restart, export, messages that lead to their page, stops for "simulate until", help and introduction). Since then: power figures, radio on a leader's mishap, forecast and echelon approach, jersey hunters, team styles, mechanics and physiotherapists, material of real suppliers, the single race, warnings before a line-up, progress and stop for long runs with a summary, more keys, colour vision and a bug report.
 
 ## Principles
 
@@ -41,6 +41,8 @@ Each phase is one version. The reason for its place is given first.
 
 ### 0.3.0 Races that hold up
 
+*Released as 0.3.0 alpha on 14 October 2026. What tuning could not reach goes into 0.3.1 ("Next up", item 1).*
+
 *First, because every later system is judged by race results.*
 
 Done:
@@ -64,7 +66,7 @@ Open:
 - **The time limit with real fields.** On a synthetic field too many sprinters miss it in the mountains.
 - **Speed.** A stage takes two to three times as long as in 0.2.0, so a night of calibration holds only a few hundred attempts. In the game the stages now run in the background.
 - **Older seasons.** Checked: the database covers 58 % of the finishers of 2021, 67 % of 2022, 75 % of 2023, 85 % of 2024 and 92 % of 2025. The calibration now uses 2023 to 2026 only. Filling the missing riders with anonymous ones of typical strength would bring the earlier seasons back.
-- **Weather, second step.** Real compass headings for the routes, a forecast that can be wrong, riders who cope differently with heat and cold. [PCM, VV]
+- **Weather, second step.** Real compass headings for the routes, a forecast that can be wrong, riders who cope differently with heat and cold. [PCM, VV] *Started:* the forecast blurs the weather of the day and warns of echelons; headings and heat tolerance are missing.
 
 ### 0.4.0 A world that lasts ten seasons
 
@@ -121,7 +123,7 @@ Talks are kept small on purpose: a choice in the inbox with a visible effect, no
 - **Sponsors.** Contracts over several years, income that follows tier and results, wishes that are met by the race itself (jersey in the break at the home race, a win in the sponsor's country) instead of abstract targets. Offers fit the team: nationality of riders and where it wins. [2]
 - **Staff.** Coaches, directors, scouts and doctors improve, have ambitions and can be lured away. A weekly note from the staff: "this is what I would change". [VV, FM]
 - **Facilities.** Medical, training, scouting, marketing, equipment, each with a few levels and a cost per season. [VV]
-- **Equipment.** The supplier's material with a small effect on time trials and cobbles, or none at all; decided after the money test. [2]
+- **Equipment.** The supplier's material with a small effect on time trials and cobbles. [2] *Done* with the real suppliers, tyre and bike choice per race; the effects still need calibrating.
 - **The manager's career.** Reputation, offers from other teams, dismissal when goals are missed. [FM]
 - **History.** Season review, awards, a trophy room, records, the career of every retired rider. [7, VV] *Started:* a review message with four awards at the turn of the year.
 
@@ -165,7 +167,7 @@ These are spread over the versions above rather than saved for the end. The firs
 **Planning**
 
 - The season planner shows conflicts at once: rider entered twice, too many race days, a goal race without the leader. [2] *Started:* riders entered for two overlapping races.
-- Copy a line-up from the last race or from a template.
+- Copy a line-up from the last race or from a template. *Done for last year's line-up;* templates are open.
 - An assistant's proposal for every chore (line-up, programme, training), which the player accepts or changes. Nothing has to be done by hand that the player does not care about. *Done* for line-ups, tactics (pins), the season plan and training.
 
 **Reading**
@@ -174,7 +176,7 @@ These are spread over the versions above rather than saved for the end. The firs
 - A clearer form display than the scale from −3 % to +4 %: steps with an arrow for the trend. *Started:* the trend arrow in the squad.
 - Notes on a rider, written by the player. *Done.*
 - A glossary behind the tooltips, and a short introduction for new careers. *Done:* the help page and a welcome message.
-- Singular and plural in English, dates in the format of the language, command-line tools in English. *Started:* contract dates.
+- Singular and plural in English, dates in the format of the language, command-line tools in English. *Started:* contract dates. *Done:* English is the source language of all texts of the game, German a translation table.
 
 **Open data**
 
@@ -226,7 +228,7 @@ The world database is built from the WorldDB for Pro Cycling Manager, and rider 
 
 | Version | Theme | Depends on | Comfort that ships with it |
 | --- | --- | --- | --- |
-| 0.3.0 | Races that hold up (calibration running) | The calibration run | Back and history, keyboard, lists, inbox, shortlist, team pages, season plan |
+| 0.3.0 | Races that hold up *(released 14 October 2026; the race shape follows in 0.3.1)* | The calibration run | Back and history, keyboard, lists, inbox, shortlist, team pages, season plan |
 | 0.4.0 | A world that lasts | 0.3.0 | Simulation in the background, filters that survive a restart, export |
 | 0.5.0 | The rider as a person | 0.3.0, 0.4.0 | Goals in the planner, templates, multi-select |
 | 0.6.0 | Scouting and market | 0.4.0, 0.5.0 | Comparison of several riders, decisions in messages |

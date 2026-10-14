@@ -71,10 +71,10 @@ class _CampsScreenState extends State<CampsScreen> {
     );
 
     String status(SimRider r) {
-      if (career.isInjured(r.id, start)) return tr('verletzt');
-      if (career.camps.blocks(r.id, start, end)) return tr('im Lager');
-      if (career.isBusy(r.id, start)) return tr('im Rennen');
-      return tr('frei');
+      if (career.isInjured(r.id, start)) return tr('injured');
+      if (career.camps.blocks(r.id, start, end)) return tr('in camp');
+      if (career.isBusy(r.id, start)) return tr('racing');
+      return tr('free');
     }
 
     return Padding(
@@ -89,7 +89,7 @@ class _CampsScreenState extends State<CampsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Label(tr('Lager buchen')),
+                  Label(tr('Book a camp')),
                   const SizedBox(height: 8),
                   chips(
                     CampType.values,
@@ -100,7 +100,7 @@ class _CampsScreenState extends State<CampsScreen> {
                   const SizedBox(height: 6),
                   Text(
                     tr(
-                      'Fördert {0} · {1} € je Fahrer und Tag · Formgewinn danach {2} %',
+                      'Trains {0} · {1} € per rider and day · form gain afterwards {2} %',
                       [
                         _type.focus.label,
                         _type.costPerDay,
@@ -115,13 +115,13 @@ class _CampsScreenState extends State<CampsScreen> {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      SizedBox(width: 60, child: Text(tr('Beginn'))),
+                      SizedBox(width: 60, child: Text(tr('Begins'))),
                       step('−7', -7),
                       step('−1', -1),
                       SizedBox(
                         width: 130,
                         child: Text(
-                          tr('{0} bis {1}', [_date(start), _date(end)]),
+                          tr('{0} to {1}', [_date(start), _date(end)]),
                           textAlign: TextAlign.center,
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
@@ -133,10 +133,10 @@ class _CampsScreenState extends State<CampsScreen> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      SizedBox(width: 60, child: Text(tr('Dauer'))),
+                      SizedBox(width: 60, child: Text(tr('Duration'))),
                       chips(
                         const [7, 10, 14, 21],
-                        (d) => tr('{0} Tage', [d]),
+                        (d) => tr('{0} days', [d]),
                         _days,
                         (d) => _days = d,
                       ),
@@ -147,7 +147,7 @@ class _CampsScreenState extends State<CampsScreen> {
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
                         tr(
-                          'In dieser Zeit fahren wir: {0}. Wer im Lager ist, fehlt dort.',
+                          'During this time we race: {0}. Whoever is in camp misses them.',
                           [clashes.join(', ')],
                         ),
                         style: const TextStyle(
@@ -183,13 +183,13 @@ class _CampsScreenState extends State<CampsScreen> {
                           ),
                         ),
                         Col(
-                          tr('Fahrer'),
+                          tr('Rider'),
                           200,
                           (r, _) => cellText(career.fullName(r.id)),
                           sortKey: (r) => r.lastName,
                         ),
                         Col(
-                          tr('Alter'),
+                          tr('Age'),
                           50,
                           (r, _) =>
                               cellText('${career.year - r.born ~/ 10000}'),
@@ -204,7 +204,7 @@ class _CampsScreenState extends State<CampsScreen> {
                           sortKey: (r) => r.potential,
                         ),
                         Col(
-                          tr('Frische'),
+                          tr('Freshness'),
                           70,
                           (r, _) {
                             final f = career.shapeOf(r.id).freshness;
@@ -220,11 +220,11 @@ class _CampsScreenState extends State<CampsScreen> {
                           numeric: true,
                           sortKey: (r) => career.shapeOf(r.id).freshness,
                         ),
-                        Col(tr('Am {0}', [_date(start)]), 110, (r, _) {
+                        Col(tr('On {0}', [_date(start)]), 110, (r, _) {
                           final text = status(r);
                           return cellText(
                             text,
-                            color: text == tr('frei')
+                            color: text == tr('free')
                                 ? TeamColors.muted
                                 : TeamColors.red,
                           );
@@ -239,7 +239,7 @@ class _CampsScreenState extends State<CampsScreen> {
                         child: Text(
                           _message ??
                               tr(
-                                '{0} von höchstens {1} Fahrern · Kosten {2} €, fällig mit der nächsten Monatsabrechnung',
+                                '{0} of at most {1} riders · cost {2} €, due with the next monthly statement',
                                 [_selected.length, Camps.maxRiders, euro(cost)],
                               ),
                           style: TextStyle(
@@ -265,7 +265,7 @@ class _CampsScreenState extends State<CampsScreen> {
                                       _days,
                                       _selected.toList(),
                                     ) ??
-                                    tr('{0} ab {1} ist gebucht.', [
+                                    tr('{0} from {1} is booked.', [
                                       _type.label,
                                       _date(start),
                                     ]);
@@ -273,7 +273,7 @@ class _CampsScreenState extends State<CampsScreen> {
                                   _selected.clear();
                                 }
                               }),
-                        child: Text(tr('LAGER BUCHEN')),
+                        child: Text(tr('BOOK CAMP')),
                       ),
                     ],
                   ),
@@ -289,12 +289,12 @@ class _CampsScreenState extends State<CampsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Label(tr('Lager {0}', [career.year])),
+                  Label(tr('Camps {0}', [career.year])),
                   const SizedBox(height: 6),
                   if (career.camps.all.isEmpty)
                     Text(
                       tr(
-                        'Noch keines gebucht. Ein Lager bindet die Fahrer für seine Dauer, belastet sie hart und zahlt sich ein bis vier Wochen später aus: Die geförderten Werte steigen (bei jungen Fahrern am meisten), und die Form liegt höher.',
+                        'None booked yet. A camp ties up the riders for its duration, loads them hard and pays off one to four weeks later: the trained attributes rise (most for young riders), and form is higher.',
                       ),
                       style: TextStyle(color: TeamColors.muted),
                     ),
@@ -311,7 +311,7 @@ class _CampsScreenState extends State<CampsScreen> {
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        tr('{0} · {1} bis {2}', [
+                                        tr('{0} · {1} to {2}', [
                                           k.type.label,
                                           _date(k.start),
                                           _date(
@@ -327,10 +327,10 @@ class _CampsScreenState extends State<CampsScreen> {
                                     ),
                                     Text(
                                       k.closed
-                                          ? tr('beendet')
+                                          ? tr('finished')
                                           : k.covers(career.today)
-                                          ? tr('läuft')
-                                          : tr('gebucht'),
+                                          ? tr('running')
+                                          : tr('booked'),
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: k.covers(career.today)

@@ -297,7 +297,7 @@ class PointAward {
 
 /// Moments at which the sports director can step in over the radio. Each
 /// occurs at most once per stage.
-enum RadioKind { breakGone, finale, rivalAttack }
+enum RadioKind { breakGone, finale, rivalAttack, mishap }
 
 /// A question from the race to the sports director.
 class RadioCall {
@@ -397,6 +397,10 @@ class StageResult {
 
   /// What each rider did, by rider id; empty like [timeline].
   Map<int, RiderTrace> traces = const {};
+
+  /// Power figures per rider id. The game keeps them only for the riders
+  /// it shows.
+  Map<int, PowerStats> power = {};
 
   /// Riders who did not finish; they have no placing.
   List<Abandon> abandons = const [];

@@ -23,13 +23,13 @@ String clock(double seconds) {
 /// @param v Amount in euros.
 /// @returns E.g. "1,25 Mio." or "180 T".
 String euro(num v) => v.abs() >= 1000000
-    ? tr('{0} Mio.', [dec(v / 1000000, 2)])
+    ? tr('{0} m', [dec(v / 1000000, 2)])
     : '${(v / 1000).round()} T';
 
 /// @param seconds Gap to the first rider.
 /// @returns "gl. Zeit" (same time) or e.g. "+1:23".
 String gap(double seconds) =>
-    seconds.round() == 0 ? tr('gl. Zeit') : '+${clock(seconds)}';
+    seconds.round() == 0 ? tr('s.t.') : '+${clock(seconds)}';
 
 /// @param v A rider attribute.
 /// @returns Its colour: green from 72, yellow from 78, pale below 65.
@@ -591,21 +591,21 @@ class TabStrip<T> extends StatelessWidget {
 /// Names a rider's type after his strongest main attribute.
 ///
 /// @param r The rider.
-/// @returns A German label such as "Kletterer" or "Sprinter".
+/// @returns A label such as "Climber" or "Sprinter", untranslated.
 String riderType(SimRider r) {
   final a = r.attributes;
   final best = {
-    'Kletterer': a.mountain,
+    'Climber': a.mountain,
     'Puncheur': a.hill,
     'Sprinter': a.sprint,
-    'Zeitfahrer': a.timeTrial,
-    'Pflasterfahrer': a.cobble,
+    'Time trialist': a.timeTrial,
+    'Cobbles specialist': a.cobble,
     'Rouleur': a.flat,
   }.entries.reduce((x, y) => y.value > x.value ? y : x);
   // An all-rounder has no attribute that clearly stands out.
   final second = [a.mountain, a.hill, a.sprint, a.timeTrial, a.cobble, a.flat]
     ..sort((x, y) => y.compareTo(x));
-  return second[0] - second[3] < 4 ? 'Allrounder' : best.key;
+  return second[0] - second[3] < 4 ? 'All-rounder' : best.key;
 }
 
 /// Team jersey from the WorldDB's graphics pack, exported to `data/jerseys`

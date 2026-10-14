@@ -86,7 +86,8 @@ double _sum(List<(double, double)> pieces) =>
 SimRoute _road(String name, double start, List<(double, double)> pieces,
         {List<SectorSpan> sectors = const [],
         StageKind kind = StageKind.road,
-        List<ClimbSpan> climbs = const []}) =>
+        List<ClimbSpan> climbs = const [],
+        List<RoutePoint> climbTops = const []}) =>
     buildRoute(
       name: name,
       kind: kind,
@@ -94,6 +95,7 @@ SimRoute _road(String name, double start, List<(double, double)> pieces,
       profile: _profile(start, pieces),
       sectors: sectors,
       climbs: climbs,
+      climbTops: climbTops,
     );
 
 /// A flat stage of 180 km with small rollers.
@@ -123,6 +125,27 @@ SimRoute mountainStage() => _road('Berg', 1100, [
       (25, 0.0),
       (12, 0.08),
     ]);
+
+/// The mountain stage with its mountain prizes.
+SimRoute mountainStageWithTops() => _road('Berg', 1100, [
+      (40, 0.0),
+      (14, 0.07),
+      (16, -0.06),
+      (20, 0.0),
+      (15, 0.075),
+      (18, -0.06),
+      (25, 0.0),
+      (12, 0.08),
+    ], climbTops: const [
+      RoutePoint(54, 'Col A', 2),
+      RoutePoint(105, 'Col B', 1),
+      RoutePoint(160, 'Finish', 1),
+    ]);
+
+/// A time trial with a long climb in it.
+SimRoute mountainTimeTrial() =>
+    _road('Bergzeitfahren', 600, [(0.4, 0.0), (14, 0.085)],
+        kind: StageKind.timeTrial);
 
 /// A cobbled classic of 255 km with 25 sectors in its second half.
 SimRoute cobbledClassic() {

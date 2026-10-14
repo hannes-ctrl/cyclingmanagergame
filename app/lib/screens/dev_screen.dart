@@ -58,7 +58,7 @@ class _DevScreenState extends State<DevScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      dev.team?.name ?? tr('Kein Nachwuchsteam'),
+                      dev.team?.name ?? tr('No development team'),
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w600,
@@ -68,11 +68,11 @@ class _DevScreenState extends State<DevScreen> {
                       _message ??
                           (dev.teamId == null
                               ? tr(
-                                  'Dein Team hat kein Nachwuchsteam. Du kannst eines gründen: acht junge Fahrer ohne Team, {0} € im Jahr. Die Zuordnung ist danach fest.',
+                                  'Your team has no development team. You can found one: eight young riders without a team, {0} € a year. The link is fixed afterwards.',
                                   [euro(DevTeam.yearlyCost)],
                                 )
                               : tr(
-                                  '{0} Fahrer · Zuschuss {1} € im Jahr · Hochziehen geht ab dem 1. August, zum marktüblichen Gehalt. Jedes Jahr kommen zwei Talente dazu. Die Zuordnung zum Profiteam ist fest.',
+                                  '{0} riders · subsidy {1} € a year · riders can be promoted from 1 August, at the market wage. Two talents join every year. The link to the professional team is fixed.',
                                   [squad.length, euro(dev.cost)],
                                 )),
                       style: TextStyle(
@@ -98,15 +98,15 @@ class _DevScreenState extends State<DevScreen> {
                   : () => setState(
                       () => _message =
                           s.foundDevTeam() ??
-                          tr('Das Nachwuchsteam ist gegründet.'),
+                          tr('The development team has been founded.'),
                     ),
-              child: Text(tr('Nachwuchsteam gründen')),
+              child: Text(tr('Found a development team')),
             ),
           ] else ...[
             const SizedBox(height: 6),
             Text(
               tr(
-                'Stagiaires: Ab dem 1. August dürfen bis zu {0} Fahrer des Nachwuchsteams für das Profiteam starten, außer bei WorldTour-Rennen und Meisterschaften. Sie bleiben im Nachwuchsteam. Derzeit: {1}.',
+                'Stagiaires: from 1 August up to {0} riders of the development team may start for the professional team, except in WorldTour races and championships. They stay in the development team. Currently: {1}.',
                 [DevTeam.maxStagiaires, dev.stagiaires.length],
               ),
               style: const TextStyle(fontSize: 12, color: TeamColors.muted),
@@ -120,7 +120,7 @@ class _DevScreenState extends State<DevScreen> {
                   ? Center(
                       child: Text(
                         tr(
-                          'Ohne Nachwuchsteam kommen junge Fahrer über den Transfermarkt.',
+                          'Without a development team young riders come through the transfer market.',
                         ),
                         style: TextStyle(color: TeamColors.muted),
                       ),
@@ -132,21 +132,21 @@ class _DevScreenState extends State<DevScreen> {
                       onTap: (r) => showRiderDialog(context, s, r.id),
                       columns: [
                         Col(
-                          tr('Fahrer'),
+                          tr('Rider'),
                           210,
                           (r, _) => cellText(career.fullName(r.id)),
                           sortKey: (r) => r.lastName,
                         ),
                         Col(
-                          tr('Alter'),
+                          tr('Age'),
                           50,
                           (r, _) =>
                               cellText('${career.year - r.born ~/ 10000}'),
                           numeric: true,
                           sortKey: (r) => -r.born,
                         ),
-                        Col(tr('Land'), 70, (r, _) => flagCell(r.country)),
-                        value(tr('Stärke'), Economy.rating),
+                        Col(tr('Country'), 70, (r, _) => flagCell(r.country)),
+                        value(tr('Strength'), Economy.rating),
                         Col(
                           'Pot.',
                           50,
@@ -160,13 +160,13 @@ class _DevScreenState extends State<DevScreen> {
                           sortKey: (r) => r.potential,
                         ),
                         value('FL', (r) => r.attributes.flat),
-                        value(tr('BG'), (r) => r.attributes.mountain),
-                        value(tr('HÜ'), (r) => r.attributes.hill),
-                        value(tr('ZF'), (r) => r.attributes.timeTrial),
-                        value(tr('KO'), (r) => r.attributes.cobble),
-                        value(tr('SP'), (r) => r.attributes.sprint),
+                        value(tr('MTN'), (r) => r.attributes.mountain),
+                        value(tr('HIL'), (r) => r.attributes.hill),
+                        value(tr('TT'), (r) => r.attributes.timeTrial),
+                        value(tr('COB'), (r) => r.attributes.cobble),
+                        value(tr('SPR'), (r) => r.attributes.sprint),
                         Col(
-                          tr('Gehalt oben'),
+                          tr('Wage in the pro team'),
                           100,
                           (r, _) => cellText(euro(eco.marketWage(r))),
                           numeric: true,
@@ -181,7 +181,7 @@ class _DevScreenState extends State<DevScreen> {
                           }
                           if (!dev.window(career.today)) {
                             return cellText(
-                              tr('ab 1. August'),
+                              tr('from 1 August'),
                               color: TeamColors.muted,
                             );
                           }
@@ -195,7 +195,7 @@ class _DevScreenState extends State<DevScreen> {
                                     () => _message =
                                         s.takeStagiaire(r.id) ??
                                         tr(
-                                          '{0} fährt bis zum Saisonende als Stagiaire für das Profiteam.',
+                                          '{0} rides for the professional team as a stagiaire until the end of the season.',
                                           [career.fullName(r.id)],
                                         ),
                                   ),
@@ -209,7 +209,7 @@ class _DevScreenState extends State<DevScreen> {
                                 borderRadius: BorderRadius.circular(11),
                               ),
                               child: Text(
-                                tr('Als Stagiaire holen'),
+                                tr('Take as stagiaire'),
                                 style: const TextStyle(fontSize: 12),
                               ),
                             ),
@@ -219,13 +219,13 @@ class _DevScreenState extends State<DevScreen> {
                           final k = eco.contracts[r.id];
                           if (dev.promoted(r.id)) {
                             return cellText(
-                              tr('rückt {0} auf', [career.year + 1]),
+                              tr('moves up in {0}', [career.year + 1]),
                               color: TeamColors.green,
                             );
                           }
                           if (k?.nextTeam != null) {
                             return cellText(
-                              tr('wechselt zu {0}', [
+                              tr('moves to {0}', [
                                 career.teams[k!.nextTeam]?.abbr ?? '?',
                               ]),
                               color: TeamColors.muted,
@@ -238,7 +238,7 @@ class _DevScreenState extends State<DevScreen> {
                                     () => _message =
                                         s.promote(r.id) ??
                                         tr(
-                                          '{0} rückt zur nächsten Saison ins Profiteam auf.',
+                                          '{0} moves up to the professional team next season.',
                                           [career.fullName(r.id)],
                                         ),
                                   ),
@@ -252,7 +252,7 @@ class _DevScreenState extends State<DevScreen> {
                                 borderRadius: BorderRadius.circular(11),
                               ),
                               child: Text(
-                                tr('Hochziehen'),
+                                tr('Promote'),
                                 style: TextStyle(fontSize: 12),
                               ),
                             ),

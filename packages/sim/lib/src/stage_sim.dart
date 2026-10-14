@@ -1,6 +1,8 @@
 import 'i18n.dart';
 import 'dart:math';
 
+import 'material.dart';
+
 import 'model.dart';
 import 'physics.dart';
 import 'tactics.dart';
@@ -21,11 +23,33 @@ class RiderCondition {
 
 /// A rider's state during the stage.
 class _State {
-  _State(this.rider, this.form, this.energy)
-      : mass = rider.massKg + bikeMassKg,
-        cda = soloCda * cdaScale(rider);
+  _State(this.rider, this.form, this.energy, [this.kit = TeamKit.average])
+      : mass = rider.massKg + bikeMassKg + kit.bikeKg,
+        cda = soloCda * cdaScale(rider) * kit.aero;
   final SimRider rider;
   final double form;
+
+  /// Material and staff of his team.
+  final TeamKit kit;
+
+  /// What his power meter records.
+  final tally = _PowerTally();
+
+  /// Factor on the rolling resistance of a segment: tyre brand and the
+  /// tyres of the day.
+  ///
+  /// @param s The segment.
+  /// @param wet Whether the road is wet.
+  /// @returns The factor.
+  double roll(Segment s, bool wet) =>
+      kit.rolling * kit.tyres.rolling(s.rough, wet: wet);
+
+  /// Factor on his chance of a puncture on a segment.
+  ///
+  /// @param s The segment.
+  /// @returns The factor.
+  double punctureRisk(Segment s) =>
+      kit.punctures * kit.tyres.punctures(s.rough) * kit.mechanicalRate;
 
   /// Mass of rider and bike in kg.
   final double mass;
@@ -38,6 +62,9 @@ class _State {
 
   /// Short-term reserve for efforts above threshold.
   double reserve = 1;
+
+  /// Threshold power at the start of the stage, for the power zones.
+  double ftp = 0;
   Role role = Role.domestique;
   late TeamPlan plan;
   bool favorite = false;
@@ -97,6 +124,67 @@ class _State {
   /// Riders of the group he was in when he had a mishap inside the last
   /// three kilometres; he gets their time.
   List<_State>? ruleMates;
+}
+
+/// Sums up a rider's power over a stage.
+class _PowerTally {
+  double seconds = 0, joules = 0, fourth = 0;
+  final zones = List<double>.filled(6, 0);
+
+  /// Per climb index: seconds, joules and metres climbed.
+  final climbs = <int, List<double>>{};
+
+  static const _bounds = [0.55, 0.75, 0.9, 1.05, 1.2];
+
+  /// Records power held for a while.
+  ///
+  /// @param watts Power in watts.
+  /// @param dt Seconds.
+  /// @param ftp Threshold power for the zones.
+  /// @param climb Index of the climb the segment belongs to, or -1.
+  /// @param gainM Metres climbed on the segment.
+  void add(double watts, double dt, double ftp, int climb, double gainM) {
+    if (dt <= 0 || !watts.isFinite) return;
+    final w = max(0.0, watts);
+    seconds += dt;
+    joules += w * dt;
+    fourth += pow(w, 4) * dt;
+    final x = ftp > 0 ? w / ftp : 0.0;
+    var z = 0;
+    while (z < _bounds.length && x >= _bounds[z]) {
+      z++;
+    }
+    zones[z] += dt;
+    if (climb >= 0) {
+      final c = climbs.putIfAbsent(climb, () => [0, 0, 0]);
+      c[0] += dt;
+      c[1] += w * dt;
+      c[2] += gainM;
+    }
+  }
+
+  /// @param ftp Threshold power at the start.
+  /// @param massKg Body weight.
+  /// @param tops The climbs of the route.
+  /// @returns The figures.
+  PowerStats result(double ftp, double massKg, List<RoutePoint> tops) =>
+      PowerStats(
+        seconds,
+        seconds > 0 ? joules / seconds : 0,
+        seconds > 0 ? pow(fourth / seconds, 0.25).toDouble() : 0,
+        joules / 1000,
+        ftp,
+        massKg,
+        [...zones],
+        [
+          for (final e
+              in climbs.entries.toList()
+                ..sort((a, b) => a.key.compareTo(b.key)))
+            if (e.key < tops.length && e.value[0] > 0)
+              ClimbPower(tops[e.key].name, tops[e.key].km, tops[e.key].category,
+                  e.value[0], e.value[1] / e.value[0], e.value[2], massKg),
+        ],
+      );
 }
 
 /// Riders travelling together, with their shared clock.
@@ -192,8 +280,8 @@ double _gauss(Random r) {
 String _names(Iterable<_State> riders, [int limit = 6]) {
   final list = riders.map((s) => s.rider.name).toList();
   if (list.length <= limit) return list.join(', ');
-  return tr('{0} und {1} weitere',
-      [list.take(limit).join(', '), list.length - limit]);
+  return tr(
+      '{0} and {1} more', [list.take(limit).join(', '), list.length - limit]);
 }
 
 /// Simulates a stage or one-day race.
@@ -214,6 +302,9 @@ String _names(Iterable<_State> riders, [int limit = 6]) {
 /// @param country Country of the race, for the weather.
 /// @param weather Weather of the day; drawn from the seed if null.
 /// @param illness Chance per rider that he is ill and gives up during the stage.
+/// @param kits Material, staff and style per team id; teams without one
+///   ride on average material.
+/// @param mountainLeaders Riders in the running for the mountains jersey.
 /// @returns The result, or a paused result with [StageResult.openCall] set.
 StageResult simulateStage(
   SimRoute route,
@@ -231,12 +322,21 @@ StageResult simulateStage(
   String country = '',
   Weather? weather,
   double illness = 0,
+  Map<int, TeamKit> kits = const {},
+  Set<int> mountainLeaders = const {},
 }) {
   final rng = Random(seed);
   tuning ??= SimTuning.standard;
   weather ??= Weather.draw(Random(seed * 31 + 7), month, country);
   final wind = windAlong(route, weather, Random(seed * 17 + 3));
-  final allPlans = {...autoPlans(route, riders, gcGaps: gcGaps), ...plans};
+  final allPlans = {
+    ...autoPlans(route, riders,
+        gcGaps: gcGaps,
+        styles: {for (final e in kits.entries) e.key: e.value.style},
+        crosswindKm: crosswindKm(route, wind),
+        mountainLeaders: mountainLeaders),
+    ...plans,
+  };
   // Quality of the sports director per team, 0 to 1; without an entry the
   // value in the plan applies (0.7 as the average).
   for (final e in directorSkills.entries) {
@@ -249,6 +349,7 @@ StageResult simulateStage(
         r,
         (conditions[r.id]?.form ?? 1) * (1 + tuning.dayFormSigma * _gauss(rng)),
         conditions[r.id]?.energy ?? 1,
+        kits[r.teamId] ?? TeamKit.average,
       )
         ..plan = allPlans[r.teamId]!
         ..role = allPlans[r.teamId]!.roleOf(r.id)
@@ -259,6 +360,7 @@ StageResult simulateStage(
     result = _timeTrial(route, states, rng, tuning, weather, wind);
   } else {
     final race = _RoadRace(route, states, rng, tuning, weather, wind)
+      ..kitted = kits.isNotEmpty
       ..radioTeam = radioTeam
       ..radio = radio
       ..askRadio = askRadio
@@ -272,6 +374,48 @@ StageResult simulateStage(
     }
   }
   return result..weather = weather;
+}
+
+/// Kilometres of open, flat road on which the crosswind blows at 5 m/s or
+/// more: where a team can split the field.
+///
+/// @param route The stage.
+/// @param wind Wind along the route.
+/// @returns Kilometres.
+double crosswindKm(SimRoute route, WindField wind) {
+  var km = 0.0;
+  for (var i = 0; i < route.segments.length; i++) {
+    final s = route.segments[i];
+    if (wind.cross[i] >= 5 && s.grade.abs() < 0.02) km += s.lengthM / 1000;
+  }
+  return km;
+}
+
+/// Which categorised climb each segment belongs to, for the power figures.
+/// A climb starts at the lowest point between the previous top and its own,
+/// at most 35 km before the top.
+///
+/// @param route The stage.
+/// @returns Per segment the index of the climb in [SimRoute.climbTops], or -1.
+List<int> climbSegments(SimRoute route) {
+  final segs = route.segments;
+  final out = List.filled(segs.length, -1);
+  final tops = [...route.climbTops.indexed]
+    ..sort((a, b) => a.$2.km.compareTo(b.$2.km));
+  var previous = -1;
+  for (final (c, point) in tops) {
+    final t = segs.lastIndexWhere((s) => s.km <= point.km);
+    if (t < 0) continue;
+    var foot = t;
+    for (var i = t; i > previous && point.km - segs[i].km <= 35; i--) {
+      if (segs[i].altitudeM < segs[foot].altitudeM) foot = i;
+    }
+    for (var i = foot; i <= t; i++) {
+      out[i] = c;
+    }
+    previous = t;
+  }
+  return out;
 }
 
 /// Pauses the stage at a question that has no answer yet.
@@ -302,6 +446,13 @@ class _RoadRace {
 
   /// Chance per rider that he is ill and gives up.
   double illness = 0;
+
+  /// Whether the teams bring material and staff of their own. Without
+  /// them every rider has the same chances.
+  bool kitted = false;
+
+  /// Per segment the index of the climb it belongs to, or -1.
+  late final List<int> _climbOf;
 
   // --- Sports directors -------------------------------------------------------
   // Every team has a sports director who decides at the same points of the
@@ -362,10 +513,10 @@ class _RoadRace {
   }
 
   String _reserveText(_State m) => m.reserve > 0.7 && m.energy > 0.55
-      ? tr('wirkt frisch')
+      ? tr('looks fresh')
       : m.reserve > 0.4 && m.energy > 0.35
-          ? tr('hat noch etwas im Tank')
-          : tr('ist am Limit');
+          ? tr('has something left in the tank')
+          : tr('is on the limit');
 
   /// Decision point for every team: the break of the day has formed.
   ///
@@ -378,13 +529,13 @@ class _RoadRace {
             .where((m) => m.gcGap != null && m.gcGap! < 300)
             .toList()
         : const <_State>[];
-    String head() => tr('Km {0}: {1} Fahrer sind weg – {2}.{3}', [
+    String head() => tr('Km {0}: {1} riders are away – {2}.{3}', [
           km.round(),
           escape.members.length,
           _names(escape.members, 5),
           danger.isEmpty
               ? ''
-              : tr(' Gefährlich für die Gesamtwertung: {0}.',
+              : tr(' Dangerous for the general classification: {0}.',
                   [_names(danger, 3)])
         ]);
     final teams = {
@@ -409,10 +560,10 @@ class _RoadRace {
             ? _ask(
                 RadioKind.breakGone,
                 km,
-                tr('{0} Von uns dabei: {1}.', [head(), _names(mine)]),
+                tr('{0} With them from us: {1}.', [head(), _names(mine)]),
                 [
-                  tr('Mitarbeiten, die Gruppe soll durchkommen'),
-                  tr('Nicht mitführen, Kräfte sparen'),
+                  tr('Work with the group, it should stay away'),
+                  tr('Do not work, save energy'),
                 ],
                 suggested)
             : suggested;
@@ -428,7 +579,12 @@ class _RoadRace {
       // for the break anyway.
       double chaseScore(_State m) =>
           m.rider.attributes.breakaway +
-          (m.role == Role.breakaway || m.role == Role.stageHunter ? 20 : 0) -
+          (m.role == Role.breakaway ||
+                  m.role == Role.stageHunter ||
+                  m.role == Role.mountainHunter ||
+                  m.role == Role.pointsHunter
+              ? 20
+              : 0) -
           (hasGc && m.gcGap != null && m.gcGap! < 180 ? 40 : 0);
       final chaser =
           (field.where((m) => !m.role.sheltered && !m.favorite).toList()
@@ -453,12 +609,12 @@ class _RoadRace {
           ? _ask(
               RadioKind.breakGone,
               km,
-              tr('{0} Von uns ist niemand dabei.', [head()]),
+              tr('{0} None of ours is there.', [head()]),
               [
-                tr('Beim Plan bleiben'),
-                tr('Nachführen lassen: unsere Helfer an die Spitze des Feldes'),
+                tr('Stick to the plan'),
+                tr('Chase: our helpers to the front of the peloton'),
                 if (chaser != null)
-                  tr('{0} soll nachsetzen', [chaser.rider.name]),
+                  tr('{0} should bridge across', [chaser.rider.name]),
               ],
               suggested)
           : suggested;
@@ -482,7 +638,7 @@ class _RoadRace {
         events.add(RaceEvent(
             km,
             EventType.breakaway,
-            tr('{0} setzt nach und schließt zur Gruppe auf',
+            tr('{0} gives chase and bridges to the group',
                 [chaser.rider.name])));
       }
     }
@@ -547,17 +703,17 @@ class _RoadRace {
       if (team == radioTeam) {
         final ahead = gap > 1
             ? tr(
-                'Vorn {0} Fahrer mit {1} Vorsprung, dahinter das Feld mit {2} Fahrern.',
+                'Up front {0} riders with a lead of {1}, behind them the peloton with {2} riders.',
                 [
                     groups.first.members.length,
                     _clock(gap),
                     main.members.length
                   ])
-            : tr('Das Feld ist mit {0} Fahrern zusammen.',
+            : tr('The peloton is together with {0} riders.',
                 [main.members.length]);
         final own = leaders.isEmpty
-            ? tr('Von uns sind {0} Fahrer dabei, kein Kapitän.', [mine.length])
-            : tr('{0} {1}, {2} Helfer sind noch bei ihm.', [
+            ? tr('{0} of our riders are there, no leader.', [mine.length])
+            : tr('{0} {1}, {2} helpers are still with him.', [
                 leaders.first.rider.name,
                 _reserveText(leaders.first),
                 helpers
@@ -565,16 +721,16 @@ class _RoadRace {
         a = _ask(
             RadioKind.finale,
             s.km,
-            tr('Noch {0} km, das Finale beginnt. {1} {2}',
+            tr('{0} km to go, the finale begins. {1} {2}',
                 [(route.raceKm - s.km).round(), ahead, own]),
             [
-              tr('Beim Plan bleiben'),
+              tr('Stick to the plan'),
               if (helpers > 0)
-                tr('Helfer opfern: volles Tempo, bis sie platzen'),
+                tr('Sacrifice the helpers: full gas until they blow up'),
               if (canAttack) ...[
-                tr('{0} greift am nächsten schweren Stück an',
+                tr('{0} attacks on the next hard section',
                     [leaders.first.rider.name]),
-                tr('Nur folgen, nicht selbst angreifen'),
+                tr('Only follow, do not attack'),
               ],
             ],
             suggested);
@@ -650,7 +806,10 @@ class _RoadRace {
     // Favourites are the strongest riders who are allowed to ride for themselves.
     for (final s in states) {
       s.fit = suitability(route, s.rider.attributes);
+      final sorted = [...s.basePower]..sort();
+      s.ftp = sorted.isEmpty ? 0 : sorted[sorted.length ~/ 2] * s.form;
     }
+    _climbOf = climbSegments(route);
     final ranked = states.where((s) => s.role.ridesForHimself).toList()
       ..sort((a, b) => b.fit.compareTo(a.fit));
     favoriteLevel = ranked.isEmpty
@@ -678,7 +837,7 @@ class _RoadRace {
     // Mood of the day in the field: sometimes it chases early, sometimes it lets go.
     dayMood = 0.96 + 0.07 * rng.nextDouble();
     events.add(RaceEvent(
-        0, EventType.weather, tr('Wetter: {0}', [weather.describe()])));
+        0, EventType.weather, tr('Weather: {0}', [weather.describe()])));
 
     // Riders who are ill give up somewhere in the first half.
     final sick = <_State, double>{};
@@ -805,7 +964,7 @@ class _RoadRace {
 
     if (maxGap > 45) {
       events.add(RaceEvent(maxGapKm, EventType.maxGap,
-          tr('Größter Vorsprung der Spitze: {0}', [_clock(maxGap)])));
+          tr('Biggest lead of the front: {0}', [_clock(maxGap)])));
     }
     return _finish(groups);
   }
@@ -1089,6 +1248,8 @@ class _RoadRace {
       final byRole = switch (c.role) {
         Role.stageHunter => 10.0,
         Role.breakaway => 6.0,
+        Role.mountainHunter => route.selectivity > 1200 ? 12.0 : 3.0,
+        Role.pointsHunter => route.selectivity <= 1200 ? 10.0 : 2.0,
         Role.freeRole => 2.0,
         Role.domestique => 1.0,
         Role.tempo || Role.climbDomestique => 0.3,
@@ -1101,7 +1262,12 @@ class _RoadRace {
       };
       // On hard days only riders who can handle the terrain make the break; on
       // the flat, wanting to is enough. On a climb the strongest get away.
-      final byFit = sprintStage ? 1.0 : exp((c.fit - favoriteLevel) / 3);
+      // A jersey hunter only has to be good enough for the break, not for
+      // the stage.
+      final byFit = sprintStage
+          ? 1.0
+          : exp((c.fit - favoriteLevel) /
+              (c.role == Role.mountainHunter ? 6 : 3));
       final byLegs =
           s.grade > 0.03 ? exp((c.thr / median - 1) * 25).toDouble() : 1.0;
       // A good sports director gets his riders into the break more often.
@@ -1147,7 +1313,7 @@ class _RoadRace {
     }
     peloton.members.removeWhere(picked.contains);
     events.add(RaceEvent(s.km, EventType.breakaway,
-        tr('{0} Fahrer setzen sich ab: {1}', [picked.length, _names(picked)])));
+        tr('{0} riders go clear: {1}', [picked.length, _names(picked)])));
     // The group starts with a small cushion; the rest follows from the pace.
     return _Group(picked, peloton.clock - 20);
   }
@@ -1287,19 +1453,19 @@ class _RoadRace {
           ? _ask(
               RadioKind.rivalAttack,
               s.km,
-              tr('{0} ({1}) greift {2} km vor dem Ziel an{3}. {4} {5}.', [
+              tr('{0} ({1}) attacks {2} km from the finish{3}. {4} {5}.', [
                 best.rider.name,
                 best.rider.team,
                 (route.raceKm - s.km).toStringAsFixed(1),
                 followers.isEmpty
-                    ? tr(', niemand folgt')
-                    : tr(', es folgen {0}', [_names(followers, 4)]),
+                    ? tr(', nobody follows')
+                    : tr(', followed by {0}', [_names(followers, 4)]),
                 mine.rider.name,
                 _reserveText(mine)
               ]),
               [
-                tr('Eigenes Tempo fahren'),
-                tr('{0} soll mitgehen', [mine.rider.name]),
+                tr('Ride our own pace'),
+                tr('{0} should follow', [mine.rider.name]),
               ],
               suggested)
           : suggested;
@@ -1324,9 +1490,9 @@ class _RoadRace {
         s.km,
         EventType.attack,
         followers.isEmpty
-            ? tr('{0} greift {1} km vor dem Ziel an, niemand folgt',
+            ? tr('{0} attacks {1} km from the finish, nobody follows',
                 [best.rider.name, rest.toStringAsFixed(1)])
-            : tr('{0} greift {1} km vor dem Ziel an, es folgen: {2}', [
+            : tr('{0} attacks {1} km from the finish, followed by: {2}', [
                 best.rider.name,
                 rest.toStringAsFixed(1),
                 _names(followers)
@@ -1656,7 +1822,7 @@ class _RoadRace {
         events.add(RaceEvent(
             s.km,
             EventType.gruppetto,
-            tr('Hinten bildet sich das Gruppetto: {0} Fahrer, {1} hinter den Favoriten',
+            tr('The gruppetto forms at the back: {0} riders, {1} behind the favourites',
                 [n, _clock(gapToMain)])));
       }
     } else if (g.convoy && gapToMain < 150 && remainingKm > 3) {
@@ -1705,7 +1871,8 @@ class _RoadRace {
             ? 0.86
             : 1.0;
     final frontCda = ref.cda * frontShare * convoyShelter;
-    var v = speedFor(_threshold(ref) * effort, s.grade, frontCda, crr,
+    var v = speedFor(
+        _threshold(ref) * effort, s.grade, frontCda, crr * ref.roll(s, _wet),
         mass: ref.mass, rho: rho, headwind: headwind);
     // Downhill the riders at the front set the speed their skill allows.
     final cap = _groupDescentCap(order, s, g.surgeKm > 0 ? ref : null);
@@ -1735,11 +1902,13 @@ class _RoadRace {
       // In the gutter of an echelon there is hardly any shelter.
       final myDraft =
           echelon && m.rank >= t.echelonSize ? 1 - (1 - draft) * 0.3 : draft;
-      final follow = powerFor(v, s.grade, m.cda * myDraft * convoyShelter, crr,
+      final myCrr = crr * m.roll(s, _wet);
+      final follow = powerFor(
+          v, s.grade, m.cda * myDraft * convoyShelter, myCrr,
           mass: m.mass, rho: rho, headwind: headwind);
       final power = working
           ? follow +
-              (powerFor(v, s.grade, m.cda * frontShare * convoyShelter, crr,
+              (powerFor(v, s.grade, m.cda * frontShare * convoyShelter, myCrr,
                           mass: m.mass, rho: rho, headwind: headwind) -
                       follow) *
                   share
@@ -1784,8 +1953,8 @@ class _RoadRace {
         events.add(RaceEvent(
             s.km,
             EventType.dropped,
-            tr('{0} {1} abreißen lassen',
-                [_names(lost), lost.length == 1 ? tr('muss') : tr('müssen')])));
+            tr('{0} {1} to let go',
+                [_names(lost), lost.length == 1 ? tr('has') : tr('have')])));
       }
     }
     if (echelon && dropped.length >= 10 && isMain) {
@@ -1794,7 +1963,7 @@ class _RoadRace {
         events.add(RaceEvent(
             s.km,
             EventType.echelon,
-            tr('Windkante: {0} Fahrer verlieren im Seitenwind den Anschluss',
+            tr('Echelons: {0} riders lose contact in the crosswind',
                 [dropped.length])));
       }
     }
@@ -1803,9 +1972,14 @@ class _RoadRace {
     final mid = dropped[dropped.length ~/ 2];
     final dv = min(
         min(
-            speedFor(_threshold(mid) * 0.95, s.grade,
-                mid.cda * (dropped.length > 2 ? 0.8 : 1), crr,
-                mass: mid.mass, rho: rho, headwind: headwind),
+            speedFor(
+                _threshold(mid) * 0.95,
+                s.grade,
+                mid.cda * (dropped.length > 2 ? 0.8 : 1),
+                crr * mid.roll(s, _wet),
+                mass: mid.mass,
+                rho: rho,
+                headwind: headwind),
             v * 0.995),
         _groupDescentCap(dropped, s, null));
     final ddt = s.lengthM / dv;
@@ -1830,18 +2004,25 @@ class _RoadRace {
     final block = (s.km / 5).floor();
     return _echelonBlock.putIfAbsent(block, () {
       final strength = <int, double>{};
+      final planned = <int>{};
       for (final m in order) {
         if (m.plan.approach == Approach.wait || m.blown || !m.role.works) {
           continue;
         }
+        // A team that came to split the field puts everything into it.
+        final keen = m.plan.approach == Approach.echelon;
+        if (keen) planned.add(m.rider.teamId);
         strength[m.rider.teamId] = (strength[m.rider.teamId] ?? 0) +
-            max(0.0, m.rider.attributes.flat - 68);
+            max(0.0, m.rider.attributes.flat - 68) * (keen ? 1.6 : 1);
       }
       if (strength.isEmpty) return -1;
       final best =
           strength.entries.reduce((a, b) => a.value >= b.value ? a : b);
-      if (best.value < 12) return -1;
-      final chance = ((cross - 4) / 5).clamp(0.0, 0.9);
+      final keen = planned.contains(best.key);
+      if (best.value < (keen ? 8 : 12)) return -1;
+      final chance = keen
+          ? ((cross - 3) / 4).clamp(0.0, 0.95)
+          : ((cross - 4) / 5).clamp(0.0, 0.9);
       return rng.nextDouble() < chance ? best.key : -1;
     });
   }
@@ -1911,6 +2092,9 @@ class _RoadRace {
   /// @param rough Difficulty of the surface; rough roads wear down riders
   ///   who are not made for them.
   void _spend(_State m, double effort, double dt, [int rough = 0]) {
+    final s = route.segments[seg];
+    m.tally.add(effort * m.thr, dt, m.ftp, _climbOf[seg],
+        s.grade > 0 ? s.grade * s.lengthM : 0);
     final a = m.rider.attributes;
     final shaking = rough == 0
         ? 1.0
@@ -1960,10 +2144,28 @@ class _RoadRace {
               lengthKm *
               n *
               (_wet ? 1.5 : 1);
-      if (puncture > 0 && rng.nextDouble() < puncture) {
-        final m = g.members[rng.nextInt(n)];
-        // In a small group the neutral service is slower than the team car.
-        final loss = 12 + 18 * rng.nextDouble() + (n <= 15 ? 15 : 0);
+      // With material of their own the riders do not puncture alike: the
+      // rate follows the group's mean risk and falls on a rider by his.
+      final risks = kitted
+          ? [for (final m in g.members) m.punctureRisk(s)]
+          : const <double>[];
+      final risk = kitted ? risks.reduce((a, b) => a + b) / n : 1.0;
+      if (puncture > 0 && rng.nextDouble() < puncture * risk) {
+        final _State m;
+        if (kitted) {
+          var x = rng.nextDouble() * risk * n;
+          var i = 0;
+          while (i < n - 1 && x > risks[i]) {
+            x -= risks[i++];
+          }
+          m = g.members[i];
+        } else {
+          m = g.members[rng.nextInt(n)];
+        }
+        // In a small group the neutral service is slower than the team car;
+        // a good mechanic changes the wheel faster.
+        final loss = (12 + 18 * rng.nextDouble() + (n <= 15 ? 15 : 0)) *
+            m.kit.serviceLoss;
         _mishap(m, g, groups, s, loss, crash: false);
       }
       if (n < 2 || t.crashRate <= 0) continue;
@@ -2020,12 +2222,19 @@ class _RoadRace {
     final notable =
         fallen.any((m) => m.favorite || _own(m)) || fallen.length >= 3;
     for (final m in fallen) {
-      _mishap(m, g, groups, s, 20 + 50 * rng.nextDouble() + (_wet ? 10 : 0),
+      // Part of the loss is the bike: a good mechanic has a spare at once.
+      _mishap(
+          m,
+          g,
+          groups,
+          s,
+          (12 + 30 * rng.nextDouble() + (_wet ? 10 : 0)) +
+              (8 + 20 * rng.nextDouble()) * m.kit.serviceLoss,
           crash: true);
     }
     if (notable && fallen.isNotEmpty) {
       events.add(RaceEvent(s.km, EventType.crash,
-          tr('Sturz: {0} gehen zu Boden', [_names(fallen, 5)])));
+          tr('Crash: {0} go down', [_names(fallen, 5)])));
     }
     if (held.isNotEmpty) {
       held.removeWhere((m) => !g.members.contains(m));
@@ -2082,7 +2291,7 @@ class _RoadRace {
       }
       if (m.favorite || _own(m)) {
         events.add(RaceEvent(
-            s.km, EventType.puncture, tr('Defekt bei {0}', [m.rider.name])));
+            s.km, EventType.puncture, tr('Puncture for {0}', [m.rider.name])));
       }
     }
     if (g.members.length <= 1) {
@@ -2091,16 +2300,48 @@ class _RoadRace {
     }
     g.members.remove(m);
     final back = _Group([m], g.clock + loss)..convoy = true;
-    // Helpers wait for their leader and bring him back.
+    // Helpers wait for their leader and bring him back. Two as a rule; the
+    // whole team when a leader of the general classification is at stake.
     if (m.role.sheltered && remaining > 3) {
-      final helpers = g.members
+      final available = g.members
           .where((x) =>
               x.rider.teamId == m.rider.teamId &&
               x.role.works &&
               !x.blown &&
               x.energy > 0.3)
-          .take(2)
           .toList();
+      final suggested = m.favorite &&
+              hasGc &&
+              m.gcGap != null &&
+              m.gcGap! < 120 &&
+              remaining > 25 &&
+              available.length > 2
+          ? 1
+          : 0;
+      var answer = suggested;
+      if (_own(m) && available.isNotEmpty) {
+        answer = _ask(
+            RadioKind.mishap,
+            s.km,
+            tr(
+                'Km {0}: {1} {2} and loses about {3}. {4} of our helpers are in his group.',
+                [
+                  s.km.round(),
+                  m.rider.name,
+                  crash ? tr('crashes') : tr('punctures'),
+                  _clock(loss),
+                  available.length,
+                ]),
+            [
+              tr('Two helpers wait for him'),
+              tr('The whole team waits'),
+              tr('Nobody waits, the others ride on'),
+            ],
+            suggested);
+      }
+      final helpers = answer == 2
+          ? const <_State>[]
+          : available.take(answer == 1 ? available.length : 2).toList();
       if (helpers.length < g.members.length) {
         g.members.removeWhere(helpers.contains);
         back.members.addAll(helpers);
@@ -2127,8 +2368,8 @@ class _RoadRace {
         km,
         EventType.abandon,
         reason == AbandonReason.crash
-            ? tr('{0} muss nach einem Sturz aufgeben', [m.rider.name])
-            : tr('{0} steigt krank vom Rad', [m.rider.name])));
+            ? tr('{0} has to abandon after a crash', [m.rider.name])
+            : tr('{0} abandons, ill', [m.rider.name])));
   }
 
   /// Sorts groups by riding time and merges those that have caught each other.
@@ -2155,7 +2396,7 @@ class _RoadRace {
           events.add(RaceEvent(
               s.km,
               EventType.caught,
-              tr('Die Ausreißer werden {0} km vor dem Ziel gestellt',
+              tr('The break is caught {0} km from the finish',
                   [(route.raceKm - s.km).toStringAsFixed(1)])));
           for (final m in ahead.members) {
             m.inBreak = false;
@@ -2185,6 +2426,11 @@ class _RoadRace {
     double score(_State m) =>
         (climb ? m.rider.attributes.hill : m.rider.attributes.sprint) +
         (m.role.sheltered && !(m.role == Role.sprinter && !climb) ? -4 : 0) +
+        // A jersey hunter goes all out for the points.
+        (climb && m.role == Role.mountainHunter ||
+                !climb && m.role == Role.pointsHunter
+            ? 8
+            : 0) +
         3 * _gauss(rng);
     final order = <_State>[];
     for (final g in groups) {
@@ -2195,14 +2441,14 @@ class _RoadRace {
     final top = order.take(15).toList();
     awards.add(PointAward(p, [for (final m in top) m.rider]));
     final label = climb
-        ? tr('Bergwertung {0} {1}', [
+        ? tr('Mountain prize {0} {1}', [
             [
               '',
               'HC',
-              tr('1. Kat.'),
-              tr('2. Kat.'),
-              tr('3. Kat.'),
-              tr('4. Kat.')
+              tr('cat. 1'),
+              tr('cat. 2'),
+              tr('cat. 3'),
+              tr('cat. 4')
             ][p.category.clamp(0, 5)],
             p.name
           ])
@@ -2290,7 +2536,7 @@ class _RoadRace {
             injuries[m.rider.id] = Injury(0.01, 0.02);
           }
           events.add(RaceEvent(route.raceKm - 0.2, EventType.crash,
-              tr('Sturz im Sprint: {0}', [_names(fallen, 4)])));
+              tr('Crash in the sprint: {0}', [_names(fallen, 4)])));
         }
         for (var i = 0; i < order.length; i++) {
           // Same time for the group; the fraction only fixes the order.
@@ -2325,8 +2571,8 @@ class _RoadRace {
         route.raceKm,
         EventType.finish,
         firstGroup == 1
-            ? tr('{0} gewinnt als Solist', [winner.rider.name])
-            : tr('{0} gewinnt aus einer Gruppe von {1} Fahrern',
+            ? tr('{0} wins solo', [winner.rider.name])
+            : tr('{0} wins from a group of {1} riders',
                 [winner.rider.name, firstGroup])));
     events.sort((a, b) => a.km.compareTo(b.km));
     final inGruppetto = {
@@ -2345,6 +2591,10 @@ class _RoadRace {
         for (final m in states)
           m.rider.id: RiderTrace(m.role, m.everInBreak, m.lostKm, m.frontKm,
               m.energy.clamp(0.0, 1.0), inGruppetto.contains(m), m.incident),
+      }
+      ..power = {
+        for (final m in states)
+          m.rider.id: m.tally.result(m.ftp, m.rider.massKg, route.climbTops),
       };
   }
 }
@@ -2380,6 +2630,29 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
     for (final s in segments) rollingResistance(s, wet: weather.rain)
   ];
   final alt = [for (final s in segments) altitudePower(s.altitudeM)];
+  final tops = route.climbTops;
+  final climbOf = climbSegments(route);
+  // Drag area and mass on the bike of the day.
+  double ttCda(_State m) =>
+      (m.kit.timeTrialBike ? timeTrialCda : roadBikeTimeTrialCda) *
+      cdaScale(m.rider) *
+      m.kit.aero;
+  // The bike mass of the model is that of a time trial bike; the road bike
+  // is lighter.
+  double ttMass(_State m) =>
+      m.mass - (m.kit.timeTrialBike ? 0 : timeTrialBikeExtraKg);
+  for (final m in states) {
+    final a = m.rider.attributes;
+    m.ftp = thresholdPower(route.raceKm < 8 ? a.prologue : a.timeTrial, t) *
+        bodyScale(m.rider, 0) *
+        m.form;
+  }
+  void record(_State m, int i, double watts, double dt) {
+    final s = segments[i];
+    m.tally.add(
+        watts, dt, m.ftp, climbOf[i], s.grade > 0 ? s.grade * s.lengthM : 0);
+  }
+
   final climate = 1 +
       0.02 * max(0.0, weather.temperatureC - 27) +
       (weather.temperatureC < 6 ? 0.04 : 0);
@@ -2390,7 +2663,7 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
           ? 1.02
           : 0.98;
   final events = <RaceEvent>[
-    RaceEvent(0, EventType.weather, tr('Wetter: {0}', [weather.describe()])),
+    RaceEvent(0, EventType.weather, tr('Weather: {0}', [weather.describe()])),
   ];
   final abandons = <Abandon>[];
   final injuries = <int, Injury>{};
@@ -2435,8 +2708,8 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
   double speed(_State m, int i, double p, double cda, double windScale) {
     final s = segments[i];
     return min(
-        speedFor(p, s.grade, cda, crr[i],
-            mass: m.mass, rho: rho[i], headwind: wind.head[i] * windScale),
+        speedFor(p, s.grade, cda, crr[i] * m.roll(s, weather.rain),
+            mass: ttMass(m), rho: rho[i], headwind: wind.head[i] * windScale),
         descentCap(s.grade, m.rider.attributes.downhill,
             massKg: m.rider.massKg, wet: weather.rain));
   }
@@ -2446,11 +2719,13 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
   /// @returns Seconds lost, or null if he had to give up.
   double? mishaps(_State m) {
     var loss = 0.0;
-    if (rng.nextDouble() < t.punctureRate * route.raceKm * 2) {
-      loss += 20 + 15 * rng.nextDouble();
+    final risk =
+        m.kit.punctures * m.kit.tyres.punctures(0) * m.kit.mechanicalRate;
+    if (rng.nextDouble() < t.punctureRate * route.raceKm * 2 * risk) {
+      loss += (20 + 15 * rng.nextDouble()) * m.kit.serviceLoss;
       m.incident = RiderIncident.puncture;
       events.add(RaceEvent(rng.nextDouble() * route.raceKm, EventType.puncture,
-          tr('Defekt bei {0}', [m.rider.name])));
+          tr('Puncture for {0}', [m.rider.name])));
     }
     final technical =
         segments.where((s) => s.grade < -0.04).length / max(1, segments.length);
@@ -2466,13 +2741,13 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
         abandons.add(
             Abandon(m.rider, km, AbandonReason.crash, 7 + rng.nextInt(30)));
         events.add(RaceEvent(km, EventType.abandon,
-            tr('{0} muss nach einem Sturz aufgeben', [m.rider.name])));
+            tr('{0} has to abandon after a crash', [m.rider.name])));
         return null;
       }
       loss += 30 + 30 * rng.nextDouble();
       injuries[m.rider.id] = Injury(0.01, 0.03);
-      events.add(RaceEvent(km, EventType.crash,
-          tr('Sturz: {0} gehen zu Boden', [m.rider.name])));
+      events.add(RaceEvent(
+          km, EventType.crash, tr('Crash: {0} go down', [m.rider.name])));
     }
     return loss;
   }
@@ -2483,12 +2758,14 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
       final windScale = windAt(startIndex[m]!);
       // How well he judges his effort on the day.
       final pace = pacing * (1 + 0.01 * _gauss(rng));
-      final cda = timeTrialCda * cdaScale(m.rider);
+      final cda = ttCda(m);
       var time = 0.0;
       for (var i = 0; i < segments.length; i++) {
-        final v = speed(m, i, power(m, i) * pace, cda, windScale);
+        final p = power(m, i) * pace;
+        final v = speed(m, i, p, cda, windScale);
         final dt = segments[i].lengthM / v;
         drain(m, pace, dt);
+        record(m, i, p, dt);
         time += dt;
       }
       final loss = mishaps(m);
@@ -2514,11 +2791,13 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
         final s = segments[i];
         final powers = {for (final m in line) m: power(m, i) * pace};
         double front(_State m, double v) =>
-            powerFor(v, s.grade, timeTrialCda * cdaScale(m.rider), crr[i],
-                mass: m.mass, rho: rho[i], headwind: wind.head[i] * windScale);
+            powerFor(v, s.grade, ttCda(m), crr[i] * m.roll(s, weather.rain),
+                mass: ttMass(m),
+                rho: rho[i],
+                headwind: wind.head[i] * windScale);
         double behind(_State m, double v) => powerFor(
-            v, s.grade, timeTrialCda * cdaScale(m.rider) * t.tttDraft, crr[i],
-            mass: m.mass, rho: rho[i], headwind: wind.head[i] * windScale);
+            v, s.grade, ttCda(m) * t.tttDraft, crr[i] * m.roll(s, weather.rain),
+            mass: ttMass(m), rho: rho[i], headwind: wind.head[i] * windScale);
         // Fastest speed the line can share: every rider takes his turn in
         // the wind and must hold the wheel the rest of the time.
         double teamSpeed() {
@@ -2560,17 +2839,19 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
         final dt = s.lengthM / v;
         for (final m in line) {
           final k = line.length;
-          final effort =
-              (front(m, v) / k + behind(m, v) * (k - 1) / k) / powers[m]!;
-          drain(m, effort * pace, dt);
+          final watts = front(m, v) / k + behind(m, v) * (k - 1) / k;
+          drain(m, watts / powers[m]! * pace, dt);
+          record(m, i, watts, dt);
         }
         // Dropped riders ride on alone.
         for (final e in alone.entries) {
           final m = e.key;
-          final cda = timeTrialCda * cdaScale(m.rider);
-          final dv = speed(m, i, power(m, i) * pace, cda, windScale);
+          final cda = ttCda(m);
+          final p = power(m, i) * pace;
+          final dv = speed(m, i, p, cda, windScale);
           final ddt = s.lengthM / dv;
           drain(m, pace, ddt);
+          record(m, i, p, ddt);
           alone[m] = e.value + ddt;
         }
         clock += dt;
@@ -2594,9 +2875,13 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
   ]..sort((a, b) => a.timeS.compareTo(b.timeS));
   events
     ..add(RaceEvent(route.raceKm, EventType.finish,
-        tr('{0} gewinnt das Zeitfahren', [placings.first.rider.name])))
+        tr('{0} wins the time trial', [placings.first.rider.name])))
     ..sort((a, b) => a.km.compareTo(b.km));
   return StageResult(placings, events, false)
     ..abandons = abandons
-    ..injuries = injuries;
+    ..injuries = injuries
+    ..power = {
+      for (final m in states)
+        m.rider.id: m.tally.result(m.ftp, m.rider.massKg, tops),
+    };
 }

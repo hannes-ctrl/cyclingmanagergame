@@ -4,7 +4,7 @@ A cycling team management game for Windows in the spirit of *Pro Cycling Manager
 
 The game runs on the community **WorldDB** for Pro Cycling Manager, so riders, teams, races and stage profiles are the real ones.
 
-> **Status:** version 0.2.0 alpha. A private hobby project, playable end to end, not balanced. The interface is in English and German. Nothing in this repository is affiliated with Cyanide, Nacon, Sports Interactive or the UCI.
+> **Status:** version 0.3.0 alpha. A private hobby project, playable end to end, not balanced. The interface is in English and German. Nothing in this repository is affiliated with Cyanide, Nacon, Sports Interactive or the UCI.
 
 ## Features
 
@@ -25,8 +25,10 @@ The game runs on the community **WorldDB** for Pro Cycling Manager, so riders, t
 - Team pages for every team: licence, place and points of the season, wins and the squad, with strengths as ranges where your scouts do not know a rider. Reached from the rankings and from a rider's page.
 - Training camps, and a development team to promote riders from. The 24 development teams of the database are linked to their real professional teams; the link never changes, and a team without one (such as a newly founded team) can found its own.
 - Stagiaires as in the real sport: from 1 August up to three riders of the own development team may start for the professional team in races below the WorldTour. The other teams use theirs as well.
-- Staff (sports directors, coaches, doctors, scouts) with a job market that renews every month; the number of coaches matters as well as their skill. Scouting with value ranges for unknown riders.
+- Staff (sports directors, coaches, doctors, scouts, mechanics, physiotherapists) with a job market that renews every month; the number of coaches matters as well as their skill. Scouting with value ranges for unknown riders. Mechanics change wheels and bikes faster and prevent punctures and defects; physiotherapists help the riders recover overnight in stage races. Every team has them, by its tier.
 - Delegate line-ups, in-race radio, training, scouting and contract renewals to staff.
+- Material of real suppliers: every team rides the bikes and tyres of its brand (Specialized, Colnago, Canyon, Continental, Vittoria and others, as far as the suppliers of 2026 were known when the game was made). Bikes differ a little in drag and weight, tyres in rolling resistance and punctures; the suppliers pay the team. When the contracts run out, three offers arrive on 1 September: better material against more money. On the race day the sports director of every team chooses the tyres (narrow, standard, wide) and, in time trials, the time trial or the road bike, by the same rules; you can overrule him in the race preparation.
+- Team styles (all-round, sprint, general classification, classics, youth, experience), from the squad of every team: they shift what the season planner values, whom a team signs and how it races. For your team the style follows the squad or is set under "Delegation".
 
 **Racing**
 
@@ -34,10 +36,13 @@ The game runs on the community **WorldDB** for Pro Cycling Manager, so riders, t
 - Simulate to a date: a click on the date opens a small calendar; optionally the sports director handles line-ups and radio until then.
 - Season plan by the sports director: before the first day he assigns the riders to every race of the season. The races are planned in the order of their importance (the Tour first, then the other Grand Tours, the monuments, the WorldTour and so on, a race in the team's own country counting more), with the riders who suit the stages best. A rider who already carries more than his share of the season is taken less readily, the more so the smaller the race, so the programme spreads over the squad. Young riders get fewer race days and no or only one Grand Tour, a second Grand Tour is the exception, and of a team's five best Grand Tour riders at most two start together. When a rider is injured or ill, the director takes him out of the races he misses and names a replacement. Every entry can be changed by hand, "Replan the season" starts over, and the whole task can be switched off under "Delegation". The sports directors of all other teams plan their seasons in the same way, so their leaders no longer start in every race they are fit for.
 - Race planner: see every race you are eligible for, withdraw from invitations, apply for wildcards, assign riders. A warning names riders who are entered for two races at the same time.
-- Race preparation with line-up, eleven rider roles, team approach and breakaway policy, plus a pre-race forecast from a handful of quick runs. What you change is pinned for the whole race; everything else the sports director plans anew for every stage, so a pinned leader stays leader in the mountains and on the flat while the helpers around him change with the terrain. "Fix everything" overrides the sports director completely: every role and both instructions apply exactly as set on every stage.
+- Race preparation with line-up, eleven rider roles, team approach and breakaway policy, plus a pre-race forecast from a handful of quick runs. What you change is pinned for the whole race; everything else the sports director plans anew for every stage, so a pinned leader stays leader in the mountains and on the flat while the helpers around him change with the terrain. "Fix everything" overrides the sports director completely: every role and both instructions apply exactly as set on every stage. The weather service gives a forecast that blurs the real weather of the day, the more the further ahead, including a warning of echelons; the approach "split in the crosswind" lets a team with strong rouleurs ride in the gutter. Before the start the game warns of empty places, a leader who would ride his third race in nine days, sprint stages without a sprinter, tired riders and riders with too many race days. "Line-up of last year" takes over who rode the race for the team a year before.
 - Weather by month and country: heat, cold, rain and wind, with echelons in the crosswind. Crashes, punctures, the three-kilometre rule and the time limit happen during the stage; riders crash out, fall ill or miss the cut.
-- DS radio: up to three decision points per stage (breakaway formed, start of the finale, rival attack). Every team's sports director decides at these points by the same rules; yours shows his recommendation, and you can overrule it. After the last answer of the day the result opens. Can be switched off.
+- DS radio: four decision points per stage (breakaway formed, start of the finale, rival attack, a crash or puncture of a leader: two helpers wait, the whole team waits, or nobody). Every team's sports director decides at these points by the same rules; yours shows his recommendation, and you can overrule it. After the last answer of the day the result opens. Can be switched off.
 - Race report after every stage: a neutral press text, a chart of the time gaps along the route (head of the race, favourites, middle of the field) with the values under the pointer, a view of what each of your riders did (role, where he lost contact, kilometres on the front), and all classification tables.
+- Power figures after every stage, as from a power meter: average and normalised power, watts per kilogram, intensity, kilojoules, the time in six zones, and the effort on every categorised climb with W/kg, VAM and time. Kept for your riders and the first ten.
+- Roles for jersey hunters: a mountains jersey hunter goes into the breaks of mountain stages and takes the points on the climbs, a points jersey hunter does the same on flat stages. Teams without a leader for the overall send one on the hard days of a stage race.
+- Single race in the start menu: any race of the season with any WorldTeam or ProTeam, your approach, break policy and tyres, and a seed; the same simulation, fresh riders, nothing reaches the career.
 - "What if": re-run any finished stage with the same random seed but different tactics.
 
 **Season and career**
@@ -47,7 +52,7 @@ The game runs on the community **WorldDB** for Pro Cycling Manager, so riders, t
 - Licences awarded on a three-year ranking with promotion and relegation.
 - Inbox with topics and a topic filter. Mark everything read, delete the read messages or delete all of them, for one topic or for all. Topics can be switched off, and three or more messages of one topic on one day arrive as a single summary.
 - At the end of a season a review names the rider of the year, the best young rider, the rider with the most wins and the team of the year.
-- Named save games, and an automatic save every Monday of the game in four rotating files, so that you can go back up to four weeks.
+- Named save games, and an automatic save every Monday of the game in four rotating files, so that you can go back up to four weeks. Ctrl+S makes a quick save.
 
 **Interface**
 
@@ -56,14 +61,15 @@ The game runs on the community **WorldDB** for Pro Cycling Manager, so riders, t
 - Filter columns in the race planner and the transfer market (tier, entry state, rider, contract, age range, rider type), a season timeline and tier filter in the calendar, search in squad, races and rankings.
 - The tiles of the home page lead to the area they summarise. Explanations of every figure (form, fitness, attributes, staff values) appear as tooltips on column headings and on the rider page.
 - Back and forward through the pages visited (buttons in the header, Alt+← and Alt+→, Esc, the side buttons of the mouse). Every page keeps its filters, sorting and scroll position for the session, whether a rider page lies on top of it or you come back to it from another page.
-- Keyboard: Space is the continue button, Ctrl+F opens the rider search. In the list under the mouse the arrow keys, Page Up/Down, Home and End move a cursor and Enter opens the row; on a rider page the arrow keys step through the list he was opened from. Rider names in race results lead to the rider page, races on a rider's page to their report.
+- Keyboard: Space is the continue button, Ctrl+F opens the rider search, Ctrl+S saves, the keys 1 to 9 open the first nine pages of the sidebar and F1 the help. In the list under the mouse the arrow keys, Page Up/Down, Home and End move a cursor and Enter opens the row; on a rider page the arrow keys step through the list he was opened from. Rider names in race results lead to the rider page, races on a rider's page to their report.
 - The form in the squad shows where it is heading (↗ → ↘) since the last weekly record.
 - Help in the sidebar: how a season goes in a few steps, and a glossary of every figure. A new career starts with a welcome message.
 - Lists can be exported as CSV (rider search, team pages), into `data/export`. The filters of the rider search survive a restart (`data/ui_state.json`).
 - A message in the inbox leads to the page where its topic is dealt with; teams in result tables lead to the team page and a team's flag to the riders of its country.
-- "Simulate to a date" can stop on the day a message on chosen topics arrives.
+- "Simulate to a date" can stop on the day a message on chosen topics arrives. The header shows the progress and has a button to stop after the current day, and after a week or more one message sums up what happened: races, wins, points, injuries, messages by topic.
 - English and German, switched by flags in the settings of the start menu; English is the default.
-- Settings for the size of the interface, page transitions and full screen.
+- Settings for the size of the interface, page transitions, full screen and colour vision (colours shifted for deuteranopia, protanopia or tritanopia).
+- Bug report with one click in the help: the running save, the settings, the tuning values and a note with version and seed in one ZIP file in `data/export`.
 - Debug mode (in the settings): exact values for every rider, internal figures on the rider page, the wildcard chance in per cent, and a debug page with the seed, the tuning values and test actions (simulate to the end of the season, add money, heal riders).
 
 ## Repository layout
@@ -137,6 +143,7 @@ The packages are plain Dart and have no Flutter dependency. `sim` and `game` can
 | `dart run bin/step8.dart [team \| NEU]` | Exercise championships, camps, sponsors, a founded team |
 | `dart run bin/fetch_results.dart <year>` | Load the WorldTour results of a season from ProCyclingStats |
 | `dart run bin/calibrate.dart report` | Compare the simulation with the real results since 2023 |
+| `dart run bin/compare.dart a.json b.json …` | Compare tuning files on the same fresh random numbers, on all races and on the held-back ones (`standard` = default values) |
 | `dart run bin/calibrate.dart run [--hours h] [--runs n] [--dry]` | Search better tuning values; `--dry` does not write them |
 | `dart run bin/calibrate.dart reparse` | Rebuild the stored results from the cached result pages |
 | `dart run bin/snapshot.dart` | Check that a saved and reloaded career continues identically |
@@ -153,11 +160,11 @@ A stage is cut into 200 m segments; where the profile smooths away the steepest 
 - **The chase.** Helpers spend themselves on the front; once empty they drop back and their team stops chasing. A team whose leader is no longer in the field does not chase either.
 - **Position.** Before cobbled sectors, the foot of a climb, open roads in the crosswind and in the last kilometres the teams fight for the front: helpers bring their leader up, strong riders hold their place more easily, and staying in front costs energy. Position decides who gets through a narrow sector, who finds shelter in an echelon and how well a sprinter is placed.
 - **Sectors.** A race with enough cobbles or gravel (a classic, Strade Bianche, a stage over many sectors) is a *sector race*. On a sector the group is a line in the order of the fight for position. The further back a rider is, the harder he has to ride; when one lets the wheel go, everyone behind him is gapped unless he has the punch to come round. Rough roads wear down riders who are not made for them, so every sector counts towards the end, and the finale starts at the first very hard sector of the second half, or where half of the sectors are done.
-- **Sports directors.** During the race every team is run by the same logic, the player's team included. A team joins the chase when the gap gets out of hand and it has a favourite to ride for. A rider in the break does not pull when his leader is a favourite behind. A team that loses its leader lets its best remaining rider ride for himself. At the start of the finale each team decides whether to sacrifice its helpers, to send its leader on the attack because he would lose a sprint, or to keep things together because he would win it. Dropped favourites are brought back by their helpers. For the player's team each decision can be overruled over the radio; whatever the player leaves alone is decided as for every other team.
+- **Sports directors.** During the race every team is run by the same logic, the player's team included. A team joins the chase when the gap gets out of hand and it has a favourite to ride for. A rider in the break does not pull when his leader is a favourite behind. A team that loses its leader lets its best remaining rider ride for himself. At the start of the finale each team decides whether to sacrifice its helpers, to send its leader on the attack because he would lose a sprint, or to keep things together because he would win it. Dropped favourites are brought back by their helpers. For the player's team each decision can be overruled over the radio; whatever the player leaves alone is decided as for every other team. Each team races in its style; with a strong crosswind in the forecast the teams with the strongest rouleurs set out to split the field.
 - **Attacks.** Favourites attack on climbs and cobbles, late on the flat and, if they descend well, downhill; a clearly stronger rider may go from far out. In the break the riders attack each other as the finish nears. Every rider descends at his own speed.
-- **Crashes and punctures.** They happen during the stage, more often in a nervous bunch, on descents, on cobbles and in the rain. Helpers wait for a leader and pace him back behind the team cars; a crash can cost form for days or end the race. Inside the last three kilometres a rider keeps the time of his group.
+- **Crashes and punctures.** They happen during the stage, more often in a nervous bunch, on descents, on cobbles and in the rain. Helpers wait for a leader and pace him back behind the team cars; a crash can cost form for days or end the race. Inside the last three kilometres a rider keeps the time of his group. Tyres and mechanics count: wide tyres puncture less on cobbles, narrow ones more; a good mechanic halves part of the time lost. When a leader crashes or punctures, his team decides how many helpers wait.
 - **Sprints** with lead-out trains, position and the occasional crash; **uphill finishes** ridden with whatever is left.
-- **Time trials** with start order and a wind that changes over the day; fatigue counts. A team time trial is ridden in a line; whoever cannot hold the wheel is let go, and the time is taken on the fourth or fifth rider.
+- **Time trials** with start order and a wind that changes over the day; fatigue counts. A team time trial is ridden in a line; whoever cannot hold the wheel is let go, and the time is taken on the fourth or fifth rider. The bike of the day counts: the time trial bike is faster on the flat, the lighter road bike can be faster on a mountain time trial.
 - **Stage races.** Fatigue grows with the effort of the day and shrinks by a share that depends on the recovery attribute, more on rest days. Riders outside the time limit leave the race unless more than a fifth of the field is; the gruppetto rides to stay inside it.
 
 Each team rides to a plan: a role per rider, an approach (wait, control, make the race hard) and a breakaway policy. AI teams derive their plan from the route, their riders and the general classification. The quality of the sports director in the car changes how well the plan is executed.
@@ -178,9 +185,9 @@ The earlier a season, the less of its field the database covers, because it know
 
 ## Languages
 
-Texts are written in German in the sources and wrapped in `tr('…')` (`packages/sim/lib/src/i18n.dart`). The English texts live in one table, `packages/sim/lib/src/i18n_en.dart`, keyed by the German text; a text without an entry is shown in German. Placeholders are `{0}`, `{1}` and so on, and `dec()` formats numbers with the decimal mark of the language.
+Texts are written in English in the sources and wrapped in `tr('…')` (`packages/sim/lib/src/i18n.dart`). Every other language is a translation: the German texts live in one table, `packages/sim/lib/src/i18n_de.dart`, keyed by the English text; a text without an entry is shown in English. Placeholders are `{0}`, `{1}` and so on, and `dec()` formats numbers with the decimal mark of the language.
 
-To add a text: write `tr('Neuer Text {0}', [value])` and add the English line to the table. Enum labels and constant tables keep their German text as a constant and are translated where they are shown. Texts that the game has already written, such as inbox messages and race reports, keep the language they were written in; code that recognises such a text uses `isText()`. The command-line tools of the other packages print German only.
+To add a text: write `tr('New text {0}', [value])` and add the German line to the table. A further language is one more table of the same shape. Enum labels and constant tables keep their English text as a constant and are translated where they are shown. Texts that the game has already written, such as inbox messages and race reports, keep the language they were written in; code that recognises such a text uses `isText()`. The command-line tools of the other packages (calibration, world database) still print German.
 
 ## Save games
 
@@ -221,9 +228,11 @@ See [ROADMAP.md](ROADMAP.md) for what is planned and [CHANGELOG.md](CHANGELOG.md
 
 ## Known limitations
 
-- Before the calibration run the middle of the field finishes far too close to the winner and flat stages are too closed; sector races end solo too rarely (21 % against 62 %).
-- The tuning values of 0.3.0 are start values: the physical ones are held within values from the literature, the new ones are estimates, and none has been calibrated against real results yet. Run `kalibrieren.ps1` before balancing anything else. On synthetic routes cobbled classics are still too easy (a quarter of them end solo).
+- Calibrated on 534 races of the seasons 2023 to 2026 (error 9.1), the race shape still differs where tuning cannot reach: the middle of the field finishes too close to the winner (on hilly days 1:27 behind instead of 5:39, in the mountains 12:28 instead of 22:04), breakaways win 7 % of the road races instead of 19 %, the first group on flat stages is too big (64 riders instead of 38), and sector races end solo in 32 % instead of 74 %. In the simulation nobody sits up once his work is done, and the gruppetto forms almost only in the mountains.
+- Whether the time limit takes too many sprinters out of Grand Tours has not been checked with real fields.
 - A stage takes two to three times as long to simulate as in 0.2.0 (finer segments, per-rider physics), and so does the calibration.
+- Material and staff act through small factors that are not calibrated yet: drag of the bike, rolling resistance and punctures of the tyre, the time lost at a wheel change, the recovery overnight. The calibration races without them.
+- The suppliers of the teams follow what was known of 2026 when the game was made and may be outdated.
 - The stage files carry no compass headings, so the wind comes from a random direction relative to the route and the road turns at random.
 - AI teams do not yet promote riders from their development teams.
 - Few riders reach the very top (a best attribute of 84 or more) after several seasons: the stars of 2026 age and their successors arrive slowly.

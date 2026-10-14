@@ -5,7 +5,77 @@ import 'package:flutter/foundation.dart';
 import 'package:sim/sim.dart';
 
 /// Version shown in the start menu; keep in step with pubspec.yaml.
-const appVersion = '0.2.0 alpha';
+const appVersion = '0.3.0 alpha';
+
+/// How the interface adapts its colours for colour-blind players. The
+/// colours are shifted so that red and green, or blue and yellow, can be
+/// told apart again (daltonisation).
+enum ColorVision {
+  normal('Normal colours'),
+  deuteranopia('Deuteranopia (green weakness)'),
+  protanopia('Protanopia (red weakness)'),
+  tritanopia('Tritanopia (blue weakness)');
+
+  const ColorVision(this._label);
+  final String _label;
+
+  /// The label in the current language.
+  String get label => tr(_label);
+
+  /// Colour matrix for a [ColorFilter.matrix], or null for normal colours.
+  List<double>? get matrix {
+    final sim = switch (this) {
+      ColorVision.normal => null,
+      ColorVision.deuteranopia => const [
+        [0.367322, 0.860646, -0.227968],
+        [0.280085, 0.672501, 0.047413],
+        [-0.011820, 0.042940, 0.968881],
+      ],
+      ColorVision.protanopia => const [
+        [0.152286, 1.052583, -0.204868],
+        [0.114503, 0.786281, 0.099216],
+        [-0.003882, -0.048116, 1.051998],
+      ],
+      ColorVision.tritanopia => const [
+        [1.255528, -0.076749, -0.178779],
+        [-0.078411, 0.930809, 0.147602],
+        [0.004733, 0.691367, 0.303900],
+      ],
+    };
+    if (sim == null) return null;
+    // What the eye misses is moved into the channels it still sees.
+    final shift = this == ColorVision.tritanopia
+        ? const [
+            [1.0, 0.0, 0.7],
+            [0.0, 1.0, 0.7],
+            [0.0, 0.0, 0.0],
+          ]
+        : const [
+            [0.0, 0.0, 0.0],
+            [0.7, 1.0, 0.0],
+            [0.7, 0.0, 1.0],
+          ];
+    final m = List.generate(3, (i) => List.filled(3, 0.0));
+    for (var i = 0; i < 3; i++) {
+      for (var j = 0; j < 3; j++) {
+        var sum = i == j ? 1.0 : 0.0;
+        for (var k = 0; k < 3; k++) {
+          final lost = (k == j ? 1.0 : 0.0) - sim[k][j];
+          sum += shift[i][k] * lost;
+        }
+        m[i][j] = sum;
+      }
+    }
+    return [
+      for (var i = 0; i < 3; i++) ...[m[i][0], m[i][1], m[i][2], 0, 0],
+      0,
+      0,
+      0,
+      1,
+      0,
+    ];
+  }
+}
 
 /// Settings of the app that do not belong to a career: how big the interface
 /// is drawn, whether pages fade in and whether the window starts in full
@@ -26,6 +96,9 @@ class AppSettings extends ChangeNotifier {
       _animations = j['animations'] as bool? ?? true;
       _fullScreen = j['fullScreen'] as bool? ?? false;
       _debug = j['debug'] as bool? ?? false;
+      _vision = ColorVision.values
+          .where((v) => v.name == j['vision'])
+          .firstWhere((_) => true, orElse: () => ColorVision.normal);
       _lang = Lang.values
           .where((l) => l.name == j['lang'])
           .firstWhere((_) => true, orElse: () => Lang.en);
@@ -45,6 +118,11 @@ class AppSettings extends ChangeNotifier {
   var _animations = true;
   var _fullScreen = false;
   var _debug = false;
+  var _vision = ColorVision.normal;
+
+  /// Colours for colour-blind players.
+  ColorVision get vision => _vision;
+  set vision(ColorVision v) => _set(() => _vision = v);
 
   /// Debug mode: exact values for all riders, internal figures on the
   /// rider page, a debug page with test actions.
@@ -81,6 +159,7 @@ class AppSettings extends ChangeNotifier {
           'fullScreen': _fullScreen,
           'debug': _debug,
           'lang': _lang.name,
+          'vision': _vision.name,
         }),
       );
     }

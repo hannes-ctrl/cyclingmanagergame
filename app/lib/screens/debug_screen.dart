@@ -82,29 +82,29 @@ class _DebugScreenState extends State<DebugScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Label(tr('Karriere')),
+                      Label(tr('Career')),
                       const SizedBox(height: 4),
-                      fact(tr('Startwert (Seed)'), '${career.seed}'),
-                      fact(tr('Team-ID'), '${s.team.id}'),
+                      fact(tr('Seed'), '${career.seed}'),
+                      fact(tr('Team id'), '${s.team.id}'),
                       fact(
-                        tr('Fahrer in der Welt'),
+                        tr('Riders in the world'),
                         '${career.riderById.length}',
                       ),
                       fact(tr('Teams'), '${career.teams.length}'),
                       fact(
-                        tr('Rennen im Kalender'),
+                        tr('Races in the calendar'),
                         '${career.calendar.length}',
                       ),
                       fact(
-                        tr('Gestartete Rennen'),
-                        '${career.progress.length} ($running ${tr('läuft')})',
+                        tr('Races started'),
+                        '${career.progress.length} ($running ${tr('running')})',
                       ),
-                      fact(tr('Nachrichten'), '${career.inbox.length}'),
-                      fact(tr('Kasse'), '${eco.balance.round()} €'),
+                      fact(tr('Messages'), '${career.inbox.length}'),
+                      fact(tr('Balance'), '${eco.balance.round()} €'),
                       fact(
-                        tr('Nachwuchsteam'),
+                        tr('Development team'),
                         '${career.devTeam.team?.abbr ?? '–'} · '
-                        '${career.devTeam.links.length} ${tr('Partnerschaften')}',
+                        '${career.devTeam.links.length} ${tr('partnerships')}',
                       ),
                     ],
                   ),
@@ -115,12 +115,12 @@ class _DebugScreenState extends State<DebugScreen> {
                     colors: c,
                     child: ListView(
                       children: [
-                        Label(tr('Aktionen zum Testen')),
+                        Label(tr('Test actions')),
                         const SizedBox(height: 8),
                         action(
-                          tr('Bis zum Saisonende simulieren'),
+                          tr('Simulate to the end of the season'),
                           tr(
-                            'Ohne Halt; der Sportliche Leiter übernimmt Aufgebote und Funk.',
+                            'Without stops; the sports director handles line-ups and radio.',
                           ),
                           () => s.simulateUntil(
                             DateTime.utc(career.year, 12, 31),
@@ -128,36 +128,36 @@ class _DebugScreenState extends State<DebugScreen> {
                           ),
                         ),
                         action(
-                          tr('Einen Monat simulieren'),
-                          tr('Ohne Halt, 30 Tage.'),
+                          tr('Simulate one month'),
+                          tr('Without stops, 30 days.'),
                           () => s.simulateUntil(
                             career.today.add(const Duration(days: 30)),
                             auto: true,
                           ),
                         ),
                         action(
-                          tr('1 Mio. € gutschreiben'),
-                          tr('Erhöht die Kasse, ohne Buchung.'),
+                          tr('Credit 1 m €'),
+                          tr('Raises the balance, without a booking.'),
                           () => setState(() {
                             s.debugMoney(1000000);
-                            _message = tr('Gutgeschrieben.');
+                            _message = tr('Credited.');
                           }),
                         ),
                         action(
-                          tr('Alle Fahrer gesund'),
-                          tr('{0} Fahrer des Teams fallen derzeit aus.', [
+                          tr('Heal all riders'),
+                          tr('{0} riders of the team are currently out.', [
                             injured.length,
                           ]),
                           () => setState(() {
                             s.debugHeal();
-                            _message = tr('Alle wieder einsatzbereit.');
+                            _message = tr('Everyone is available again.');
                           }),
                         ),
                         if (_message != null) Text(_message!),
                         const SizedBox(height: 12),
                         Text(
                           tr(
-                            'Im Debug-Modus sind außerdem alle Fahrerwerte genau (keine Scouting-Spannen), das Fahrerprofil zeigt interne Größen, und der Rennplaner nennt die Wildcard-Chance in Prozent.',
+                            'In debug mode all rider values are exact as well (no scouting ranges), the rider page shows internal figures, and the race planner gives the wildcard chance in per cent.',
                           ),
                           style: const TextStyle(color: TeamColors.muted),
                         ),
@@ -177,7 +177,7 @@ class _DebugScreenState extends State<DebugScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Label(
-                    tr('Stellschrauben der Simulation · {0}', [
+                    tr('Tuning values of the simulation · {0}', [
                       SimTuning.params.length,
                     ]),
                   ),
@@ -194,7 +194,7 @@ class _DebugScreenState extends State<DebugScreen> {
                           sortKey: (p) => p.name,
                         ),
                         Col(
-                          tr('Wert'),
+                          tr('Value'),
                           80,
                           (p, _) => cellText(
                             (s.tuning.toMap()[p.name] ?? p.standard)
@@ -203,7 +203,7 @@ class _DebugScreenState extends State<DebugScreen> {
                           numeric: true,
                         ),
                         Col(
-                          tr('Bereich'),
+                          tr('Range'),
                           110,
                           (p, _) => cellText(
                             '${p.min} – ${p.max}',
@@ -212,10 +212,10 @@ class _DebugScreenState extends State<DebugScreen> {
                           numeric: true,
                         ),
                         Col(
-                          tr('Bedeutung'),
+                          tr('Meaning'),
                           520,
                           (p, _) =>
-                              cellText(p.meaning, color: TeamColors.muted),
+                              cellText(tr(p.meaning), color: TeamColors.muted),
                         ),
                       ],
                     ),

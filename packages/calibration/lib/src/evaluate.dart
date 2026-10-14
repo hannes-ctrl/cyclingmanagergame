@@ -391,6 +391,10 @@ Future<Evaluation> evaluate(
 /// @param start Setting to start from.
 /// @param seed Base seed.
 /// @param reseedEvery Attempts between two changes of the random numbers.
+/// @param margin How much a candidate must be better on both draws. The
+///   error of one evaluation varies by a few tenths with the random numbers;
+///   without a margin the search accepts changes that are no better and
+///   drifts away from a good setting.
 /// @param onImprove Called with every better setting found.
 /// @param log Receives progress lines.
 /// @param validation Races held back from the search; their error is logged
@@ -403,6 +407,7 @@ Future<Map<String, double>> optimize(
   required int runs,
   required int seed,
   int reseedEvery = 25,
+  double margin = 0.1,
   void Function(Map<String, double> best, double loss, int evaluations)?
       onImprove,
   void Function(String line)? log,
@@ -463,14 +468,14 @@ Future<Map<String, double>> optimize(
         (await evaluate(cases, candidate, runs: runs, seed: evalSeed)).loss;
     evaluations++;
     var confirmed = double.infinity;
-    if (loss < bestLoss - 1e-4) {
+    if (loss < bestLoss - margin) {
       confirmed =
           (await evaluate(cases, candidate, runs: runs, seed: confirmSeed))
               .loss;
       evaluations++;
-      if (confirmed >= bestConfirm) rejected++;
+      if (confirmed >= bestConfirm - margin) rejected++;
     }
-    if (confirmed < bestConfirm) {
+    if (confirmed < bestConfirm - margin) {
       best = candidate;
       bestLoss = loss;
       bestConfirm = confirmed;

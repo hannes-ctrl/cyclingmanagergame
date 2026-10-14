@@ -8,21 +8,21 @@ import 'points.dart';
 /// How the player's team stands with regard to a race.
 enum EntryStatus {
   /// Obliged to start: WorldTeams must ride every WorldTour race.
-  mandatory('Pflichtstart'),
-  entered('Gemeldet'),
+  mandatory('Mandatory'),
+  entered('Entered'),
 
   /// Invited, but withdrawn by the player.
-  declined('Abgesagt'),
+  declined('Withdrawn'),
 
   /// Not invited; applying for a wildcard is possible.
-  open('Bewerbung möglich'),
-  pending('Bewerbung läuft'),
-  accepted('Wildcard erhalten'),
-  rejected('Bewerbung abgelehnt'),
+  open('Can apply'),
+  pending('Application pending'),
+  accepted('Wildcard granted'),
+  rejected('Application rejected'),
 
   /// Too late to apply, or already ridden without us.
-  closed('Meldeschluss vorbei'),
-  ineligible('Nicht startberechtigt');
+  closed('Entry closed'),
+  ineligible('Not eligible');
 
   const EntryStatus(this._label);
   final String _label;
@@ -150,11 +150,9 @@ class Entries {
   /// @returns null on success, otherwise the reason.
   String? decline(int raceId) {
     final r = _race(raceId);
-    if (r == null || !c.isInvited(r))
-      return tr('Dort sind wir nicht gemeldet.');
-    if (mandatory(r))
-      return tr('WorldTeams müssen alle WorldTour-Rennen fahren.');
-    if (!r.start.isAfter(c.today)) return tr('Das Rennen hat schon begonnen.');
+    if (r == null || !c.isInvited(r)) return tr('We are not entered there.');
+    if (mandatory(r)) return tr('WorldTeams must ride all WorldTour races.');
+    if (!r.start.isAfter(c.today)) return tr('The race has already started.');
     declined.add(raceId);
     c.refreshEntries(raceId);
     return null;
@@ -166,8 +164,8 @@ class Entries {
   /// @returns null on success, otherwise the reason.
   String? restore(int raceId) {
     final r = _race(raceId);
-    if (r == null || !declined.contains(raceId)) return tr('Nicht abgesagt.');
-    if (!r.start.isAfter(c.today)) return tr('Das Rennen hat schon begonnen.');
+    if (r == null || !declined.contains(raceId)) return tr('Not withdrawn.');
+    if (!r.start.isAfter(c.today)) return tr('The race has already started.');
     declined.remove(raceId);
     c.refreshEntries(raceId);
     return null;
@@ -179,14 +177,14 @@ class Entries {
   /// @returns null on success, otherwise the reason.
   String? apply(int raceId) {
     final r = _race(raceId);
-    if (r == null) return tr('Rennen nicht gefunden.');
-    if (c.isInvited(r)) return tr('Dort sind wir schon eingeladen.');
+    if (r == null) return tr('Race not found.');
+    if (c.isInvited(r)) return tr('We are already invited there.');
     if (applications.containsKey(raceId))
-      return tr('Die Bewerbung liegt schon vor.');
+      return tr('The application has already been made.');
     if (!eligible(r))
-      return tr('Mit unserer Lizenz dürfen wir dort nicht starten.');
+      return tr('Our licence does not allow us to start there.');
     if (!_open(r)) {
-      return tr('Bewerbungen müssen {0} Tage vor dem Start eingehen.',
+      return tr('Applications must arrive {0} days before the start.',
           [deadlineDays]);
     }
     final rng = Random(c.seed * 31 + raceId * 7 + c.year);
@@ -229,13 +227,13 @@ class Entries {
       if (r == null) continue;
       c.inbox.add(Message(
         c.today,
-        tr('Veranstalter'),
+        tr('Organiser'),
         a.success
-            ? tr('Wildcard für {0}', [r.info.name])
-            : tr('Keine Wildcard für {0}', [r.info.name]),
+            ? tr('Wildcard for {0}', [r.info.name])
+            : tr('No wildcard for {0}', [r.info.name]),
         a.success
-            ? tr('Wir sind dabei. Das Rennen steht jetzt in der Saisonplanung.')
-            : tr('Der Veranstalter hat sich für andere Teams entschieden.'),
+            ? tr('We are in. The race is now in the season plan.')
+            : tr('The organiser has chosen other teams.'),
         raceId: e.key,
       ));
     }

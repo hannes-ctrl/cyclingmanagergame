@@ -85,10 +85,10 @@ class Weather {
   String describe() {
     final parts = [
       tr('{0} °C', [temperatureC.round()]),
-      if (rain) tr('Regen'),
+      if (rain) tr('rain'),
       windMs < 2
-          ? tr('kaum Wind')
-          : tr('Wind {0} km/h', [(windMs * 3.6).round()]),
+          ? tr('hardly any wind')
+          : tr('wind {0} km/h', [(windMs * 3.6).round()]),
     ];
     return parts.join(', ');
   }

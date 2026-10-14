@@ -1,4 +1,4 @@
-import 'i18n_en.dart';
+import 'i18n_de.dart';
 
 /// Languages of the game.
 enum Lang {
@@ -14,36 +14,49 @@ enum Lang {
   final String flag;
 }
 
-/// The language all texts are produced in. Texts are written in German in
-/// the sources and looked up in the English dictionary when needed; texts
-/// that were already produced (inbox messages, race events) keep the
-/// language they were written in.
+/// The language all texts are produced in. Texts are written in English in
+/// the sources and looked up in the dictionary of the chosen language when
+/// needed; texts that were already produced (inbox messages, race events)
+/// keep the language they were written in.
 class I18n {
   static Lang lang = Lang.en;
 }
 
 /// Translates a text into the current language and fills in its arguments.
 ///
-/// @param de The German text, with `{0}`, `{1}` ... where arguments go.
+/// @param en The English text, with `{0}`, `{1}` ... where arguments go.
 /// @param args Values for the placeholders.
-/// @returns The text in the current language; the German one if the
+/// @returns The text in the current language; the English one if the
 ///   dictionary has no entry.
-String tr(String de, [List<Object?> args = const []]) {
-  var text = I18n.lang == Lang.de ? de : (english[de] ?? de);
+String tr(String en, [List<Object?> args = const []]) {
+  var text = I18n.lang == Lang.en ? en : (german[en] ?? en);
   for (var i = args.length - 1; i >= 0; i--) {
     text = text.replaceAll('{$i}', '${args[i]}');
   }
   return text;
 }
 
-/// Whether a stored text is a given German text or its English version.
+/// Whether a stored text is a given English text or its translation.
 /// Texts in saves keep the language they were written in, so code that
 /// recognises one must accept both.
 ///
 /// @param text The stored text.
-/// @param de The German text to compare with.
+/// @param en The English text to compare with.
 /// @returns true if they are the same text in either language.
-bool isText(String text, String de) => text == de || text == english[de];
+bool isText(String text, String en) => text == en || text == german[en];
+
+/// The source text of a stored key. Saves written before the sources were
+/// in English hold some keys in German.
+///
+/// @param stored A key as it was stored.
+/// @returns The English key; the stored one if it is not a translation.
+String sourceText(String stored) {
+  if (german.containsKey(stored)) return stored;
+  for (final e in german.entries) {
+    if (e.value == stored) return e.key;
+  }
+  return stored;
+}
 
 /// Formats a number with the decimal mark of the current language.
 ///

@@ -9,6 +9,7 @@ import 'stage_sim.dart';
 import 'tactics.dart';
 import 'trace.dart';
 import 'tuning.dart';
+import 'material.dart';
 import 'weather.dart';
 
 /// A rider with his overall time.
@@ -156,6 +157,15 @@ class StageRaceRun {
   Weather get nextWeather =>
       Weather.draw(Random(_nextSeed * 31 + 7), month, country);
 
+  /// Seed of the next stage.
+  int get nextSeed => _nextSeed;
+
+  /// Seed of the first stage of a race that has not been started yet.
+  ///
+  /// @param seed Seed the race will be started with.
+  /// @returns The seed of its first stage.
+  static int firstSeed(int seed) => Rng(seed).nextInt(1 << 31);
+
   /// Weather of the first stage of a race that has not been started yet.
   ///
   /// @param seed Seed the race will be started with.
@@ -188,9 +198,10 @@ class StageRaceRun {
   /// @param plans Tactics of the teams that do not follow the automatic plan.
   /// @param directors Quality of the sports director per team.
   /// @param radio Radio answers of the player's team.
+  /// @param kits Material and staff per team.
   /// @returns The snapshot.
   _Snapshot _snapshot(Map<int, TeamPlan> plans, Map<int, double> directors,
-          Map<RadioKind, int> radio) =>
+          Map<RadioKind, int> radio, Map<int, TeamKit> kits) =>
       _Snapshot(
         [...riders],
         _nextSeed,
@@ -204,7 +215,21 @@ class StageRaceRun {
         plans,
         directors,
         radio,
+        kits,
+        _mountainLeaders(),
       );
+
+  /// Riders in the running for the mountains jersey: the leader of the
+  /// classification and those within half of his points.
+  Set<int> _mountainLeaders() {
+    if (mountain.isEmpty) return const {};
+    final best = mountain.values.reduce(max);
+    if (best <= 0) return const {};
+    return {
+      for (final e in mountain.entries)
+        if (e.value > 0 && e.value >= best / 2) e.key,
+    };
+  }
 
   /// Simulates a stage from a snapshot.
   ///
@@ -235,6 +260,8 @@ class StageRaceRun {
         month: month,
         country: country,
         illness: oneDay ? 0 : illnessPerStage,
+        kits: s.kits,
+        mountainLeaders: s.mountainLeaders,
       );
 
   /// Packs a stage into a job.
@@ -252,14 +279,16 @@ class StageRaceRun {
   /// @param radioTeam Team that is asked over the radio.
   /// @param radio Answers given so far.
   /// @param askRadio Whether to pause at the first unanswered question.
+  /// @param kits Material and staff per team.
   /// @returns The job; its result is not to be passed to [finish].
   StageJob previewJob(SimRoute route,
           {Map<int, TeamPlan> plans = const {},
           Map<int, double> directorSkills = const {},
           int? radioTeam,
           Map<RadioKind, int> radio = const {},
-          bool askRadio = false}) =>
-      _job(route, _snapshot(plans, directorSkills, radio),
+          bool askRadio = false,
+          Map<int, TeamKit> kits = const {}}) =>
+      _job(route, _snapshot(plans, directorSkills, radio, kits),
           radioTeam: radioTeam, askRadio: askRadio);
 
   /// Starts the next stage: fixes everything that decides it and returns it
@@ -271,13 +300,15 @@ class StageRaceRun {
   /// @param directorSkills Quality of the sports director per team.
   /// @param radioTeam Team whose radio answers apply.
   /// @param radio Radio answers of that team.
+  /// @param kits Material and staff per team.
   /// @returns The job.
   StageJob begin(SimRoute route,
       {Map<int, TeamPlan> plans = const {},
       Map<int, double> directorSkills = const {},
       int? radioTeam,
-      Map<RadioKind, int> radio = const {}}) {
-    final snapshot = _snapshot(plans, directorSkills, radio);
+      Map<RadioKind, int> radio = const {},
+      Map<int, TeamKit> kits = const {}}) {
+    final snapshot = _snapshot(plans, directorSkills, radio, kits);
     _before.add(snapshot);
     return _job(route, snapshot, radioTeam: radioTeam);
   }
@@ -293,7 +324,7 @@ class StageRaceRun {
     _timeCut(job.route, linked);
     results.add(linked);
     _classify(job.route, linked);
-    _recover(job.route, linked);
+    _recover(job.route, linked, job._s.kits);
     _nextSeed = _rng.nextInt(1 << 31);
     return linked;
   }
@@ -318,6 +349,7 @@ class StageRaceRun {
       ..openCall = r.openCall
       ..timeline = r.timeline
       ..traces = r.traces
+      ..power = r.power
       ..injuries = r.injuries
       ..weather = r.weather
       ..abandons = [
@@ -335,14 +367,16 @@ class StageRaceRun {
   /// @param radio Answers given so far.
   /// @param askRadio Whether to pause at the first question [radio] has no
   ///   answer for.
+  /// @param kits Material and staff per team.
   /// @returns The result, or a paused result with an open question.
   StageResult preview(SimRoute route,
           {Map<int, TeamPlan> plans = const {},
           Map<int, double> directorSkills = const {},
           int? radioTeam,
           Map<RadioKind, int> radio = const {},
-          bool askRadio = false}) =>
-      _simulate(route, _snapshot(plans, directorSkills, radio),
+          bool askRadio = false,
+          Map<int, TeamKit> kits = const {}}) =>
+      _simulate(route, _snapshot(plans, directorSkills, radio, kits),
           radioTeam: radioTeam, askRadio: askRadio);
 
   /// Simulates a stage that has already been ridden once more, with the same
@@ -375,6 +409,25 @@ class StageRaceRun {
   ///   followed the automatic plan.
   TeamPlan? planUsed(int index, int teamId) => _before[index].plans[teamId];
 
+  /// The plan the sports director drew up for a team on a ridden stage, with
+  /// everything he knew then: gaps, styles, the crosswind of the day and the
+  /// riders in the running for the mountains jersey.
+  ///
+  /// @param index Zero-based index of a ridden stage.
+  /// @param route The stage.
+  /// @param teamId Team id.
+  /// @returns The automatic plan, or null if the team did not start.
+  TeamPlan? autoPlanUsed(int index, SimRoute route, int teamId) {
+    final s = _before[index];
+    final weather = Weather.draw(Random(s.seed * 31 + 7), month, country);
+    final wind = windAlong(route, weather, Random(s.seed * 17 + 3));
+    return autoPlans(route, s.riders,
+        gcGaps: s.gcGaps,
+        styles: {for (final e in s.kits.entries) e.key: e.value.style},
+        crosswindKm: crosswindKm(route, wind),
+        mountainLeaders: s.mountainLeaders)[teamId];
+  }
+
   /// @param index Zero-based index of a ridden stage.
   /// @returns The radio answers used on that stage.
   Map<RadioKind, int> radioUsed(int index) => _before[index].radio;
@@ -394,17 +447,20 @@ class StageRaceRun {
   /// @param directorSkills Quality of the sports director per team.
   /// @param radioTeam Team whose radio answers apply.
   /// @param radio Radio answers of that team.
+  /// @param kits Material and staff per team.
   /// @returns The stage result.
   StageResult nextStage(SimRoute route,
       {Map<int, TeamPlan> plans = const {},
       Map<int, double> directorSkills = const {},
       int? radioTeam,
-      Map<RadioKind, int> radio = const {}}) {
+      Map<RadioKind, int> radio = const {},
+      Map<int, TeamKit> kits = const {}}) {
     final job = begin(route,
         plans: plans,
         directorSkills: directorSkills,
         radioTeam: radioTeam,
-        radio: radio);
+        radio: radio,
+        kits: kits);
     return finish(job, job.run());
   }
 
@@ -521,7 +577,7 @@ class StageRaceRun {
       result.events.add(RaceEvent(
           route.raceKm,
           EventType.timeCut,
-          tr('{0} Fahrer kommen außerhalb der Karenzzeit an und werden begnadigt',
+          tr('{0} riders finish outside the time limit and are reprieved',
               [outside.length])));
       return;
     }
@@ -534,9 +590,9 @@ class StageRaceRun {
         route.raceKm,
         EventType.timeCut,
         outside.length > 6
-            ? tr('Außerhalb der Karenzzeit: {0} und {1} weitere',
+            ? tr('Outside the time limit: {0} and {1} more',
                 [names, outside.length - 6])
-            : tr('Außerhalb der Karenzzeit: {0}', [names])));
+            : tr('Outside the time limit: {0}', [names])));
   }
 
   /// Share of the fatigue a rider wins back overnight.
@@ -554,7 +610,10 @@ class StageRaceRun {
   ///
   /// @param route The stage.
   /// @param result Its result.
-  void _recover(SimRoute route, StageResult result) {
+  /// @param kits Material and staff per team: good soigneurs and
+  ///   physiotherapists win back more overnight.
+  void _recover(SimRoute route, StageResult result,
+      [Map<int, TeamKit> kits = const {}]) {
     final road = route.kind == StageKind.road;
     final hours = result.winnerTimeS / 3600;
     for (final p in result.placings) {
@@ -565,7 +624,8 @@ class StageRaceRun {
           ? max(0.0, 1 - debt[id]! - trace.energy)
           : 0.3 * hours * (road ? 1 : 0.8);
       final hurt = result.injuries[id];
-      debt[id] = (debt[id]! * (1 - _recoveryRate(p.rider)) +
+      final care = kits[p.rider.teamId]?.recovery ?? 1;
+      debt[id] = (debt[id]! * (1 - _recoveryRate(p.rider) * care) +
               0.1 * spent +
               0.5 * (hurt?.energyLoss ?? 0))
           .clamp(0.0, 0.5);
@@ -579,10 +639,14 @@ class StageRaceRun {
 
   /// A rest day: the riders recover more than overnight, and some of them
   /// do not find their legs on the day after.
-  void restDay() {
+  ///
+  /// @param kits Material and staff per team.
+  void restDay([Map<int, TeamKit> kits = const {}]) {
     for (final r in riders) {
       final id = r.id;
-      debt[id] = (debt[id]! * (1 - 1.6 * _recoveryRate(r))).clamp(0.0, 0.5);
+      final care = kits[r.teamId]?.recovery ?? 1;
+      debt[id] =
+          (debt[id]! * (1 - 1.6 * _recoveryRate(r) * care)).clamp(0.0, 0.5);
       form[id] =
           (1 + 0.6 * (form[id]! - 1) + 0.008 * _gauss(_rng)).clamp(0.93, 1.03);
     }
@@ -631,6 +695,9 @@ class StageRaceRun {
       'plans': {for (final e in s.plans.entries) '${e.key}': e.value.toJson()},
       'dir': {for (final e in s.directors.entries) '${e.key}': e.value},
       'radio': {for (final e in s.radio.entries) e.key.name: e.value},
+      if (s.kits.isNotEmpty)
+        'kit': {for (final e in s.kits.entries) '${e.key}': e.value.toJson()},
+      if (s.mountainLeaders.isNotEmpty) 'kom': s.mountainLeaders.toList(),
       'place': [
         for (final p in r.placings) [at[p.rider], p.timeS, p.group],
       ],
@@ -659,6 +726,8 @@ class StageRaceRun {
       'trace': {
         for (final e in r.traces.entries) '${e.key}': e.value.toJson(),
       },
+      if (r.power.isNotEmpty)
+        'pow': {for (final e in r.power.entries) '${e.key}': e.value.toJson()},
     };
   }
 
@@ -735,6 +804,12 @@ class StageRaceRun {
           for (final e in (s['radio'] as Map<String, dynamic>).entries)
             RadioKind.values.byName(e.key): e.value as int,
         },
+        {
+          for (final e
+              in (s['kit'] as Map<String, dynamic>? ?? const {}).entries)
+            int.parse(e.key): TeamKit.fromJson(e.value as List),
+        },
+        {...(s['kom'] as List? ?? const []).cast<int>()},
       ));
       final result = StageResult(
         [
@@ -766,6 +841,11 @@ class StageRaceRun {
           for (final e
               in (s['trace'] as Map<String, dynamic>? ?? const {}).entries)
             int.parse(e.key): RiderTrace.fromJson(e.value as List),
+        }
+        ..power = {
+          for (final e
+              in (s['pow'] as Map<String, dynamic>? ?? const {}).entries)
+            int.parse(e.key): PowerStats.fromJson(e.value as List),
         }
         ..abandons = [
           for (final a in s['out'] as List? ?? const [])
@@ -840,6 +920,8 @@ class StageJob {
       month: _month,
       country: _country,
       illness: _illness,
+      kits: _s.kits,
+      mountainLeaders: _s.mountainLeaders,
     );
   }
 }
@@ -847,7 +929,8 @@ class StageJob {
 /// State before a stage: everything that decides its result.
 class _Snapshot {
   _Snapshot(this.riders, this.seed, this.gcGaps, this.conditions, this.plans,
-      this.directors, this.radio);
+      this.directors, this.radio,
+      [this.kits = const {}, this.mountainLeaders = const {}]);
   final List<SimRider> riders;
   final int seed;
   final Map<int, double> gcGaps;
@@ -855,6 +938,8 @@ class _Snapshot {
   final Map<int, TeamPlan> plans;
   final Map<int, double> directors;
   final Map<RadioKind, int> radio;
+  final Map<int, TeamKit> kits;
+  final Set<int> mountainLeaders;
 }
 
 /// Simulates a whole stage race in one go.

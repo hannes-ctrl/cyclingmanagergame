@@ -10,10 +10,10 @@ import '../widgets.dart';
 import 'simulate_dialog.dart';
 
 const _months = [
-  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', //
-  'September', 'Oktober', 'November', 'Dezember',
+  'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', //
+  'September', 'October', 'November', 'December',
 ];
-const _days = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const _days = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
 /// Calendar: one month as a grid with the races of each day. Own races and
 /// training camps are highlighted; a click opens the race.
@@ -250,7 +250,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               arrow(LucideIcons.chevronRight, month + 1),
               TextButton(
                 onPressed: () => setState(() => _month = null),
-                child: Text(tr('Heute')),
+                child: Text(tr('Today')),
               ),
               const Spacer(),
               OutlinedButton.icon(
@@ -266,11 +266,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         initial: DateTime.utc(career.year, month + 1, 1),
                       ),
                 icon: const Icon(LucideIcons.fastForward, size: 16),
-                label: Text(tr('Simulieren bis …')),
+                label: Text(tr('Simulate to …')),
               ),
               const SizedBox(width: 10),
               Pill(
-                label: tr('Nur eigene Rennen'),
+                label: tr('Own races only'),
                 selected: _onlyOwn,
                 colors: c,
                 dot: c.accent,

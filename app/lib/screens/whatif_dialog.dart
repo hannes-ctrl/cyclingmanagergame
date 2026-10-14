@@ -7,14 +7,15 @@ import '../ui.dart';
 import '../widgets.dart';
 
 const _approachLabels = {
-  Approach.wait: 'Abwarten',
-  Approach.control: 'Tempo kontrollieren',
-  Approach.makeHard: 'Rennen schwer machen',
+  Approach.wait: 'Wait',
+  Approach.control: 'Control the pace',
+  Approach.makeHard: 'Make the race hard',
+  Approach.echelon: 'Split in the crosswind',
 };
 const _breakLabels = {
-  BreakPolicy.ignore: 'Ignorieren',
-  BreakPolicy.join: 'Besetzen',
-  BreakPolicy.chase: 'Zurückholen',
+  BreakPolicy.ignore: 'Ignore',
+  BreakPolicy.join: 'Join',
+  BreakPolicy.chase: 'Chase down',
 };
 
 /// Opens "what if": a ridden stage once more with the same randomness, the
@@ -131,12 +132,12 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                tr('Was wäre wenn?'),
+                tr('What if?'),
                 style: TextStyle(fontSize: 19, fontWeight: FontWeight.w600),
               ),
               Text(
                 '${p.race.info.name}'
-                '${p.race.isStageRace ? tr(' · Etappe {0}', [widget.stageIndex + 1]) : ''}'
+                '${p.race.isStageRace ? tr(' · stage {0}', [widget.stageIndex + 1]) : ''}'
                 ' · ${route.name} · ${route.raceKm.toStringAsFixed(1)} km',
                 style: const TextStyle(color: TeamColors.muted),
               ),
@@ -154,13 +155,13 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: Text(tr('Schließen')),
+                    child: Text(tr('Close')),
                   ),
                   const SizedBox(width: 6),
                   if (_result != null || _call != null)
                     OutlinedButton(
                       onPressed: _reset,
-                      child: Text(tr('Andere Taktik')),
+                      child: Text(tr('Different tactics')),
                     )
                   else
                     FilledButton(
@@ -169,7 +170,7 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
                         foregroundColor: c.onAccent,
                       ),
                       onPressed: _run,
-                      child: Text(tr('Durchrechnen')),
+                      child: Text(tr('Simulate')),
                     ),
                 ],
               ),
@@ -217,7 +218,7 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
       children: [
         Text(
           tr(
-            'So ist das Team gefahren. Ändere Rollen oder Vorgaben; der Funk fragt im zweiten Lauf neu nach.',
+            'This is how the team rode. Change roles or instructions; the radio asks again in the second run.',
           ),
           style: TextStyle(fontSize: 12, color: TeamColors.muted),
         ),
@@ -249,14 +250,14 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
           ),
         const SizedBox(height: 10),
         choice(
-          tr('Rennverlauf'),
+          tr('Race approach'),
           _approachLabels,
           _approach,
           (v) => _approach = v,
         ),
         const SizedBox(height: 8),
         choice(
-          tr('Ausreißergruppe'),
+          tr('The break'),
           _breakLabels,
           _breakPolicy,
           (v) => _breakPolicy = v,
@@ -269,7 +270,7 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
     shrinkWrap: true,
     children: [
       Text(
-        tr('Funk · noch {0} km', [call.remainingKm.round()]),
+        tr('Radio · {0} km to go', [call.remainingKm.round()]),
         style: const TextStyle(fontSize: 12, color: TeamColors.muted),
       ),
       const SizedBox(height: 2),
@@ -303,8 +304,8 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
       final first = r.placings.where((x) => x.group == 0).length;
       final w = r.placings.first.rider;
       return '${w.name} (${w.team}) · '
-          '${first == 1 ? 'Solo' : tr('Gruppe von {0}', [first])}'
-          '${r.breakSurvived ? tr(' · aus der Ausreißergruppe') : ''}';
+          '${first == 1 ? 'Solo' : tr('Group of {0}', [first])}'
+          '${r.breakSurvived ? tr(' · from the breakaway') : ''}';
     }
 
     ({int place, double gap})? of(StageResult r, int riderId) {
@@ -344,15 +345,15 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
         Row(
           children: [
             const SizedBox(width: 170),
-            head(tr('GEFAHREN')),
-            head(tr('WAS WÄRE WENN')),
+            head(tr('RIDDEN')),
+            head(tr('WHAT IF')),
           ],
         ),
         const SizedBox(height: 4),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(width: 170, child: Text(tr('Sieger'))),
+            SizedBox(width: 170, child: Text(tr('Winner'))),
             Expanded(child: Text(summary(_real))),
             Expanded(child: Text(summary(other))),
           ],
@@ -371,7 +372,7 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
           ),
         Divider(color: c.line),
         Text(
-          tr('RENNVERLAUF IM ZWEITEN LAUF'),
+          tr('COURSE OF THE SECOND RUN'),
           style: TextStyle(fontSize: 12, color: TeamColors.muted),
         ),
         const SizedBox(height: 4),
