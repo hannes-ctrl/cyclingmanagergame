@@ -441,21 +441,35 @@ class RiderPage extends StatelessWidget {
     String percent(double form) =>
         '${form >= 1 ? '+' : ''}${dec((form - 1) * 100)} %';
 
-    Widget tile(String label, String value, {Color? color}) => Container(
-      width: 132,
-      margin: const EdgeInsets.only(right: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: TeamColors.ground,
-        borderRadius: BorderRadius.circular(5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          withHelp(label, Label(label)),
-          const SizedBox(height: 2),
-          Text(value, style: headStyle(20, color: color)),
-        ],
+    // The tiles share the width of the page, at most 142 px each with the gap, and
+    // shrink their texts rather than break them.
+    Widget tile(String label, String value, {Color? color}) => Flexible(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 142),
+        child: Container(
+          margin: const EdgeInsets.only(right: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: TeamColors.ground,
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: withHelp(label, Label(label)),
+              ),
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(value, style: headStyle(20, color: color)),
+              ),
+            ],
+          ),
+        ),
       ),
     );
 
@@ -483,9 +497,10 @@ class RiderPage extends StatelessWidget {
                           Flag(r.country, width: 20),
                           const SizedBox(width: 7),
                           Text(
-                            tr('{0} · {1} years · {2}{3}', [
+                            tr('{0} · born {1} · {2} years · {3}{4}', [
                               r.country,
-                              career.year - r.born ~/ 10000,
+                              birthDate(r.born),
+                              ageOn(r.born, career.today),
                               team?.division == 'Free'
                                   ? tr('free agent')
                                   : team?.name ?? r.team,
@@ -593,7 +608,9 @@ class RiderPage extends StatelessWidget {
             const SizedBox(height: 14),
             Row(
               children: [
-                tile(tr('Age'), '${career.year - r.born ~/ 10000}'),
+                tile(tr('Age'), '${ageOn(r.born, career.today)}'),
+                tile(tr('Height'), '${dec(r.heightM, 2)} m'),
+                tile(tr('Weight'), '${r.massKg.round()} kg'),
                 tile(
                   tr('Strength'),
                   exact ? Economy.rating(r).round().toString() : '?',
@@ -1111,3 +1128,19 @@ class RiderPage extends StatelessWidget {
 /// @returns The month as text, e.g. "03/2027".
 String _month(int stamp) =>
     '${(stamp % 100).toString().padLeft(2, '0')}/${stamp ~/ 100}';
+
+/// @param born Birth date as yyyymmdd.
+/// @returns `dd.mm.yyyy`, or only the year where day and month are unknown.
+String birthDate(int born) {
+  final y = born ~/ 10000, m = born ~/ 100 % 100, d = born % 100;
+  if (m == 0 || d == 0) return '$y';
+  return '${d.toString().padLeft(2, '0')}.${m.toString().padLeft(2, '0')}.$y';
+}
+
+/// @param born Birth date as yyyymmdd.
+/// @param day The day to count to.
+/// @returns Full years of age on that day.
+int ageOn(int born, DateTime day) {
+  final y = born ~/ 10000, md = born % 10000;
+  return day.year - y - (day.month * 100 + day.day < md ? 1 : 0);
+}

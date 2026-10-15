@@ -625,6 +625,18 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Starts building a facility up one level.
+  ///
+  /// @param f The facility.
+  /// @returns null on success, otherwise the reason.
+  String? upgradeFacility(Facility f) {
+    if (busy) return tr('The days are running right now.');
+    final answer = career.facilities.upgrade(f);
+    _save();
+    notifyListeners();
+    return answer;
+  }
+
   /// Accepts a supplier's offer for next season.
   ///
   /// @param index Position among the offers.
@@ -1331,6 +1343,8 @@ class AppState extends ChangeNotifier {
               ? null
               : PromiseKind.values[e['promise'] as int],
         );
+      case 'offerDev':
+        career.economy.offerDev(e['rider'] as int, e['years'] as int);
       case 'hire':
         career.staff.hire(e['staff'] as int);
       case 'fire':
@@ -1429,6 +1443,15 @@ class AppState extends ChangeNotifier {
   void setLoad(int riderId, TrainingLoad load) =>
       _record({'type': 'load', 'rider': riderId, 'load': load.name});
 
+  /// Sets the training load of every rider of the squad.
+  ///
+  /// @param load New load.
+  void setLoadAll(TrainingLoad load) {
+    for (final r in squad) {
+      if (career.shapeOf(r.id).load != load) setLoad(r.id, load);
+    }
+  }
+
   /// Sets a rider's training focus.
   ///
   /// @param riderId Id of the rider.
@@ -1471,6 +1494,25 @@ class AppState extends ChangeNotifier {
       _refreshRadio();
       notifyListeners();
     }
+  }
+
+  /// Offers a young rider a place in the development team.
+  ///
+  /// @param riderId Id of the rider.
+  /// @param years Contract term.
+  /// @returns null if he signs, otherwise the reason.
+  String? offerDev(int riderId, int years) {
+    if (busy) return tr('The days are running right now.');
+    final answer = career.economy.offerDev(riderId, years);
+    _log.add({
+      'type': 'offerDev',
+      'rider': riderId,
+      'years': years,
+      'day': _days,
+    });
+    _save();
+    notifyListeners();
+    return answer;
   }
 
   /// Makes a contract offer to a rider.

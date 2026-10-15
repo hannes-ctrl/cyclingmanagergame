@@ -667,6 +667,27 @@ class _TransfersScreenState extends State<TransfersScreen> {
               style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.6),
             ),
           ),
+          // A young rider can also be signed for the development team.
+          if (!own && career.devTeam.teamId != null && eco.devReason(r) == null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: OutlinedButton(
+                onPressed: s.busy || !eco.windowOpen
+                    ? null
+                    : () => setState(
+                        () => _answer =
+                            s.offerDev(r.id, _years.clamp(1, 2)) ??
+                            tr('Signed for the development team from {0}.', [
+                              career.year + 1,
+                            ]),
+                      ),
+                child: Text(
+                  tr('Sign for the development team ({0})', [
+                    career.devTeam.team?.name ?? '',
+                  ]),
+                ),
+              ),
+            ),
           if (!eco.windowOpen)
             Padding(
               padding: EdgeInsets.only(top: 8),

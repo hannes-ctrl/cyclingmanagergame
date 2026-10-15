@@ -1,0 +1,501 @@
+<title>Cycling Manager Concept</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: concept page with four tabs; the first shows a clickable app shell in FM style
+   (sidebar in team colour, header with "Continue", dense tables). Classification jerseys give the signal colours. */
+:root{
+  --bg:#15122a; --panel:#1f1b3a; --panel2:#2a2550; --line:#3b3568; --fg:#eeecf7; --mut:#a59fc8;
+  --side:#33206e; --side2:#40298a; --side-fg:#f1ecff; --side-mut:#b9a9ea;
+  --gelb:#f7d417; --gelb-fg:#1b1600; --gold:#f7d417; --gruen:#44c285; --rot:#ef6258; --blau:#6db3ff;
+  --disp:"Barlow Condensed","Arial Narrow",Arial,sans-serif; --body:"Barlow","Segoe UI",Arial,sans-serif;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){
+  --bg:#f2f0f9; --panel:#ffffff; --panel2:#eceaf6; --line:#d6d1ea; --fg:#1c1836; --mut:#625c86;
+  --gold:#8a6a00; --gruen:#1b8752; --rot:#c5362e; --blau:#1f6dcc; color-scheme:light } }
+:root[data-theme="light"]{
+  --bg:#f2f0f9; --panel:#ffffff; --panel2:#eceaf6; --line:#d6d1ea; --fg:#1c1836; --mut:#625c86;
+  --gold:#8a6a00; --gruen:#1b8752; --rot:#c5362e; --blau:#1f6dcc; color-scheme:light }
+
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--body)}
+.wrap{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3,h4{font-family:var(--disp);font-weight:600;line-height:1.15;margin:0;text-wrap:balance}
+h1{font-size:34px;letter-spacing:.01em} h2{font-size:24px} h3{font-size:19px} h4{font-size:16px}
+p{margin:0}
+.mut{color:var(--mut)} .small{font-size:13px}
+.lbl{font:600 12px var(--disp);letter-spacing:.09em;text-transform:uppercase;color:var(--mut)}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--gelb);outline-offset:2px}
+
+.head{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:flex-end;justify-content:space-between}
+.tabs{display:flex;flex-wrap:wrap;gap:4px}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;padding:6px 12px;font:600 17px var(--disp);letter-spacing:.03em;color:var(--mut)}
+.tabs button[aria-selected="true"]{color:var(--fg);border-color:var(--gelb)}
+
+/* ---------- App shell ---------- */
+.app{--team:#1a2456;--acc:#e2333a;--acc-fg:#fff;--panel:color-mix(in srgb,var(--team) 12%,var(--bg));--panel2:color-mix(in srgb,var(--team) 26%,var(--bg));--line:color-mix(in srgb,var(--mut) 30%,var(--panel2));--side:var(--team);--side2:color-mix(in srgb,var(--team) 80%,#fff);--side-fg:#fff;--side-mut:color-mix(in srgb,var(--team) 35%,#fff);display:grid;grid-template-columns:196px minmax(0,1fr);border:1px solid var(--line);border-radius:6px;overflow:hidden;min-height:640px;background:var(--panel)}
+.side{background:var(--side);color:var(--side-fg);padding:12px 8px;display:flex;flex-direction:column;gap:2px}
+.team{display:flex;gap:10px;align-items:center;padding:4px 6px 12px}
+.team b{font:600 16px/1.1 var(--disp)} .team span{font-size:12px;color:var(--side-mut)}
+.side .grp{font:600 11px var(--disp);letter-spacing:.1em;text-transform:uppercase;color:var(--side-mut);padding:10px 8px 2px}
+.side button{background:none;border:0;text-align:left;padding:6px 8px;border-radius:4px;color:var(--side-fg);font-size:14px;display:flex;justify-content:space-between;gap:6px;white-space:nowrap}
+.side button:hover{background:var(--side2)}
+.side button[aria-current="page"]{background:var(--acc);color:var(--acc-fg);font-weight:600}
+.side .n{font-size:12px;background:var(--rot);color:#fff;border-radius:9px;padding:0 6px}
+.main{display:flex;flex-direction:column;min-width:0}
+.bar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:8px 12px;background:var(--panel2);border-bottom:1px solid var(--line)}
+.bar h2{flex:1 1 180px;min-width:0}
+.bar .search{flex:0 1 190px;border:1px solid var(--line);border-radius:4px;padding:4px 10px;color:var(--mut);font-size:13px;background:var(--panel)}
+.bar .date{font:600 15px var(--disp);text-align:right;line-height:1.15}
+.go{background:var(--acc);color:var(--acc-fg);border:0;border-radius:4px;padding:8px 18px;font:700 17px var(--disp);letter-spacing:.04em;text-transform:uppercase}
+.screen{padding:14px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.cols{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.cols>*{min-width:0}
+.box{border:1px solid var(--line);border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0;background:var(--panel)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+th{font:600 12px var(--disp);letter-spacing:.07em;text-transform:uppercase;color:var(--mut);text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td.num,th.num{text-align:right}
+tr.own td{background:var(--panel2)}
+.a1{color:var(--mut)} .a3{color:var(--gruen);font-weight:600} .a4{color:var(--gold);font-weight:600}
+.link{background:none;border:0;padding:0;color:var(--blau);text-align:left}
+.link:hover{text-decoration:underline}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:none;border-radius:14px;padding:2px 12px;font-size:13px}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.pill{display:inline-block;border-radius:3px;padding:0 7px;font:600 12px/1.6 var(--disp);letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--line)}
+.pill.g{border-color:var(--gruen);color:var(--gruen)} .pill.r{border-color:var(--rot);color:var(--rot)} .pill.y{border-color:var(--gold);color:var(--gold)} .pill.b{border-color:var(--blau);color:var(--blau)}
+.meter{display:inline-block;width:64px;height:7px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;vertical-align:middle;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--gruen)} .meter.w i{background:var(--gold)} .meter.l i{background:var(--rot)}
+select{font:inherit;font-size:13px;background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:3px;padding:2px 4px;max-width:100%}
+.mail{display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr);gap:14px}
+.mail ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.mail li button{width:100%;background:none;border:0;border-bottom:1px solid var(--line);text-align:left;padding:8px;display:flex;flex-direction:column}
+.mail li button[aria-current="true"]{background:var(--panel2);box-shadow:inset 3px 0 var(--acc)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;font-size:14px} .kv dt{color:var(--mut)} .kv dd{margin:0}
+dl{margin:0}
+svg text{font-family:var(--body)}
+.tick{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.tick li{display:grid;grid-template-columns:22px 58px 1fr;gap:8px;font-size:14px;align-items:baseline}
+.tick .no{background:var(--fg);color:var(--bg);border-radius:50%;width:20px;height:20px;font:600 12px/20px var(--disp);text-align:center}
+.tick .km{color:var(--mut);font-variant-numeric:tabular-nums}
+.jerseys{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:14px}
+.dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;border:1px solid var(--line)}
+.prob{display:grid;grid-template-columns:minmax(90px,1fr) 2fr 44px;gap:8px;align-items:center;font-size:13.5px}
+.prob .b{height:9px;background:var(--panel2);border-radius:2px;overflow:hidden} .prob .b i{display:block;height:100%;background:var(--blau)} .prob.own .b i{background:var(--gelb)}
+/* Season plan */
+.gantt{min-width:860px;display:flex;flex-direction:column;font-size:13px}
+.grow{display:grid;grid-template-columns:150px 1fr 54px;align-items:center;border-bottom:1px solid var(--line)}
+.grow>span:first-child{padding:3px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track{position:relative;height:26px;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+.track i{position:absolute;top:0;bottom:0;border-left:1px dashed var(--line)}
+.track b{position:absolute;top:4px;height:18px;border-radius:2px;font:600 11px/18px var(--disp);padding:0 3px;overflow:hidden;white-space:nowrap;min-width:5px;color:#14112a}
+.track em{position:absolute;top:5px;font-style:normal;font:600 11px var(--disp);color:var(--mut);letter-spacing:.08em}
+.c-gt{background:#f7d417} .c-sr{background:#7db9ff} .c-kl{background:#ff8f86} .c-wm{background:#6fdaa3}
+.today{position:absolute;top:0;bottom:0;width:2px;background:var(--rot)}
+/* Requirements */
+.doc{display:flex;flex-direction:column;gap:22px}
+.doc p,.doc li{max-width:74ch}
+.doc ul,.doc ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.ideas{display:grid;gap:18px 28px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.ideas div{display:flex;flex-direction:column;gap:4px;border-top:2px solid var(--line);padding-top:8px}
+.req td{white-space:normal;vertical-align:top} .req td:first-child{white-space:nowrap;color:var(--mut)}
+.note{border-left:3px solid var(--gelb);padding:6px 12px;background:var(--panel);font-size:14px;max-width:90ch}
+@media (max-width:760px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .side{flex-direction:row;overflow-x:auto;align-items:center;padding:6px}
+  .side .grp,.team span{display:none} .team{padding:0 8px 0 2px}
+  .mail{grid-template-columns:minmax(0,1fr)}
+}
+</style>
+
+<div class="wrap">
+  <div class="head">
+    <div>
+      <h1>Cycling Manager</h1>
+      <p class="mut">Concept for a pure cycling management game · working title Radmanager · as of October 2026, version 0.3.1 alpha</p>
+    </div>
+    <div class="tabs" role="tablist">
+      <button role="tab" data-t="ui" aria-selected="true">Interface sketch</button>
+      <button role="tab" data-t="req" aria-selected="false">Requirements</button>
+      <button role="tab" data-t="ideen" aria-selected="false">Ideas</button>
+      <button role="tab" data-t="plan" aria-selected="false">Decisions &amp; status</button>
+    </div>
+  </div>
+
+  <section id="t-ui">
+    <p class="note" style="margin-bottom:14px">A clickable rough sketch from the start of the project; the real app has grown past it, but the core loop is the same. The sidebar switches the view, a rider's name opens the rider profile, and "Continue" plays through the core loop (inbox → race preparation → radio call → race report). All values, wages, programmes and results are made-up sample data; in the game they come from the WorldDB.</p>
+    <div class="chips" id="teams" style="margin-bottom:10px"></div>
+    <div class="app" id="app">
+      <aside class="side" id="side"></aside>
+      <div class="main">
+        <div class="bar">
+          <h2 id="ttl"></h2>
+          <span class="search">Search: rider, team, race …</span>
+          <span class="date">Sat, 18 Jul 2026<br><span class="mut small" style="font-family:var(--body);font-weight:400">Tour de France · Stage 14</span></span>
+          <button class="go" id="go"></button>
+        </div>
+        <div class="screen" id="screen"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="t-req" class="doc" hidden></section>
+  <section id="t-ideen" class="doc" hidden></section>
+  <section id="t-plan" class="doc" hidden></section>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), H=(el,h)=>{el.innerHTML=h};
+const eur=v=>"€"+v.toFixed(1)+"m";
+
+/* ===================== Sample data ===================== */
+// Name, nation, age, type, FL,MO,HI,TT,SP,CO,STA,REC, form, freshness, race days, contract, wage (m), potential, morale, next race
+const R=[
+["Remco Evenepoel","BEL",26,"Stage racer",79,81,82,85,68,72,80,78,94,71,38,2030,6.5,5,"very good","Tour de France"],
+["Primož Roglič","SLO",36,"Stage racer",75,80,82,80,71,66,78,77,62,88,29,2027,4.5,4,"good","Vuelta a España"],
+["Florian Lipowitz","GER",25,"Climber",73,81,78,77,60,62,79,79,91,69,41,2028,2.2,5,"very good","Tour de France"],
+["Jai Hindley","AUS",30,"Climber",71,79,77,70,58,60,77,77,86,74,44,2027,1.8,4,"good","Tour de France"],
+["Giulio Pellizzari","ITA",22,"Climber",70,78,76,69,57,60,75,76,58,90,35,2028,0.9,5,"good","Vuelta a España"],
+["Daniel Martínez","COL",30,"Stage racer",72,77,77,74,60,61,76,74,84,70,40,2027,1.6,4,"average","Tour de France"],
+["Maxim Van Gils","BEL",26,"Puncheur",74,74,79,68,66,68,75,73,70,82,36,2027,1.4,4,"good","Clásica San Sebastián"],
+["Jordi Meeus","BEL",28,"Sprinter",75,58,66,62,79,73,71,70,55,93,33,2027,1.0,4,"average","injured (5 days)"],
+["Danny van Poppel","NED",33,"Lead-out",76,60,67,64,76,72,73,71,73,85,39,2027,0.9,3,"good","Deutschland Tour"],
+["Laurence Pithie","NZL",24,"Classics",76,62,71,66,72,76,73,71,68,84,37,2027,0.7,4,"good","Deutschland Tour"],
+["Mick van Dijke","NED",26,"Classics",76,64,71,71,66,74,74,72,85,72,42,2027,0.6,3,"good","Tour de France"],
+["Nico Denz","GER",32,"Breakaway",75,68,72,68,64,69,76,72,88,66,45,2027,0.6,3,"very good","Tour de France"],
+["Jan Tratnik","SLO",36,"Domestique",76,70,73,73,62,70,76,73,83,68,43,2026,0.7,3,"average","Tour de France"],
+["Giovanni Aleotti","ITA",27,"Domestique",71,75,74,66,61,60,74,74,87,70,41,2027,0.5,3,"good","Tour de France"],
+["Ben Zwiehoff","GER",32,"Domestique",69,74,71,62,55,58,74,73,61,89,31,2026,0.3,2,"good","Vuelta a España"],
+["Finn Fisher-Black","NZL",24,"Puncheur",72,73,75,71,63,63,72,72,66,86,30,2027,0.5,4,"average","Vuelta a España"]];
+const A=["FL","MO","HI","TT","SP","CO","STA","REC"];
+const ac=v=>v>=78?"a4":v>=72?"a3":v>=65?"":"a1";
+const meter=v=>`<span class="meter ${v<65?"l":v<80?"w":""}"><i style="width:${v}%"></i></span> ${v}`;
+const stars=n=>"★".repeat(n)+"<span class='a1'>"+"★".repeat(5-n)+"</span>";
+const rlink=i=>`<button class="link" data-r="${i}">${R[i][0]}</button>`;
+
+/* ===================== Navigation ===================== */
+const NAV=[["Overview",[["post","Inbox",3],["kal","Calendar"]]],
+["Team",[["kader","Squad"],["train","Training"],["staff","Staff"],["mat","Equipment"]]],
+["Racing",[["plan","Season plan"],["vor","Race preparation"],["bericht","Race report"],["rang","Rankings"]]],
+["Market",[["trans","Transfers"],["scout","Scouting"],["nach","Youth"]]],
+["Management",[["fin","Finances & sponsors"],["ziele","Board & goals"]]]];
+const TITLE={profil:"Rider profile",funk:"Radio call"}; NAV.forEach(g=>g[1].forEach(n=>TITLE[n[0]]=n[1]));
+let cur="post", view="attr", mailSel=0, prof=0, tm=0;
+// Name, team colour, accent, text on accent
+const TEAMS=[["Red Bull – BORA – hansgrohe","#1a2456","#e2333a","#fff"],["Visma | Lease a Bike","#1d1d1f","#f7d417","#1b1600"],["EF Education – EasyPost","#c2186b","#ffe14d","#33102a"]];
+function teamChips(){const t=TEAMS[tm],a=$("#app");a.style.setProperty("--team",t[1]);a.style.setProperty("--acc",t[2]);a.style.setProperty("--acc-fg",t[3]);
+  H($("#teams"),`<span class="lbl" style="align-self:center">Team colour preview</span>`+TEAMS.map((x,i)=>`<button class="chip" data-team="${i}" aria-pressed="${i===tm}">${x[0]}</button>`).join(""));}
+
+function side(){
+  H($("#side"),`<div class="team"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M11 3 L4 7 L1 15 L7 17 L8 13 L8 31 L26 31 L26 13 L27 17 L33 15 L30 7 L23 3 C21 6 13 6 11 3Z" fill="var(--acc)" stroke="#fff" stroke-width="1"/><rect x="8" y="15" width="18" height="5" fill="var(--acc-fg)"/></svg><div><b>${TEAMS[tm][0]}</b><br><span>WorldTeam · Manager: you</span></div></div>`+
+  NAV.map(g=>`<div class="grp">${g[0]}</div>`+g[1].map(n=>`<button data-s="${n[0]}" ${cur===n[0]?'aria-current="page"':""}>${n[1]}${n[2]?`<span class="n">${n[2]}</span>`:""}</button>`).join("")).join(""));
+}
+function show(s){cur=s;side();H($("#ttl"),TITLE[s]);$("#go").textContent=s==="vor"?"Simulate race ▸":s==="funk"?"DS decides ▸":"Continue ▸";H($("#screen"),(S[s]||placeholder)(s));}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  if(b.dataset.t){document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));["ui","req","ideen","plan"].forEach(t=>$("#t-"+t).hidden=t!==b.dataset.t);}
+  else if(b.dataset.s) show(b.dataset.s);
+  else if(b.dataset.r){prof=+b.dataset.r;show("profil");}
+  else if(b.dataset.v){view=b.dataset.v;show("kader");}
+  else if(b.dataset.m){mailSel=+b.dataset.m;show("post");}
+  else if(b.dataset.team){tm=+b.dataset.team;teamChips();side();}
+  else if(b.dataset.bt){bt=b.dataset.bt;show("bericht");}
+  else if(b.id==="go") show(cur==="vor"?"funk":cur==="funk"?"bericht":cur==="bericht"?"post":"vor");
+  else if(b.dataset.grp){b.parentNode.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));}
+});
+
+/* ===================== Stage profile ===================== */
+const PTS=[[0,300],[20,350],[45,420],[60,600],[78,1650],[95,700],[120,800],[138,1900],[152,900],[166,1000],[180,2050]];
+const px=k=>34+k/180*750, py=h=>150-h/2200*130;
+function hAt(k){for(let i=1;i<PTS.length;i++){const[a,ha]=PTS[i-1],[b,hb]=PTS[i];if(k<=b)return ha+(hb-ha)*(k-a)/(b-a);}return 0}
+function profile(marks){
+  const line=PTS.map(p=>px(p[0])+","+py(p[1])).join(" ");
+  return `<div class="scroll"><svg viewBox="0 0 800 184" style="min-width:560px;width:100%;display:block" role="img" aria-label="Stage profile, 180 km with three climbs and a summit finish">
+  <polygon points="${px(0)},150 ${line} ${px(180)},150" fill="var(--panel2)" stroke="var(--mut)" stroke-width="1.5"/>
+  <rect x="${px(8)}" y="144" width="${px(40)-px(8)}" height="6" fill="#7FD1FF" opacity=".75"><title>Open to the wind</title></rect>
+  ${[0,30,60,90,120,150,180].map(k=>`<line x1="${px(k)}" y1="150" x2="${px(k)}" y2="155" stroke="var(--mut)"/><text x="${px(k)}" y="170" font-size="11" text-anchor="middle" fill="var(--mut)">${k} km</text>`).join("")}
+  ${[[78,"Cat. 1 · 18 km at 5.8 %"],[138,"HC · 18 km at 6.1 %"],[180,"HC finish · 14 km at 7.5 %"]].map(([k,t])=>`<text x="${px(k)-(k>170?6:0)}" y="${py(hAt(k))-9}" font-size="11" text-anchor="${k>170?"end":"middle"}" fill="var(--fg)">${t}</text>`).join("")}
+  ${(marks||[]).map(([k,n])=>`<circle cx="${px(k)}" cy="${py(hAt(k))}" r="9" fill="var(--gelb)" stroke="var(--bg)" stroke-width="1.5"/><text x="${px(k)}" y="${py(hAt(k))+4}" font-size="11" font-weight="600" text-anchor="middle" fill="var(--gelb-fg)">${n}</text>`).join("")}
+  </svg></div>`;
+}
+
+/* ===================== Views ===================== */
+const MAILS=[
+["Sports director","Stage 14: confirm line-up and tactics",`<p>Summit finish over 180 km, three climbs; the final one is 14 km long at 7.5 % on average. Remco is third, 1:12 behind yellow, Florian fourth.</p><p>My proposal: put Nico in the break so that we have a man up the road in the finale, and ride Florian's tempo on the last climb.</p>`,"vor","To race preparation"],
+["Team doctor","Jordi Meeus out for five days",`<p>Bruised wrist after the training crash. Nothing broken. Easy rides on the rollers from Monday, racing at the Deutschland Tour at the earliest.</p>`,"plan","Adjust the programme"],
+["Jan Tratnik's agent","Contract ends in 2026",`<p>Jan wants clarity before the Vuelta. He expects a one-year extension on the same terms. Two other teams have asked about him.</p>`,"trans","Open negotiation"],
+["Coach","Development report July",`<p>Giulio Pellizzari: mountain +1 after the altitude camp. Laurence Pithie is stagnating; he lacks race days on the cobbles.</p>`,"train","To training"],
+["Main sponsor","Season goals so far",`<p>Tour podium: on track. Tour stage win: open. Top 3 of the UCI team ranking: currently 4th.</p>`,"ziele","View goals"]];
+// Classifications after the stage as switchable tables, like on a results site.
+let bt="Stage";
+const WERT={
+ General:["#f7d417","Time",[["Tadej Pogačar","UAE","57:06:39"],["Jonas Vingegaard","TVL","+0:49"],[0,"RBH","+1:33"],[2,"RBH","+2:26"],["Paul Seixas","DAT","+3:58"],["João Almeida","UAE","+4:40"],["Matteo Jorgenson","TVL","+6:12"],[3,"RBH","+7:05"]]],
+ Points:["#2fa866","Points",[["Jonathan Milan","LTK","248"],["Tim Merlier","SOQ","201"],["Tadej Pogačar","UAE","176"],["Wout van Aert","TVL","141"],["Biniam Girmay","NSN","120"]]],
+ Mountains:["#e2333a","Points",[["Lenny Martinez","TBV","61"],["Tadej Pogačar","UAE","54"],[11,"RBH","38"],["Jonas Vingegaard","TVL","36"],["Michael Storer","TUD","30"]]],
+ Youth:["#ffffff","Time",[["Paul Seixas","DAT","57:10:37"],["Isaac del Toro","UAE","+1:12"],["Lenny Martinez","TBV","+6:20"],["Oscar Onley","IGD","+9:02"]]],
+ Teams:["#8a84b5","Time",[["UAE Team Emirates","","171:40:12"],["Red Bull – BORA – hansgrohe","","+3:15",1],["Visma | Lease a Bike","","+5:02"],["Decathlon","","+14:30"]]]};
+function wertTabs(){
+  const tabs=["Stage",...Object.keys(WERT)];
+  let h=`<div class="chips">${tabs.map(t=>`<button class="chip" data-bt="${t}" aria-pressed="${t===bt}">${WERT[t]?`<span class="dot" style="background:${WERT[t][0]}"></span>`:""}${t}</button>`).join("")}</div>`;
+  if(WERT[bt]){const w=WERT[bt];h+=`<div class="scroll"><table><tr><th></th><th>${bt==="Teams"?"Team":"Rider"}</th><th>${bt==="Teams"?"":"Team"}</th><th class="num">${w[1]}</th></tr>${w[2].map((x,i)=>`<tr class="${typeof x[0]==="number"||x[3]?"own":""}"><td>${i+1}</td><td>${typeof x[0]==="number"?rlink(x[0]):x[0]}</td><td class="mut">${x[1]}</td><td class="num">${x[2]}</td></tr>`).join("")}</table></div>`;}
+  return h;
+}
+const S={
+post:()=>{const m=MAILS[mailSel];return `<div class="mail"><ul class="box" style="padding:0;gap:0">${MAILS.map((x,i)=>`<li><button data-m="${i}" aria-current="${i===mailSel}"><span class="lbl">${x[0]}</span><span>${x[1]}</span></button></li>`).join("")}</ul>
+ <div class="box"><span class="lbl">${m[0]}</span><h3>${m[1]}</h3>${m[2]}<div><button class="chip" data-s="${m[3]}" style="border-color:var(--gold);color:var(--gold)">${m[4]} ▸</button></div></div></div>
+ <div class="cols"><div class="box"><span class="lbl">General classification after stage 13</span><table><tr><td>1</td><td>Tadej Pogačar</td><td class="num">52:14:08</td></tr><tr><td>2</td><td>Jonas Vingegaard</td><td class="num">+0:41</td></tr><tr class="own"><td>3</td><td>${rlink(0)}</td><td class="num">+1:12</td></tr><tr class="own"><td>4</td><td>${rlink(2)}</td><td class="num">+2:05</td></tr></table></div>
+ <div class="box"><span class="lbl">Coming up</span><dl class="kv"><dt>18 Jul</dt><dd>Tour, stage 14 (summit finish)</dd><dt>20 Jul</dt><dd>Rest day, contract talk with Tratnik</dd><dt>1 Aug</dt><dd>Transfer window opens</dd><dt>22 Aug</dt><dd>Vuelta a España, start</dd></dl></div>
+ <div class="box"><span class="lbl">Money</span><dl class="kv"><dt>Season budget</dt><dd>€48.0m</dd><dt>Wages</dt><dd>€31.4m</dd><dt>Free for transfers</dt><dd class="a3">€3.2m</dd></dl></div></div>`},
+
+kader:()=>{const V={attr:["Attributes",["Type",...A]],form:["Form & load",["Form","Freshness","Race days","Morale","Next race"]],vert:["Contracts",["Age","Contract to","Wage","Potential"]]};
+ const row=(r,i)=>view==="attr"?`<td>${r[3]}</td>`+r.slice(4,12).map(v=>`<td class="num ${ac(v)}">${v}</td>`).join(""):
+  view==="form"?`<td>${meter(r[12])}</td><td>${meter(r[13])}</td><td class="num">${r[14]}</td><td>${r[18]}</td><td>${r[19]}</td>`:
+  `<td class="num">${r[2]}</td><td class="num ${r[15]===2026?"a4":""}">${r[15]}</td><td class="num">${eur(r[16])}</td><td>${stars(r[17])}</td>`;
+ return `<div class="chips">${Object.entries(V).map(([k,v])=>`<button class="chip" data-v="${k}" aria-pressed="${k===view}">${v[0]}</button>`).join("")}<span class="chip mut">+ own view</span><span class="chip mut">Filter: all rider types</span></div>
+ <div class="scroll"><table><tr><th>Rider</th><th>Nat</th>${V[view][1].map(h=>`<th class="${view==="attr"&&h!=="Type"||h==="Race days"||h==="Age"||h==="Wage"||h==="Contract to"?"num":""}">${h}</th>`).join("")}</tr>
+ ${R.map((r,i)=>`<tr><td>${rlink(i)}</td><td class="mut">${r[1]}</td>${row(r,i)}</tr>`).join("")}</table></div>
+ <p class="small mut">FL flat · MO mountain · HI hills · TT time trial · SP sprint · CO cobbles · STA stamina · REC recovery. Scale as in PCM (50–85), green from 72, yellow from 78.</p>`},
+
+profil:()=>{const r=R[prof];
+ let fit=[],fat=[];for(let d=0;d<90;d++){fit.push(62+d*.22+3*Math.sin(d/9));fat.push(55+d*.2+13*Math.sin(d/5.5)+(d>75?8:0));}
+ const X=d=>30+d/89*560,Y=v=>140-(v-20)/90*125,L=a=>a.map((v,d)=>X(d)+","+Y(v)).join(" ");
+ return `<div class="cols"><div class="box"><h3>${r[0]}</h3><dl class="kv"><dt>Nation</dt><dd>${r[1]}</dd><dt>Age</dt><dd>${r[2]}</dd><dt>Rider type</dt><dd>${r[3]}</dd><dt>Contract</dt><dd>to ${r[15]} · ${eur(r[16])}</dd><dt>Potential</dt><dd>${stars(r[17])}</dd><dt>Morale</dt><dd>${r[18]}</dd><dt>Promise</dt><dd>${prof===0?"Leader at the Tour":prof===2?"Free role in the mountains":"none"}</dd></dl></div>
+ <div class="box"><span class="lbl">Attributes</span><table>${A.map((a,i)=>`<tr><td>${["Flat","Mountain","Hills","Time trial","Sprint","Cobbles","Stamina","Recovery"][i]}</td><td class="num ${ac(r[4+i])}">${r[4+i]}</td><td><span class="meter"><i style="width:${(r[4+i]-45)*2.4}%"></i></span></td></tr>`).join("")}</table></div>
+ <div class="box"><span class="lbl">Season 2026</span><dl class="kv"><dt>Race days</dt><dd>${r[14]}</dd><dt>Wins</dt><dd>${prof===0?7:prof<4?2:0}</dd><dt>UCI points</dt><dd>${Math.round(r[5]*r[12]/3.1)}</dd><dt>Season goals</dt><dd>${r[19]}</dd></dl><span class="lbl">Development (12 months)</span><p class="small">${r[2]<26?"Still rising: mountain +2, time trial +1":r[2]>32?"Declining: sprint −1, recovery −1":"At his peak, values stable"}</p></div></div>
+ <div class="box"><span class="lbl">Form curve · last 90 days</span><div class="scroll"><svg viewBox="0 0 600 160" style="min-width:480px;width:100%;display:block" role="img" aria-label="Fitness, fatigue and form over 90 days">
+ ${[40,60,80,100].map(v=>`<line x1="30" x2="590" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="24" y="${Y(v)+4}" font-size="10" text-anchor="end" fill="var(--mut)">${v}</text>`).join("")}
+ <polyline points="${L(fit)}" fill="none" stroke="var(--blau)" stroke-width="2"/><polyline points="${L(fat)}" fill="none" stroke="var(--rot)" stroke-width="1.5"/><polyline points="${L(fit.map((v,d)=>v-fat[d]+60))}" fill="none" stroke="var(--gold)" stroke-width="2"/>
+ <text x="30" y="156" font-size="10" fill="var(--mut)">19 Apr</text><text x="590" y="156" font-size="10" text-anchor="end" fill="var(--mut)">18 Jul</text></svg></div>
+ <div class="jerseys small"><span><span class="dot" style="background:var(--blau)"></span>Fitness (long term)</span><span><span class="dot" style="background:var(--rot)"></span>Fatigue (short term)</span><span><span class="dot" style="background:var(--gold)"></span>Form = fitness − fatigue, shifted</span></div></div>`},
+
+plan:()=>{const cum=[0,31,59,90,120,151,181,212,243,273,304,334],doy=(m,d)=>cum[m-1]+d,pc=v=>(v/365*100).toFixed(2)+"%";
+ const RC={tdu:["TDU",1,20,1,25,"sr"],uae:["UAE",2,16,2,22,"sr"],pn:["Paris–Nice",3,8,3,15,"sr"],msr:["MSR",3,21,3,21,"kl"],rvv:["Ronde",4,5,4,5,"kl"],pr:["Roubaix",4,12,4,12,"kl"],ard:["Ardennes",4,19,4,26,"kl"],giro:["Giro d'Italia",5,8,5,31,"gt"],dau:["Dauphiné",6,7,6,14,"sr"],tds:["Suisse",6,14,6,21,"sr"],tdf:["Tour de France",7,4,7,26,"gt"],dt:["D-Tour",8,19,8,23,"sr"],vue:["Vuelta a España",8,22,9,13,"gt"],wm:["Worlds",9,20,9,27,"wm"],lom:["Lombardia",10,10,10,10,"kl"]};
+ const P=[["uae","pn","dau","tdf","wm","lom"],["tdu","giro","vue"],["pn","ard","dau","tdf","lom"],["uae","giro","tdf"],["uae","giro","vue"],["pn","tds","tdf"],["pn","ard","tds","vue","lom"],["tdu","msr","rvv","pr","giro","dt"],["tdu","msr","rvv","pr","giro","dt"],["tdu","msr","rvv","pr","tds","dt"],["msr","rvv","pr","dau","tdf"],["pn","rvv","pr","dau","tdf"],["uae","giro","tdf"],["pn","ard","dau","tdf"],["tdu","giro","vue"],["uae","ard","tds","vue"]];
+ const bar=k=>{const c=RC[k],a=doy(c[1],c[2]),b=doy(c[3],c[4])+1;return `<b class="c-${c[5]}" style="left:${pc(a)};width:${pc(b-a)}" title="${c[0]}">${b-a>6?c[0]:""}</b>`};
+ const grid=cum.map(v=>`<i style="left:${pc(v)}"></i>`).join("")+`<span class="today" style="left:${pc(doy(7,18))}"></span>`;
+ return `<div class="chips"><span class="pill y">Grand Tour</span><span class="pill b">Stage race</span><span class="pill r">One-day race</span><span class="pill g">Championship</span><span class="chip mut">Take the sports director's proposal</span></div>
+ <div class="scroll"><div class="gantt">
+ <div class="grow"><span class="lbl">Rider</span><div class="track">${cum.map((v,i)=>`<em style="left:calc(${pc(v)} + 4px)">${["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][i]}</em>`).join("")}</div><span class="lbl" style="text-align:right;padding-right:6px">Days</span></div>
+ ${R.map((r,i)=>{const days=P[i].reduce((s,k)=>s+doy(RC[k][3],RC[k][4])-doy(RC[k][1],RC[k][2])+1,0);return `<div class="grow"><span>${rlink(i)}</span><div class="track">${grid}${P[i].map(bar).join("")}</div><span style="text-align:right;padding-right:6px;font-variant-numeric:tabular-nums" class="${days>70?"a4":""}">${days}</span></div>`}).join("")}
+ </div></div>
+ <div class="cols"><div class="box"><span class="lbl">Warnings</span><ul class="tick" style="gap:4px"><li style="grid-template-columns:1fr">Giro + Tour for Jai Hindley: only 34 days between them, freshness at the Tour start expected at 61 %.</li><li style="grid-template-columns:1fr">Tour de Suisse: only 6 of 7 places filled.</li><li style="grid-template-columns:1fr">Meeus, van Poppel and Pithie ride identical programmes. No sprinter for the Vuelta.</li></ul></div>
+ <div class="box"><span class="lbl">Peaks</span><p class="small">Up to three season goals per rider. Training and racing are planned backwards from the goal; the simulation derives form from fitness and fatigue, not from a fixed bonus.</p></div></div>
+ <p class="small mut">Red line: today. Dates rounded, programmes made up. In the game rows and bars are edited by dragging.</p>`},
+
+vor:()=>{const L=[[0,"Leader"],[2,"Co-leader"],[3,"Climbing domestique"],[5,"Climbing domestique"],[13,"Climbing domestique"],[11,"Breakaway"],[12,"Pace setter"],[10,"Domestique"]],
+ roles=["Leader","Co-leader","Protected rider","Stage hunter","Sprinter","Lead-out","Sprint train","Climbing domestique","Pace setter","Breakaway","Road captain","Jersey hunter","Domestique","Free role"],
+ ord=["Normal","Save energy","Attack on the last climb","Go in the break","Sacrifice for the leader"];
+ return `<div class="box"><div style="display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:space-between;align-items:baseline"><h3>Tour de France · Stage 14 · Summit finish</h3><span class="mut small">180 km · 4,650 m climbing · 24 °C, dry, light headwind in the finale · light blue: open to the wind</span></div>${profile()}</div>
+ <div class="cols" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+ <div class="box"><span class="lbl">Line-up and roles</span><div class="scroll"><table><tr><th>Rider</th><th>Form</th><th>Role</th><th>Order</th></tr>${L.map(([i,ro],n)=>`<tr><td>${rlink(i)}</td><td>${meter(R[i][12])}</td><td><select id="role${n}" aria-label="Role ${R[i][0]}">${roles.map(x=>`<option${x===ro?" selected":""}>${x}</option>`).join("")}</select></td><td><select id="ord${n}" aria-label="Order ${R[i][0]}">${ord.map((x,k)=>`<option${(ro==="Breakaway"&&k===3)||(ro==="Co-leader"&&k===2)?" selected":""}>${x}</option>`).join("")}</select></td></tr>`).join("")}</table></div></div>
+ <div class="box"><span class="lbl">Tour plan · set before the start</span><p class="small">General classification with Evenepoel, Lipowitz as co-leader. Stage hunting for Denz and van Dijke on transition days. In the first car: the sports director with tactics 17, race reading 15.</p><span class="lbl">Different today</span>
+  ${[["Approach",["Wait","Control the pace","Make the race hard"],2],["Breakaway",["Ignore","Get a man in","Bring it back"],1],["Finale",["Ride for the leader","Two cards","Stage win before GC"],1],["Risk",["Low","Medium","High"],1]].map(([t,o,s])=>`<div><p class="small mut">${t}</p><div class="chips">${o.map((x,k)=>`<button class="chip" data-grp="1" aria-pressed="${k===s}">${x}</button>`).join("")}</div></div>`).join("")}
+  <p class="small mut">Templates: "Summit finish, attacking", "Sprint stage", "Limit the losses". Own templates can be saved.</p></div>
+ <div class="box"><span class="lbl">Forecast · quick runs with these tactics · rough tendency</span>
+  ${[["Pogačar",41,0],["Vingegaard",22,0],["Evenepoel",12,1],["Lipowitz",7,1],["Breakaway",11,0],["Others",7,0]].map(([n,p,o])=>`<div class="prob ${o?"own":""}"><span>${n}</span><span class="b"><i style="width:${p*2}%"></i></span><span class="num" style="text-align:right">${p} %</span></div>`).join("")}
+  <dl class="kv small" style="margin-top:6px"><dt>Evenepoel loses time on yellow</dt><dd>58 %</dd><dt>Expected gap</dt><dd>+0:14 (−0:35 to +1:05)</dd><dt>Denz makes the break</dt><dd>46 %</dd></dl></div></div>`},
+
+funk:()=>`<div class="box"><div style="display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:space-between;align-items:baseline"><h3>Stage 14 · km 131 of 180</h3><span class="mut small">Simulation paused · the radio can be switched off in the settings</span></div>${profile([[12,1],[96,2],[131,3]])}</div>
+ <div class="cols" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+ <div class="box"><span class="lbl">So far</span><ul class="tick">
+  <li><span class="no">1</span><span class="km">km 12</span><span>Nine riders get away, <b>Denz</b> among them.</span></li>
+  <li><span class="no">2</span><span class="km">km 96</span><span>Largest gap of the break: 4:10. UAE controls.</span></li>
+  <li><span class="no">3</span><span class="km">km 131</span><span>Foot of the penultimate climb. The break still has 3:40, 70 riders in the bunch.</span></li></ul></div>
+ <div class="box"><span class="lbl">Radio · sports director, car 1</span>
+  <p>"Break has 3:40, Nico is sitting well in it. UAE ride with three men, Visma stay out of it. Remco says he has good legs, Florian wants to try on the final climb. If we ride now, Pogačar has fewer helpers at the top. But Jan and Giovanni will be done after that."</p>
+  <p class="small mut">Assessment (race reading 15): the break will probably be caught. A better sports director gives more precise assessments and more options.</p>
+  <div class="chips"><button class="chip" data-s="bericht">Ride tempo</button><button class="chip" data-s="bericht">Wait</button><button class="chip" data-s="bericht">Call Nico back</button><button class="chip" data-s="bericht">DS decides</button></div></div></div>`,
+
+bericht:()=>`<div class="box"><div style="display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:space-between;align-items:baseline"><h3>Stage 14 · Result</h3><span class="mut small">Simulated in 4.1 s · seed 814402 · <span class="chip">What if …</span></span></div>${profile([[12,1],[96,2],[131,3],[168,4],[174,5],[180,6]])}</div>
+ <div class="cols" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+ <div class="box"><span class="lbl">Key moments</span><ul class="tick">
+  <li><span class="no">1</span><span class="km">km 12</span><span>Nine riders get away, <b>Denz</b> among them.</span></li>
+  <li><span class="no">2</span><span class="km">km 96</span><span>Largest gap of the break: 4:10. UAE controls.</span></li>
+  <li><span class="no">3</span><span class="km">km 131</span><span><b>Tratnik</b> and <b>Aleotti</b> raise the pace on the penultimate climb, the bunch shrinks to 22 riders.</span></li>
+  <li><span class="no">4</span><span class="km">km 168</span><span>Denz drops back and pulls <b>Lipowitz</b> for 2 km.</span></li>
+  <li><span class="no">5</span><span class="km">km 174</span><span>Pogačar attacks. Vingegaard follows, <b>Evenepoel</b> rides his own tempo.</span></li>
+  <li><span class="no">6</span><span class="km">Finish</span><span><b>Lipowitz</b> closes up to Evenepoel, both limit the loss to 21 s.</span></li></ul></div>
+ <div class="box">${wertTabs()}<div class="scroll" ${bt==="Stage"?"":"hidden"}><table><tr><th></th><th>Rider</th><th>Team</th><th class="num">Time</th></tr>
+  ${[["Tadej Pogačar","UAE","4:52:31"],["Jonas Vingegaard","TVL","+0:08"],[0,"RBH","+0:21"],[2,"RBH","+0:21"],["Paul Seixas","DAT","+0:47"],["João Almeida","UAE","+0:47"],["Matteo Jorgenson","TVL","+1:02"],[3,"RBH","+1:30"],["Oscar Onley","IGD","+1:30"],["Lenny Martinez","TBV","+1:58"]].map((x,i)=>`<tr class="${typeof x[0]==="number"?"own":""}"><td>${i+1}</td><td>${typeof x[0]==="number"?rlink(x[0]):x[0]}</td><td class="mut">${x[1]}</td><td class="num">${x[2]}</td></tr>`).join("")}</table></div>
+  <div class="jerseys"><span><span class="dot" style="background:#f7d417"></span>Pogačar</span><span><span class="dot" style="background:#2fa866"></span>Milan</span><span><span class="dot" style="background:#e2333a"></span>L. Martinez</span><span><span class="dot" style="background:#fff"></span>Seixas</span></div></div>
+ <div class="box"><span class="lbl">Race report</span><h4>Pogačar strikes on the final climb, Red Bull limit the damage</h4>
+  <p class="small">Tadej Pogačar won the 14th stage and extended his lead. The Slovenian went clear six kilometres from the finish; only Jonas Vingegaard could follow and lost eight seconds in the sprint.</p>
+  <p class="small">Red Bull had made the race hard themselves on the penultimate climb. Tratnik and Aleotti cut the bunch down to 22 riders before Nico Denz dropped back from the break and led Florian Lipowitz into the final climb. Remco Evenepoel did not go with Pogačar's attack, rode his own tempo and finished together with Lipowitz, 21 seconds behind the winner.</p>
+  <span class="lbl">Sports director's analysis</span><table>
+  <tr><td>${rlink(0)}</td><td class="num a3">7.8</td></tr><tr><td colspan="2" class="small mut" style="white-space:normal">Form on the day 94 %. Steep ramps above 9 % cost him 13 s on Pogačar; without the pace work on the penultimate climb it would have been 30 s.</td></tr>
+  <tr><td>${rlink(2)}</td><td class="num a3">8.1</td></tr><tr><td colspan="2" class="small mut" style="white-space:normal">Profited from Denz as a relay. Order "Attack on the last climb" not carried out: freshness too low (69 %).</td></tr>
+  <tr><td>${rlink(11)}</td><td class="num a4">8.6</td></tr><tr><td colspan="2" class="small mut" style="white-space:normal">Tactic "Get a man in the break" worked. Most combative rider of the day.</td></tr></table>
+  <dl class="kv small"><dt>Sponsor goal stage win</dt><dd>still open</dd><dt>UCI points today</dt><dd>+95</dd><dt>Prize money</dt><dd>+€9,300</dd></dl></div></div>`,
+
+train:()=>`<div class="scroll"><table><tr><th>Group</th><th>Riders</th><th>Focus</th><th>Load</th><th>Coach</th><th>Until</th></tr>
+ ${[["Tour squad","8 (racing)","Maintain","race","—","26 Jul"],["Vuelta build-up","Roglič, Pellizzari, Zwiehoff, Fisher-Black","Mountain · altitude camp Livigno","high","Coach A (mountain 17)","8 Aug"],["Classics group","Pithie, van Poppel","Sprint, acceleration","medium","Coach B (sprint 15)","16 Aug"],["Rehab","Meeus","Rollers, easy","low","Team doctor","23 Jul"],["Own plan","Van Gils","Hills, explosiveness","medium","Coach A","24 Jul"]].map(r=>`<tr>${r.map((c,i)=>`<td style="${i===1?"white-space:normal":""}">${i===3?`<span class="pill ${c==="high"?"r":c==="medium"?"y":c==="low"?"g":"b"}">${c}</span>`:c}</td>`).join("")}</tr>`).join("")}</table></div>
+ <div class="cols"><div class="box"><span class="lbl">Training camps</span><dl class="kv"><dt>Livigno (1,800 m)</dt><dd>20 Jul–8 Aug · 4 riders · €38,000</dd><dt>Sierra Nevada</dt><dd>bookable from 10 Nov</dd><dt>Mallorca</dt><dd>December, whole team</dd></dl></div>
+ <div class="box"><span class="lbl">Effect</span><p class="small">The focus decides which attribute grows. Load raises fitness but costs freshness, and hard training makes a tired rider prone to infections. Altitude camps work best two to three weeks after they end. Coach quality and the training centre scale the gain.</p></div>
+ <div class="box"><span class="lbl">Delegate</span><p class="small">Every group can be left to the coach. He then plans backwards from the riders' season goals, and you get only the monthly report.</p></div></div>`,
+
+trans:()=>`<div class="chips"><button class="chip" data-grp="1" aria-pressed="true">Shortlist</button><button class="chip" data-grp="1" aria-pressed="false">Negotiations (1)</button><button class="chip" data-grp="1" aria-pressed="false">Expiring contracts (2)</button><button class="chip" data-grp="1" aria-pressed="false">Offers for my riders</button></div>
+ <div class="scroll"><table><tr><th>Rider</th><th>Team</th><th class="num">Age</th><th>Type</th><th>Mountain (scout)</th><th>Potential</th><th class="num">Contract to</th><th class="num">Asking</th><th>Interest</th><th>Status</th></tr>
+ ${[["Jarno Widar","Lotto",20,"Climber","73–77",5,2027,"€0.9m",78,"Scouted 80 %","g"],["Matthew Brennan","Visma",21,"Sprinter","60–66",5,2028,"€1.4m",35,"Not interested","r"],["Paul Magnier","Soudal",22,"Sprinter","58–62",5,2027,"€1.6m",52,"Agent contacted","y"],["Oscar Onley","Ineos",23,"Climber","78–79",4,2028,"€2.8m",41,"Scouted 100 %","g"],["Isaac del Toro","UAE",22,"Stage racer","79–80",5,2029,"—",12,"Not for sale","r"]].map(r=>`<tr><td>${r[0]}</td><td class="mut">${r[1]}</td><td class="num">${r[2]}</td><td>${r[3]}</td><td>${r[4]}</td><td>${stars(r[5])}</td><td class="num">${r[6]}</td><td class="num">${r[7]}</td><td>${meter(r[8])}</td><td><span class="pill ${r[10]}">${r[9]}</span></td></tr>`).join("")}</table></div>
+ <div class="cols"><div class="box"><span class="lbl">Negotiation · Jan Tratnik (extension)</span><dl class="kv"><dt>Wage</dt><dd>€0.7m <span class="mut">(asks 0.7)</span></dd><dt>Length</dt><dd>1 year</dd><dt>Role</dt><dd>Road captain, domestique</dd><dt>Promise</dt><dd>A Grand Tour start</dd><dt>Agent's mood</dt><dd>${meter(72)}</dd></dl><div class="chips"><span class="chip">Send offer</span><span class="chip mut">Think it over</span></div></div>
+ <div class="box"><span class="lbl">Squad planning 2027</span><dl class="kv"><dt>Under contract</dt><dd>24 of max. 30</dd><dt>Wage bill 2027</dt><dd>€27.9m</dd><dt>Gap according to analysis</dt><dd>Second sprinter, time trial helper</dd><dt>Stagiaires from 1 Aug</dt><dd>2 places free</dd></dl></div></div>`
+};
+const PH={kal:["Day view of every race in the world","Month grid with own starts, training camps, contract deadlines","A click on another team's race opens its start list and result"],
+staff:["Sports directors, coaches, doctors, scouts, mechanics and physios with their own values","Who plans training, who runs which race","Staff market and contract lengths"],
+mat:["Supplier deals for frames, wheels, tyres and time trial bikes from real brands","Small bonuses by terrain instead of a complex construction kit","Tyre and time trial bike choice before each race"],
+rang:["UCI individual, team and nation rankings","Three-year ranking for the licences","Race history, winners, records"],
+scout:["Send scouts to regions or races","Values of other riders as ranges that narrow as the scouting goes on","Reports with a recommendation and a comparison with the own squad"],
+nach:["Development team with its own calendar","Stagiaires from August","A yearly intake of new, generated talents; young riders signed on the market"],
+fin:["Budget, wages, prize money, travel and facilities month by month","Sponsor deals with length and goals","Facilities with five levels, built up over months"],
+ziele:["Season goals of sponsor and board with weights","A confidence bar that decides on budget and job","Long-term vision: keep the licence, win a Grand Tour, develop youth"]};
+teamChips();
+function placeholder(s){return `<div class="box"><span class="lbl">Not sketched · planned content</span><ul style="margin:0;padding-left:20px">${(PH[s]||[]).map(x=>`<li>${x}</li>`).join("")}</ul></div>`}
+show("post");
+
+/* ===================== Requirements ===================== */
+// Id, requirement, priority, status in 0.3.1 alpha.
+const REQ=[
+["Data and game world",[
+["D-01","Import of the WorldDB 2026 (Steam Workshop mod for PCM 26) into an own data model (SQLite): riders, teams, races, stages, contracts, sponsors, staff. The importer is an exchangeable adapter; the game knows only its own schema.","Must","done"],
+["D-02","Jerseys, team logos and rider photos as image files. Where an image is missing, the game draws a placeholder jersey from the team colours.","Must","done"],
+["D-03","The WorldDB lies as a copy in the game folder (<code>worlddb/</code>) and is imported from there. The game is not published, so the data need not be shipped separately.","Must","done"],
+["D-04","Every stage has a 2D profile as a list of points (kilometre, altitude) with climbs, sprints and surface. The first source are the stage files of the WorldDB; ProCyclingStats or FirstCycling fill gaps.","Must","done"],
+["D-05","Every season brings an intake of generated young riders, so that the world is not empty after ten years.","Should","done"],
+["D-06","Built-in editor for rider values, teams and calendar; a new WorldDB version can be loaded between two seasons.","Should","open"],
+["D-07","Routes for later seasons: races switch between the year variants on hand (the WorldDB holds many races in their 2021 to 2026 versions).","Should","done"],
+["D-08","Real results of the seasons as a reference for the calibration, not part of the game.","Must","done"]]],
+["Team management",[
+["T-01","Squad table with selectable column sets, filters, sorting and rider comparison.","Must","done"],
+["T-02","Rider attributes as in the WorldDB (flat, mountain, hills, time trial, prologue, cobbles, sprint, acceleration, downhill, breakaway, stamina, resistance, recovery), plus potential, rider type, height and weight.","Must","done"],
+["T-03","Training: focus per rider or group, load level (also for the whole squad at once), training camps including altitude.","Must","done"],
+["T-04","Form comes from fitness and fatigue. Season goals per rider steer the build-up.","Must","done"],
+["T-05","Development by age curve, potential, training quality, facilities and racing; decline from about 30.","Must","done"],
+["T-06","Contracts with length, wage, role and promises; extensions.","Must","done"],
+["T-07","Transfers in the real rhythm: talks from 1 August, moves at the turn of the year, stagiaires, negotiation with the agent.","Must","done"],
+["T-08","Sports directors with their own values (tactics, race reading, motivation, experience per race type). They decide how well the tactics are carried out in the simulated race, how the team reacts to race situations and how precise the radio is.","Must","done"],
+["T-09","More staff with values: coaches, doctors, scouts, mechanics, physiotherapists.","Should","done"],
+["T-10","Scouting: values of other riders are ranges that only scouts make precise.","Should","done"],
+["T-11","Injuries, illness and crash consequences with lay-offs.","Should","done"],
+["T-12","Morale and contentment, depending on role, starts, results and kept promises.","Should","done"],
+["T-13","Development team with its own calendar, filled from the academy and the market.","Should","done"],
+["T-14","Equipment and suppliers as small bonuses by terrain.","Could","done"],
+["T-15","Facilities (training, medical, scouting, sports science, academy) with levels, upkeep and building time.","Could","done"]]],
+["Race planning and simulation",[
+["R-01","Season calendar with every race of the WorldDB, from the WorldTour through the ProSeries and .1 down to the .2 races. Compulsory starts for WorldTeams, invitations and wildcards below.","Must","done"],
+["R-02","Race programme as a rider × race matrix, with warnings for clashes, too many race days and empty places.","Must","done"],
+["R-03","Line-up per race with roles, see the list of roles below.","Must","done"],
+["R-04","Tactics on two levels: a race plan before the start (for a stage race the whole race: goals, leaders, who hunts stages when) and small changes per stage. Without intervention the plan applies.","Must","done"],
+["R-05","Simulation of every stage of every race in the world, also without the own team at the start.","Must","done"],
+["R-06","Realism is measured: WorldTour calendars and routes are simulated and compared with the real results (group sizes, time gaps, speed, breakaway success, favourites' wins), plus a check of the race course against press reports.","Must","done"],
+["R-07","Race report with result, all classifications and key moments on the profile. After every stage the stage, general, points, mountains, youth and team classifications are switchable tables, as on a results site. The text reads like a neutral press report; the reasons for the own riders' results are in the report and in a short analysis by the sports director.","Must","done"],
+["R-08","All classifications, time limit, UCI points and rankings. Points scales come from the WorldDB.","Must","done"],
+["R-09","Radio: the simulation stops at most two to three times per stage, the sports director describes the situation and offers options. Can be switched off; then he decides himself.","Should","done"],
+["R-10","Forecast before the start from a few quick runs with the chosen tactics, as a rough tendency.","Should","done"],
+["R-11","Weather, crashes, punctures and echelons as events; crosswind only on open roads.","Should","done"],
+["R-12","What if: re-run a stage outside the career with another seed, line-up or tactics.","Should","done"]]],
+["Finances, sponsors, career",[
+["V-01","Career start: take over an existing team.","Must","done"],
+["V-02","Budget from sponsor money and prize money; spending on wages, staff, camps, travel and facilities.","Must","done"],
+["V-03","Season goals of sponsor and board; a confidence value decides on the budget.","Must","done"],
+["V-04","Career start: found an own team (name, colours, jersey, country, sponsor, licence), squad from free riders and transfers.","Should","done"],
+["V-05","Licence system with promotion and relegation through the three-year ranking.","Should","done"],
+["V-06","Sponsor search and negotiation when a deal runs out.","Should","done"],
+["V-07","Job changes and dismissal as an option at the career start. Default: off, you stay with your team.","Could","open"]]],
+["Flow and interface",[
+["B-01","Day-by-day progress through a single \"Continue\" button. It stops when a decision is open.","Must","done"],
+["B-02","The inbox is the hub: every message leads to the right view with one click.","Must","done"],
+["B-03","Save, load, autosave, several careers.","Must","done"],
+["B-04","The simulation runs in the background with progress; finished races can be read while others are still computing.","Must","done"],
+["B-05","The whole interface is tinted in the own team's colours (strong sidebar, subtle surfaces and lines, accent for buttons).","Should","done"],
+["B-06","Every area can be delegated to staff (training, programme, line-up, contract renewals).","Should","done"],
+["B-07","Global search, back and forward, every row with a rider, team or race can be clicked.","Should","done"],
+["B-08","History: honours per rider, winners, records, own career record.","Should","partly"]]],
+["Quality",[
+["Q-01","Computing time is a budget for accuracy: a race day with five races may take about 20 s, a whole year about 1 h. That allows a step-by-step simulation with groups, drafting and energy instead of a result formula.","Must","done"],
+["Q-02","Every simulation is reproducible from a seed.","Must","done"],
+["Q-03","The simulation core runs without an interface, so that calibration and tests run automatically.","Must","done"],
+["Q-04","Usable from 1366 × 768, scalable to 4K.","Should","done"],
+["Q-05","Interface in English and German; English is the language of the sources, German a translation table, further languages are one table each.","Should","done"]]]];
+const ROLES=[
+["Leader","Rides for the team's main goal (general classification, win). Everybody else works for him."],
+["Co-leader","Second card. Rides along as long as it does not hurt the leader and takes over if he drops out."],
+["Protected rider","Kept out of the wind and need not work, but has no goal of his own. For young riders or plan B."],
+["Stage hunter","Loses time on purpose to go in the break on chosen days."],
+["Sprinter","Aims at the bunch sprint. Needs a train and positioning."],
+["Lead-out","Last man before the sprinter."],
+["Sprint train","Fights for position and rides tempo in the last kilometres."],
+["Climbing domestique","Stays with the leader on the climbs as long as possible, sets the pace or closes gaps. Only given on routes with real climbs."],
+["Pace setter","Controls the bunch on flat and rolling roads, brings back breaks. In cobbled races the best riders on the stones."],
+["Breakaway","Should go in the break: for the stage win or as a relay for the leader."],
+["Road captain","Experienced rider who carries out the tactics in the bunch. Raises the effect of the sports director."],
+["Jersey hunter","Collects mountain or sprint points."],
+["Domestique","Fetches bottles, shields, gives up his wheel after a puncture."],
+["Free role","Decides by his own race."]];
+const pcl={Must:"y",Should:"b",Could:""}, scl={done:"g",partly:"y",open:"r"};
+H($("#t-req"),`<div><h2>Aim</h2><p>A cycling management game in which every minute of play is a manager's decision. Races are not ridden but simulated. The result must be so plausible that it could pass for a real one, and the report so good that you see the race in front of you. The shape of a race (groups, breaks, gaps) matters more than the right winner.</p></div>
+<div><h3>Not part of the game</h3><ul><li>Controlling races yourself, 3D graphics</li><li>Pro mode as a single rider</li><li>Women's racing (there is no WorldDB for it)</li><li>Track, cyclo-cross, multiplayer</li></ul></div>`+
+REQ.map(g=>`<div><h3 style="margin-bottom:6px">${g[0]}</h3><div class="scroll"><table class="req">${g[1].map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td><span class="pill ${pcl[r[2]]}">${r[2]}</span></td><td><span class="pill ${scl[r[3]]}">${r[3]}</span></td></tr>`).join("")}</table></div></div>`).join("")+
+`<div><h3 style="margin-bottom:6px">Roles in the race (for R-03)</h3><div class="scroll"><table class="req">${ROLES.map(r=>`<tr><td style="color:var(--fg)">${r[0]}</td><td>${r[1]}</td></tr>`).join("")}</table></div><p class="small mut" style="margin-top:6px">Roles act in the simulation: they decide who spends energy when and who is saved. A role can change per stage (R-04). The status column shows the state in 0.3.1 alpha.</p></div>`);
+
+/* ===================== Ideas ===================== */
+H($("#t-ideen"),`<div><h2>Ideas, thought through</h2><p class="mut">Most of them are in the game now; see FEATURES.md for the details.</p></div><div class="ideas">${[
+["Race report like the press","Every stage gets a neutrally written report with a headline, the course of the race and its meaning, in the tone of a cycling site. It is put together from the events of the simulation. Why the own riders did as they did is in the text; the numbers behind it come in a short analysis by the sports director."],
+["Radio","The decisive moments come as a radio call from the team car: situation, voices of the riders, options. The sports director's values decide how precise his assessment is and how many options he offers. With the radio off, the calls still appear in the report, only without a question."],
+["Sports directors as key staff","In a game without race control the sports director is the long arm in the race. A good one reacts correctly to an echelon, a weak one lets the break go too far. Which director runs which race becomes a real planning question."],
+["What if","A stage that has been raced can be computed again outside the career: other seed, other line-up, other tactics. It shows whether a defeat was bad luck or a planning error, and it is the tool for balancing too."],
+["Forecast as a tendency","Before the start a few quick runs are made. The result is not a percentage to the decimal, but a classification: favourite, contender, outsider, plus the expected range for the own leader."],
+["Form as in real training","Fitness builds slowly, fatigue quickly, form is the difference. The model makes peaks, altitude camps and programmes that are too dense playable without special rules."],
+["Stage race plan with daily changes","Before a Grand Tour you decide who rides for the general classification, who is protected and on which stages who may go in the break. Before every stage you see only what the plan says for today and change single roles if needed."],
+["Promises and role conflicts","Two leaders, one Tour. Riders demand roles and starts in contract talks. Broken promises lower morale and push the rider towards a move."],
+["Points hunt for the licence","The three-year ranking decides on WorldTour licences. Because the small races are in the calendar too, a small team plans by points rather than prestige."],
+["Sponsors shape the calendar","A Belgian sponsor wants success in the classics, a Spanish one at the Vuelta. Goals come with weights and influence transfers and the programme."],
+["Delegate instead of compulsory clicks","Whoever wants to do only transfers and Grand Tours leaves the rest to the staff. The quality depends on their values."],
+["Facilities as a long-term choice","Training centre, medical centre, scouting, sports science and academy cost upkeep every season and months of building. Small effects that add up over years, and the same for every team."],
+["Analysis centre","Where does the team lose time, which rider type is missing, how expensive is a UCI point in the squad. Gives the reasons for the transfer planning."],
+["National coach","Worlds, Europeans and Olympics as a side job: selection from every rider of the nation, one line-up, one tactic."]
+].map(x=>`<div><h4>${x[0]}</h4><p class="small">${x[1]}</p></div>`).join("")}</div>`);
+
+/* ===================== Decisions and status ===================== */
+H($("#t-plan"),`<div><h2>Decisions</h2></div>
+<div class="scroll"><table class="req">
+<tr><td>Technology</td><td>Flutter for Windows, the simulation core as a separate Dart package without an interface, SQLite for the world data, save games as JSON. Reasons: a known stack, the core runs from the command line for the calibration, and Dart isolates compute the races of a day in parallel on all cores.</td></tr>
+<tr><td>Career start</td><td>Take over an existing team or found one. Job changes only as an option.</td></tr>
+<tr><td>Tactics</td><td>Race plan before the start, small changes per stage. Every team, the player's included, is raced by the same sports director logic; the player can overrule it by radio.</td></tr>
+<tr><td>Radio</td><td>In the game, can be switched off.</td></tr>
+<tr><td>Data</td><td>WorldDB 2026 as a copy in the project folder. Nothing is published, so game and data need not be separated.</td></tr>
+<tr><td>Computing time</td><td>About 20 s for a day with five races, about 1 h for a year.</td></tr>
+<tr><td>Calibration target</td><td>The race shape counts, not the winner: size of the winning group, gaps, speed, breakaway wins, favourites' wins, time lost by the GC riders. Calibrated on the WorldTour seasons 2023 to 2026.</td></tr>
+<tr><td>Language</td><td>English in the sources and as default, German as a translation table.</td></tr></table></div>
+
+<div><h3 style="margin-bottom:6px">What the WorldDB 2026 contains</h3><div class="scroll"><table class="req">
+<tr><td>OfficialRelease.cdb</td><td>1.1 MB, 7 MB unpacked. The database in Cyanide's format: zlib-compressed, with tables whose column names are plain text. Read directly with an own reader, without third-party tools.</td></tr>
+<tr><td>Stages/*.cds</td><td>3,328 stages in many year versions. Read are the altitude profile (a point every 200 m), start and finish, sprints, categorised climbs, climbs with gradient and cobbled sectors with difficulty. For 21 files only the profile can be read.</td></tr>
+<tr><td>Base game</td><td>The database refers to routes that partly lie only in the base game (among them the Tour and the Vuelta 2026). Its 1,132 stage files are unpacked. Together every one of the 1,336 stages of the database has a route, 426 of them in 2026; in the WorldTour 139 of 162.</td></tr>
+<tr><td>Gaps in the data</td><td>Wages and team budgets are empty, the rider type is missing for most riders, and sports directors do not exist as staff (only coaches, doctors, scouts and the team manager's name), nor do facilities. The game generates them.</td></tr>
+<tr><td>Stages/*.zces</td><td>14.7 GB of 3D routes. Not needed.</td></tr>
+<tr><td>Classifications/*.xml</td><td>182 files with points scales per race class.</td></tr>
+<tr><td>.pak archives</td><td>Jerseys, race logos and rider photos are extracted from them with Oodle decompression (<code>ooz.dll</code>).</td></tr></table></div></div>
+
+<div><h3>Profiles</h3><p>2D is enough. The simulation needs gradient, surface and the position of the classifications per section of road, nothing more, and the profiles are in the stage files of the WorldDB and the base game. Compass headings are not, so the wind comes from a random direction relative to the road; which roads are open to the wind follows from the landscape (flat land low in the plain, not climbs, valleys or high mountains).</p></div>
+
+<div><h2>Status</h2></div>
+<ol>
+<li><b>Data import (done).</b> Readers for the database, the stage files and the archives, the world database in SQLite, a database browser.</li>
+<li><b>Simulation core (done).</b> 200 m segments with power, weight, height, altitude and wind; groups, breaks, attacks, cobbles and gravel as their own model, team tactics with roles, gruppetto, weather, echelons, crashes and punctures, the 3 km rule, the time limit.</li>
+<li><b>Season loop (done).</b> Windows app with inbox, Continue button, race preparation, radio, race report with classifications, rankings and a calendar; championships are raced.</li>
+<li><b>Riders live (done).</b> Form from fitness and fatigue, training, development by age and potential, crashes and illness, personality, morale, standing, season goals and promises.</li>
+<li><b>Market and money (done, not balanced).</b> Wages and budgets from rider strength, transfer window from August, AI teams that renew, sign and promote, sponsors with goals, own team founding, prize money, facilities.</li>
+<li><b>Depth (done).</b> Staff with values, scouting with ranges, forecast, what if, licences, development teams, delegation, real equipment suppliers, team styles.</li>
+<li><b>0.3.0 alpha (released 14 Oct 2026).</b> Finer physics and race events, the same sports director logic for every team, comfort features throughout the interface.</li>
+<li><b>0.3.1 alpha (released 15 Oct 2026).</b> Race shape: riders sitting up on hard days, the gruppetto on hilly days, the shelter of the pace setters, breaks let go in stage races, crosswind only on open roads, courses that change from year to year; facilities; market fixes. Calibration error 7.65 to 6.61.</li>
+<li><b>A world over ten seasons (in progress).</b> A multi-season test plays seasons without a player and measures squad strength, age, youth, top riders, licences, morale and money.</li>
+</ol>
+<p class="small mut">The detailed plan is in ROADMAP.md, the changes in CHANGELOG.md, all features in FEATURES.md.</p>
+
+<div><h3 style="margin-bottom:6px">Risks</h3><div class="scroll"><table class="req">
+<tr><td>Credibility of the simulation</td><td>The biggest one. That is why the measures and the comparison with real results came before the interface, and why every model change goes through the calibration.</td></tr>
+<tr><td>Balance over many seasons</td><td>Strength of the field, money and the market drift over the years. The multi-season test and the daily invariant check catch it.</td></tr>
+<tr><td>Real results</td><td>ProCyclingStats partly blocks automatic fetching; the results are stored once per season.</td></tr>
+<tr><td>Scope</td><td>A game in the style of Football Manager has very many views. New features come only with a test and a calibration check.</td></tr></table></div></div>`);
+</script>

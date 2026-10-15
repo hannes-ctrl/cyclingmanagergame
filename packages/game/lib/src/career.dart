@@ -8,6 +8,7 @@ import 'devteam.dart';
 import 'economy.dart';
 import 'entries.dart';
 import 'equipment.dart';
+import 'facilities.dart';
 import 'licence.dart';
 import 'people.dart';
 import 'planning.dart';
@@ -282,13 +283,14 @@ class Career {
     devTeam.teamId;
     staff.all.length; // create staff now, not on first access
     equipment.supply.length;
+    facilities.levels.length;
     _assignStyles();
     economy.openSeason();
     _buildCalendar();
   }
 
-  /// Season the career started in; fixed by the world database.
-  late final int _firstYear = year;
+  /// Season the career started in; saved with the licences.
+  int get _firstYear => licences.firstYear;
 
   /// European countries among the possible hosts.
   static const _hostsEurope = {
@@ -318,6 +320,36 @@ class Career {
     return hosts[(year - _firstYear - 1) % hosts.length];
   }
 
+  /// The routes a race uses this year. Races change their course from year
+  /// to year: the first season rides the routes of the database, every later
+  /// one goes through the courses of the other years the WorldDB holds for
+  /// the race (2021 to 2025, where they have as many stages as now) in an
+  /// order fixed per career, so that no course comes twice in a row. Dates,
+  /// country and the number of stages stay those of the calendar.
+  ///
+  /// @param info The race.
+  /// @param now Its stages as the database has them.
+  /// @returns The stages with this year's routes.
+  List<StageInfo> _routesOf(RaceInfo info, List<StageInfo> now) {
+    if (year == _firstYear) return now;
+    final years = world.routeYears(info.id);
+    final options = [
+      for (final e in years.entries)
+        if (e.value.length == now.length) e.key,
+    ]..sort();
+    if (options.isEmpty) return now;
+    options.shuffle(Random(seed * 131 + info.id));
+    // Null stands for the routes of the database.
+    final cycle = <int?>[null, ...options];
+    final pick = cycle[(year - _firstYear) % cycle.length];
+    if (pick == null) return now;
+    final routes = years[pick]!;
+    return [
+      for (final (i, s) in now.indexed)
+        StageInfo(routes[i].id, s.number, routes[i].name, s.month, s.day),
+    ];
+  }
+
   /// Builds the calendar of the current year from the world database.
   void _buildCalendar() {
     calendar.clear();
@@ -337,6 +369,8 @@ class Career {
         ];
         info = RaceInfo(info.id, info.name, info.abbr, info.raceClass,
             v.country, info.stages, info.startMonth, info.startDay);
+      } else {
+        stages = _routesOf(info, stages);
       }
       final days = [for (final s in stages) DateTime.utc(year, s.month, s.day)]
         ..sort();
@@ -550,6 +584,25 @@ class Career {
   /// choices for the race days.
   late final equipment = Equipment(this);
 
+  /// Factor on the development of a rider of a development team: the
+  /// academy of the professional team it belongs to.
+  double _academy(int teamId) {
+    final parent = devTeam.parentOf(teamId);
+    return parent == null ? 1.0 : facilities.academyDevelopment(parent);
+  }
+
+  /// Facilities of all teams.
+  late final facilities = Facilities(this);
+
+  /// Quality of a team's care for its riders in stage races, 0 to 1: its
+  /// physiotherapists and its sports science.
+  ///
+  /// @param teamId Id of the team.
+  /// @returns 0 to 1.
+  double recoveryQuality(int teamId) =>
+      (staff.physioQuality(teamId) + facilities.recoveryBonus(teamId))
+          .clamp(0.0, 1.0);
+
   /// Style of every team: how its sports directors race and build. Follows
   /// from the squad and is worked out again every season.
   final styles = <int, TeamStyle>{};
@@ -621,7 +674,7 @@ class Career {
       timeTrialBike: route.kind == StageKind.road ||
           equipment.timeTrialBikeFor(teamId, raceId, route),
       mechanics: staff.mechanicQuality(teamId),
-      physios: staff.physioQuality(teamId),
+      physios: recoveryQuality(teamId),
       style: styleOf(teamId),
     );
   }
@@ -1372,6 +1425,13 @@ class Career {
   /// Takes the result of a stage into the race and the rankings.
   void _stageEnd(_Day day, _DayStage stage, StageResult simulated) {
     final result = stage.race.run.finish(stage.job, simulated);
+    // The groups along the route are kept for the races of the player's
+    // team, for the stage in fast motion.
+    if (!result.placings.any((p) => p.rider.teamId == teamId)) {
+      for (final s in result.timeline) {
+        s.groups = const [];
+      }
+    }
     // Power figures are kept for the player's riders and the first ten.
     final top = {for (final p in result.placings.take(10)) p.rider.id};
     result.power.removeWhere(
@@ -1392,7 +1452,7 @@ class Career {
       if (date.isAfter(p.race.start) && date.isBefore(p.race.end)) {
         p.run.restDay({
           for (final team in {for (final r in p.run.riders) r.teamId})
-            team: TeamKit(physios: staff.physioQuality(team)),
+            team: TeamKit(physios: recoveryQuality(team)),
         });
       }
     }
@@ -1410,6 +1470,7 @@ class Career {
     economy.daily(ridden);
     staff.daily();
     equipment.daily();
+    facilities.daily();
     camps.daily();
     entries.daily();
     if (delegation.scouting && today.month >= 6) staff.scoutOnOwn();
@@ -1459,7 +1520,10 @@ class Career {
       List<({RaceProgress race, int stageIndex, StageResult result})> ridden) {
     void sideline(SimRider r, int rawDays, String what, {RaceProgress? race}) {
       // A good team doctor shortens the time out.
-      final days = max(2, (rawDays * staff.doctorFactor(r.teamId)).round());
+      final days = max(
+          2,
+          (rawDays * staff.doctorFactor(r.teamId) * facilities.layOff(r.teamId))
+              .round());
       final until = today.add(Duration(days: days));
       shapeOf(r.id).injuredUntil = until;
       final abandons = race != null && !race.finished;
@@ -1538,8 +1602,28 @@ class Career {
     }
     for (final r in riderById.values) {
       if (racing.contains(r.id) || isInjured(r.id, today)) continue;
-      if (_rng.nextDouble() < 0.0007) {
-        sideline(r, 3 + _rng.nextInt(8), tr('Infection, a few days off'));
+      // Hard training and a body that does not recover make a rider prone
+      // to infections and overuse; easy training spares him.
+      final s = shapeOf(r.id);
+      final risk = 0.0006 *
+          switch (s.load) {
+            TrainingLoad.low => 0.7,
+            TrainingLoad.normal => 1.0,
+            TrainingLoad.high => 1.9,
+          } *
+          (s.freshness < -30
+              ? 2.0
+              : s.freshness < -15
+                  ? 1.4
+                  : 1.0) *
+          facilities.infections(r.teamId);
+      if (_rng.nextDouble() < risk) {
+        sideline(
+            r,
+            3 + _rng.nextInt(8),
+            s.freshness < -30
+                ? tr('Overtrained and run down, a few days off')
+                : tr('Infection, a few days off'));
       }
     }
   }
@@ -1551,14 +1635,15 @@ class Career {
         <= 19 => 1.5,
         20 => 1.35,
         21 => 1.2,
-        22 => 0.95,
-        23 => 0.75,
-        24 => 0.6,
-        25 => 0.4,
-        26 => 0.25,
-        27 => 0.1,
-        <= 30 => 0.0,
-        <= 32 => -0.3,
+        22 => 0.85,
+        23 => 0.65,
+        24 => 0.5,
+        25 => 0.3,
+        26 => 0.18,
+        27 => 0.05,
+        <= 29 => 0.0,
+        30 => -0.15,
+        <= 32 => -0.35,
         <= 34 => -0.7,
         _ => -1.2,
       };
@@ -1667,7 +1752,10 @@ class Career {
                 _talent(r) *
                 load *
                 coach *
-                people.growthFactor(r.id)
+                people.growthFactor(r.id) *
+                facilities.development(r.teamId) *
+                // A development team grows with the academy of its parent.
+                _academy(r.teamId)
             : perYear / 12;
         final focus = s.focus.attributes;
         // A rider grows where he is already strong: his best attribute at
@@ -2119,7 +2207,7 @@ class Career {
     final tier = _pointsTier(race);
     final championship = race.tier == RaceTier.championship;
     if (race.isStageRace) {
-      for (var i = 0; i < 3; i++) {
+      for (var i = 0; i < 3 && i < result.placings.length; i++) {
         _add(result.placings[i].rider, stagePoints(tier, i));
       }
     }
@@ -2515,6 +2603,7 @@ class Career {
       'economy': economy.toJson(),
       'staff': staff.toJson(),
       'equipment': equipment.toJson(),
+      'facilities': facilities.toJson(),
       'lastLineups': ints<List<int>>(lastLineups, (l) => l),
       'styles': ints<TeamStyle>(styles, (s) => s.index),
       if (ownStyle != null) 'ownStyle': ownStyle!.index,
@@ -2689,6 +2778,7 @@ class Career {
     economy.restore(j['economy'] as Map<String, dynamic>);
     staff.restore(j['staff'] as Map<String, dynamic>);
     equipment.restore(j['equipment'] as Map<String, dynamic>?);
+    facilities.restore(j['facilities'] as Map<String, dynamic>?);
     lastLineups
       ..clear()
       ..addAll({

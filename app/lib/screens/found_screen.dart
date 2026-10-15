@@ -405,18 +405,101 @@ class _FoundScreenState extends State<FoundScreen> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              DropdownButton<String>(
-                                value: countries.contains(_country)
-                                    ? _country
-                                    : countries.first,
-                                isDense: true,
-                                dropdownColor: c.panel2,
-                                menuMaxHeight: 400,
-                                onChanged: (v) => setState(() => _country = v!),
-                                items: [
-                                  for (final k in countries)
-                                    DropdownMenuItem(value: k, child: Text(k)),
-                                ],
+                              // The country by its flag: a click opens all of them.
+                              Tooltip(
+                                message: tr('Country of the team'),
+                                child: InkWell(
+                                  onTap: () async {
+                                    final picked = await showDialog<String>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: Text(tr('Country of the team')),
+                                        content: SizedBox(
+                                          width: 560,
+                                          child: SingleChildScrollView(
+                                            child: Wrap(
+                                              spacing: 6,
+                                              runSpacing: 6,
+                                              children: [
+                                                for (final k in countries)
+                                                  Tooltip(
+                                                    message: k,
+                                                    child: InkWell(
+                                                      onTap: () =>
+                                                          Navigator.pop(
+                                                            context,
+                                                            k,
+                                                          ),
+                                                      child: Container(
+                                                        width: 62,
+                                                        padding:
+                                                            const EdgeInsets.all(
+                                                              4,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          border: Border.all(
+                                                            color: k == _country
+                                                                ? TeamColors
+                                                                      .text
+                                                                : c.line,
+                                                          ),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                4,
+                                                              ),
+                                                        ),
+                                                        child: Column(
+                                                          children: [
+                                                            Flag(k, width: 36),
+                                                            const SizedBox(
+                                                              height: 2,
+                                                            ),
+                                                            Text(
+                                                              k,
+                                                              style:
+                                                                  const TextStyle(
+                                                                    fontSize:
+                                                                        11,
+                                                                  ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                    if (picked != null) {
+                                      setState(() => _country = picked);
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: c.line),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Flag(_country, width: 28),
+                                        const SizedBox(width: 6),
+                                        Text(_country),
+                                        const Icon(
+                                          Icons.arrow_drop_down,
+                                          size: 18,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ),
                             ],
                           ),

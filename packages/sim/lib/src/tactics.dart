@@ -333,6 +333,14 @@ Map<int, TeamPlan> autoPlans(SimRoute route, List<SimRider> riders,
     ..sort((a, b) => b.compareTo(a));
   final hunterLevel = allFits.length > 40 ? allFits[40] : null;
 
+  // Whether the route has climbs worth a climbing domestique: at least
+  // 500 m of height on climbs of two kilometres or more.
+  var climbed = 0.0;
+  for (final s in route.segments) {
+    if (s.climbKm >= 2 && s.grade > 0.03) climbed += s.grade * s.lengthM;
+  }
+  final climbing = climbed >= 500;
+
   final plans = <int, TeamPlan>{};
   for (final entry in teams.entries) {
     final members = entry.value;
@@ -365,13 +373,24 @@ Map<int, TeamPlan> autoPlans(SimRoute route, List<SimRider> riders,
     } else {
       final second = take(fit, atLeast: fit(leader) - 1.5);
       if (second != null) roles[second.id] = Role.coLeader;
+      // Climbing domestiques only where there is something to climb; on a
+      // day of cobbles or open roads the helpers are rouleurs, on cobbles
+      // the best on the stones.
       for (var i = 0; i < 2; i++) {
-        final r = take(fit);
-        if (r != null) roles[r.id] = Role.climbDomestique;
+        final r = climbing
+            ? take(fit)
+            : take((r) => route.sectorRace
+                ? 0.6 * r.attributes.cobble + 0.4 * r.attributes.flat
+                : r.attributes.flat);
+        if (r != null) {
+          roles[r.id] = climbing ? Role.climbDomestique : Role.tempo;
+        }
       }
     }
     for (var i = 0; i < 2; i++) {
-      final r = take((r) => r.attributes.flat);
+      final r = take((r) => route.sectorRace
+          ? 0.6 * r.attributes.cobble + 0.4 * r.attributes.flat
+          : r.attributes.flat);
       if (r != null) roles[r.id] = Role.tempo;
     }
     if (!route.sprintStage && gcGaps.isNotEmpty && hunterLevel != null) {

@@ -1,117 +1,74 @@
 # Changelog
 
-## Unreleased (0.3.1)
+## 0.3.1 alpha (2026-10-15)
 
-The race shape in the model. The tuning values of 0.3.0 no longer fit and need a new calibration run.
+The race shape in the model, and the world over many seasons. Calibrated on 534 races of 2023 to 2026: error 7.65 to 6.61, on the control races 8.75 to 8.43. Bunch sprints on flat stages now fit (78 % against 77 %); the middle of the field still finishes too close to the winner, and the favourites win too often.
 
-- Riders who have nothing left to ride for sit up on hard days once the race is on: on the climbs they let the group go instead of suffering, and a group in which nobody races any more rolls to the finish (new tuning values `sitUpEffort` and `aimlessEffort`). Who still races: favourites, riders in the break or riding for themselves, riders placed in the general classification, and helpers who can still help a leader in their group; in the finale only climbing domestiques, lead-out men and the helpers of a team that rides for its sprinter or has been told to empty itself. A gruppetto also forms on hilly days.
-- The riders who set the pace only have the shelter of those who take turns with them, not of the whole bunch: a field that lets a break go is no longer faster than the break by drafting alone. The field has at least four riders rotating, an echelon its whole line in the shelter.
-- A front part of the field after a split (an echelon, a hard climb) presses on instead of riding like a break.
-- In a stage race the favourites' teams let a break without danger for the general classification go from the second stage on, not only once the classification has wide gaps; on a summit finish the field leaves two minutes more.
-- While the field lets a group go, it climbs at the tempo of its middle, not of its stronger riders.
-- A group that only rolls in still watches the time limit, like the gruppetto.
-- Calibration tools: `calibrate.dart report --sample k --runs n --types …` for a quick check of a model change on part of the races, `--set name=value` to try a tuning value without writing it, `bin/breaks.dart` with how breaks fare along the route (lead at 70, 85 and 95 per cent, where they are caught), and `bin/timecut.dart`, which compares how many riders and sprinters finish outside the time limit on the hilly and mountain stages of stage races. The time limit as a whole fits (mountain stages 7.0 % of the riders in reality, 7.6 % in the simulation), but sprinters fall outside it too often in the mountains (36 % against 21 %).
+**Racing**
+- Riders with nothing left to ride for sit up on hard days; groups in which nobody races roll in. A gruppetto also forms on hilly days.
+- Pace setters only draft behind those who take turns with them, so a chasing field is no longer faster than the break by drafting alone.
+- The front part of a split field presses on; in stage races the favourites' teams let harmless breaks go from stage 2.
+- Crosswind only on open, flat roads in the plain, fixed per route and marked light blue on the profile.
+- Climbing domestiques only on routes with real climbs; on cobbles the helpers are the best on the stones.
+- Races change their course from year to year: from the second season every race with routes of other years in the WorldDB (about 400, the Grand Tours included) cycles through them.
+- The stage in fast motion in the race report.
+
+**Team and world**
+- Facilities: training, medical, scouting, sports science and youth academy, five levels each, starting from the team's strength. Under Finances.
+- Hard training makes tired riders prone to illness; the load of the whole squad is set with one click.
+- Young riders (up to 22) can be signed for the development team.
+- Market: strong riders move up to teams of their level, the very top no longer dies out. AI teams promote from their development teams; three exceptional talents a year.
+- Prize money after the real orders of magnitude; sponsor offers tied to the ranking.
+
+**Interface**
+- Birth date, height and weight on the rider page; the founded team's country is chosen by flag.
+- The overview is an even grid of six tiles.
+- Header arrows visible with every team colour; table headings and the rider page's tiles no longer overflow.
+
+**Tools and docs**
+- Calibration run of 15 October: 364 attempts, 18 improvements; five tuning values at the edge of their range (drafting in large groups, form of the day, power per point).
+- `bin/world.dart` plays seasons without a player; `bin/check.dart` checks every day of a season for broken rules.
+- Calibration: `report --sample/--set`, `bin/breaks.dart`, `bin/timecut.dart`.
+- README shortened, details in FEATURES.md; the concept is in English (`docs/concept.html`).
+
+**Fixes**
+- Ranking points of a stage race with fewer than three finishers.
+- Facilities started a whole team a level too low instead of varying single facilities.
+- The season planner judged riders by their attributes at the start of the season; replacements after an injury now use the current ones, and a loaded game plans exactly like the one played on.
 
 ## 0.3.0 alpha (2026-10-14)
 
-Races that hold up better, riders as people, a season plan for every team, material and staff, and a lot of comfort. Calibrated on the seasons 2023 to 2026; still not balanced.
+Races that hold up better, riders as people, a season plan for every team, material and staff. Calibrated on 2023 to 2026; not balanced.
 
-Known gaps: the middle of the field finishes too close to the winner, breakaways win too rarely and sector races end solo too rarely; the effects of material, staff and team styles are estimates; money is not balanced.
+**Simulation**
+- 200 m segments; every rider with his own weight and height; altitude; head-, tail- and crosswind; weather by month and country.
+- The fight for the break, helpers who empty themselves, positioning before key points, echelons, attacks of every kind, descents at each rider's speed.
+- Crashes and punctures with injuries and abandons, the 3 km rule, the time limit with gruppetto.
+- Time trials with fatigue, reverse start order and changing wind; team time trials in a line.
+- Sector races (cobbles, gravel) as a race type of their own.
+- One sports director logic for every team, the player's included; the radio shows his recommendation.
+- Stages simulated in the background, all races of a day at once.
 
-- Power figures after every stage: average and normalised power, W/kg, intensity, kilojoules, six power zones, and W/kg, VAM and time on every climb; in the race report under "Power", kept for the player's riders and the first ten.
-- Radio when a leader crashes or punctures: two helpers wait, the whole team waits, or nobody. Every team's sports director decides the same way; the whole team waits for a leader of the general classification.
-- Weather forecast in the race preparation instead of the exact weather, blurred by the days ahead, with a warning of echelons. New approach "split in the crosswind"; the teams with the strongest rouleurs choose it themselves when the crosswind is strong.
-- Roles "mountains jersey hunter" and "points jersey hunter": into the break, all out for the points. Teams without a leader for the overall send one on the hard days of stage races.
-- Team styles from the squad (all-round, sprint, general classification, classics, youth, experience), acting on the season planner, the market and the tactics of every team; the player's style can be set under "Delegation".
-- Mechanics and physiotherapists as new staff for every team: faster wheel changes, fewer punctures, better recovery in stage races. Older saves get them.
-- Material of real bike and tyre suppliers for every team, with payments and offers on 1 September; tyres and the time trial bike chosen per race by every sports director, overruled by the player in the race preparation.
-- Single race in the start menu: any race with any WorldTeam or ProTeam, own approach, break policy, tyres and seed.
-- Warnings before a line-up is confirmed, and "line-up of last year".
-- Progress and a stop button while days run to a date, and one summary message after a week or more.
-- Ctrl+S quick save, number keys 1 to 9 for the pages, F1 for the help.
-- Colour vision setting (daltonised colours for deuteranopia, protanopia, tritanopia).
-- Bug report as a ZIP file with save, settings, tuning values and version.
-- English is now the language of the source texts; German is a translation table (`i18n_de.dart`), so a further language is one more table. A few English terms that stood for two different German ones were separated (for example "Resume" and "Continue", "Training load" and "Load"). Muted inbox topics of older saves are carried over; filters saved by the rider search start afresh.
-- Stages are cut into 200 m segments instead of 500 m; the steepest ramp of a categorised climb, which the profile smooths away, is put back.
-- Physics: every rider rides with his own weight and height from the WorldDB; thinner air at altitude means less drag and less power; head-, tail- and crosswind.
-- Weather by month and country: temperature, rain and wind. Heat and cold cost energy, rain makes descents slower and crashes more likely. The race report names the weather.
-- The break of the day is fought for: the field rides hard until a move sticks, quickly on sprint stages, often for an hour on hard days.
-- Helpers who have emptied themselves stop working, and a team stops chasing once its helpers are spent or its leader is gone.
-- Position in the field before cobbled sectors, climbs, crosswind sections and the finish: helpers bring their leader to the front, at a cost. Position decides who gets through a sector and who finds shelter in an echelon, and helps the sprinters.
-- Echelons in the crosswind.
-- Attacks inside the break, late attacks on the flat, attacks downhill by good descenders and long-range attacks on climbs. Every rider descends at his own speed.
-- Crashes and punctures during every stage, helpers who wait for their leader, injuries that cost form for days, abandons; the three-kilometre rule; crashes in bunch sprints.
-- Time limit in stage races, with a reprieve when more than a fifth of the field is outside; the gruppetto rides to stay inside it.
-- Time trials count the fatigue of earlier stages and of the effort itself, start in reverse order of the general classification and see the wind change over the day. Team time trials are ridden in a line; the time is taken on the fourth or fifth rider.
-- Fatigue in stage races no longer runs into a common ceiling: it grows with the effort of the day and shrinks by a share that depends on recovery. Rest days help.
-- Calibration: the physical tuning values are held within values from the literature; new terms for how often a top favourite wins and how much time the leaders of the general classification lose per stage. `tuning.json` holds start values that still need a calibration run.
-- Tests for the simulation that need no world database (`packages/sim/test`), and tools to look at the simulation on synthetic routes (`packages/sim/tool`).
-- Sector races: cobbled classics, gravel races and stages over many sectors are a race type of their own. On a sector the group rides as a line in the order of the fight for position: the back is harder, and a rider who lets the wheel go gaps everyone behind him. Rough roads wear down riders who are not made for them, and cobbles cause punctures and crashes in proportion to their difficulty. This replaces the fixed number of riders who got through a sector.
-- One sports director logic for every team, the player's included: who chases (and who joins when the gap gets out of hand), who sits on in the break, who takes over when a leader is lost, and what a team does in the finale. The radio shows the director's recommendation; an unanswered question is decided by him, no longer by "stick to the plan".
-- Dropped favourites are brought back by their helpers.
-- The race preparation shows the weather of the first stage.
-- Calibration: breakaway wins count again, per race and as a frequency per race type. Sector races are reported as their own type. The search changes about three parameters per attempt instead of ten, and the frequency terms weight the race types by the square root of their number of races.
-- Calibration: a candidate must now be better by a margin (0.1, `--margin`) on both draws of random numbers. Without it the search accepted changes that were no better and drifted away from a good setting: measured on fresh random numbers, the runs since the evening of 12 October ended at 10.5 against 9.55 for the setting of that evening, which is therefore back in `tuning.json`. `bin/compare.dart` compares tuning files that way.
-- Calibration on the seasons 2023 to 2026 only: of the fields of 2021 and 2022 the database covers too little (58 % and 67 % of the finishers). `bin/seasons.dart` shows the coverage per season, and the report lists the error per season.
-- Removed: what was left of the trial run in the race screen. A preview run remains in the application state for the screen tests only.
-- A test guards that watching, skipping and "simulate to a date" give the same race (`app/test/one_simulation_test.dart`).
-- Simulation in the background: the stages of a day run on other isolates, all races at once; the window no longer freezes, and the header shows what is being simulated. Days with several races are faster on a machine with free cores.
-- Season goals per rider (up to three), set by the sports directors of every team and changeable on the rider page: a sure start and better form in the goal races. The season plan honours them, and the goals of sponsor and board raise the importance of the races they concern.
-- Riders as people: personality (professionalism, ambition, loyalty, consistency) with a summary term as in football management games, including balanced and difficult characters; morale for the riders of every team; promises (a start or a leading role) that lift morale and cost dearly when broken, for one race or, made in contract talks, for a season. A rider who is injured or ill takes no offence at a missed race or a promise that lapses.
-- Standing in the team (star, leader, key domestique, domestique, prospect), set from strength and age and changeable; it decides what a rider expects in the races.
-- Rider matrix reworked: the head and the rider column stay in place, months are marked, larger fields, places taken per race, season goals (right click sets them), promises and riders who are out on race day are shown, riders are ordered by their standing.
-- Help with a short introduction and a glossary; welcome message for a new career.
-- CSV export of the rider search and of team pages; the filters of the rider search survive a restart.
-- A button in every message leads to the page of its topic; teams in result tables and a team's flag are links.
-- "Simulate to a date" can stop when a message on chosen topics arrives.
-- Season plan by the sports director: all races of the season planned before the first day, by importance, suitability and an even load; leaders split over the Grand Tours; replacements when a rider drops out; "Replan the season" in the race planner; can be switched off under "Delegation". Every other team plans its season with the same planner. Tool `bin/plan.dart` prints a plan. The suitability of riders for routes is worked out from weights per stage that are stored in `data/route_fit.cache.json` (4.7 s the first time, under a second afterwards).
-- Inbox: "Mark all read" and "Delete all" (asks once if several unread messages would go), topics that can be switched off, and one summary for three or more messages of a topic on a day.
-- Season review with awards at the turn of the year.
-- Arrow keys, Page Up/Down, Home, End and Enter in the list under the mouse.
-- The race planner warns when a rider is entered for two races that overlap.
-- Form trend in the squad; races on the rider page lead to their report.
-- Shortlist with messages when a watched rider becomes available, renews or signs elsewhere; filter for it in the rider search.
-- Rider comparison on the rider page, and a note of your own per rider.
-- Team pages, reached from the team ranking and from a rider's page.
-- Automatic saves every Monday of the game, four rotating files (`data/saves/auto-1…4.rmsave`).
-- Partial plans: in the race preparation and in the tactics dialog during a race, only what the player changes is pinned (marked with a pin, released with a click on it). The sports director plans the rest for every stage. A pinned sprinter is a protected rider on stages that do not end in a sprint. With "Fix everything" the complete plan applies exactly as set and the sports director changes nothing; that was the only choice until now.
-- Navigation: back and forward through the pages visited (header buttons, Alt+← / Alt+→, Esc, mouse side buttons). Pages stay alive for the session and keep their filters, sorting and scroll position.
-- Keyboard: Space continues, Ctrl+F opens the rider search, the arrow keys step from rider to rider on the rider page.
-- Rider names in stage results and classifications open the rider page.
-- Race report in three short paragraphs (how the day began, mishaps, the finale) instead of one block: many crashes, punctures and attacks are counted rather than listed, and the catch of the break is told once.
-- Contracts show the day they end on instead of a year; riders without a team show none.
-- A star in the rows of the rider search, the transfer market and the team pages puts a rider on the shortlist.
-- Calendar: every race in the colour of its tier, the team's own races strong and the others pale. Before, own races were filled with the team colour and all looked alike.
-- Fixed: the back and forward arrows were invisible with some team colours.
-- Fixed: a rider who bridged to the break appeared in the report as a second "break of the day" with a mangled name.
-- Fixed: while many days were simulated, Windows could report the window as not responding; a day is now played race by race with a pause for the system in between.
-- Fixed: a pace-setter on a sector could ride above his threshold on an empty reserve for as long as the sector lasted.
+**Riders and team**
+- Personality, morale, standing in the team, season goals and promises.
+- Season plan for every team by its sports director.
+- Mechanics and physiotherapists; material of real suppliers; team styles.
+- Power figures after every stage; weather forecast, tyres and time trial bike in the race preparation.
+
+**Interface**
+- Back and forward, keyboard control, autosaves, shortlist, rider comparison, notes, team pages, help with glossary, CSV export, colour vision setting, bug report as ZIP, single race from the start menu.
+- English source texts with German as a translation table.
+
+**Calibration**
+- Physical values held within the literature; terms for breakaway and favourite wins and the GC riders' losses; candidates must beat the current setting by a margin.
 
 ## 0.2.0 alpha
 
-- Calibration on race dynamics only: size of the winner's group, gap of tenth place, gap of the middle of the field, average speed. Winners and breakaway wins no longer enter the error.
-- Calibration data from the seasons 2021 to 2026 instead of 2026 alone; the routes of the earlier years come from the WorldDB's stage files (`worlddb variants`).
-
-- English as a second language, switched by flags in the settings; English is the default. Covers the interface and everything the game writes (inbox, race reports, radio).
-- One look for buttons, fields, chips, menus and dialogs on every screen; the last screens of the redesign are done.
-- The gap chart of the race report shows the values under the pointer.
-- Development teams linked to their real professional teams; a team without one can found its own.
-- Stagiaires from 1 August, for the player and the other teams.
-- Slower, more realistic rider development: growth concentrates on a rider's strengths and levels off at a ceiling set by his potential.
-- Rider photos on the rider page, with a silhouette for riders without one.
-- Rider search over the whole database with filters.
-- Debug mode with a debug page and test actions.
-- Cobbled races: two new tuning values (effort on the sectors, mishaps); first group and solo wins move towards reality.
-- Fixed: a stage could crash when the break of the day took every rider of the leading group.
+- Calibration on race dynamics (group sizes, gaps, speed) over the seasons 2021 to 2026.
+- English as a second language; one look across all screens.
+- Development teams tied to their real teams, stagiaires, slower rider development.
+- Rider photos, rider search, debug mode, harder cobbled races.
 
 ## 0.1.0 alpha
 
-First tagged version. Playable end to end, not balanced.
-
-- World database built from the WorldDB 2026 for Pro Cycling Manager: riders, teams, races, stage profiles, points scales, jerseys and race logos.
-- Race simulation in 500 m segments with groups, drafting, breakaways, attacks, cobbles, sprints, gruppetto and time trials; calibrated once against 127 WorldTour results of 2026.
-- Career: calendar with championships, form and development, contracts and transfers, sponsors and season goals, staff and scouting, licences with promotion and relegation, development team, training camps.
-- Race planner with wildcard applications, race preparation with roles and tactics, DS radio, forecast, "what if", race report with gap chart.
-- Windows app with start menu, settings, named save games, rider pages, filters and search, tooltips for every figure.
-
-Known gaps: cobbled classics are too easy, money is not balanced, no stagiaires, no crashes during a stage.
+First tagged version: world database from the WorldDB 2026, race simulation in 500 m segments, a full career (calendar, form, contracts, sponsors, staff, licences, development team) and the Windows app. Playable end to end, not balanced.

@@ -408,8 +408,19 @@ void seasonTest() {
     expect(offered, isTrue);
     expect(sponsored, isTrue);
     expect(a.career.seasonOver, isTrue);
+    // The Tour de France rides another course in the second season.
+    List<int> tour() => [
+      for (final s
+          in a.career.calendar
+              .firstWhere((r) => r.info.name.startsWith('Tour de France'))
+              .stages)
+        s.id,
+    ];
+    final tour2026 = tour();
     a.nextSeason();
     expect(a.career.year, 2027);
+    expect(tour(), hasLength(tour2026.length));
+    expect(tour().first, isNot(tour2026.first));
     // A little way into the second season, with our own line-ups.
     for (var i = 0; i < 8; i++) {
       final p = a.pending;
@@ -427,6 +438,10 @@ void seasonTest() {
     await b.restore();
     expect(b.career.year, 2027);
     expect(b.career.today, a.career.today);
+    expect(
+      b.career.calendar.map((r) => r.stages.map((s) => s.id).join(',')),
+      a.career.calendar.map((r) => r.stages.map((s) => s.id).join(',')),
+    );
     expect(
       b.career.inbox.map((m) => m.subject).toList(),
       a.career.inbox.map((m) => m.subject).toList(),

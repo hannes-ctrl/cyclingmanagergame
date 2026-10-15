@@ -391,6 +391,8 @@ class _Sponsors extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         _Equipment(state: s, pill: pill),
+        const SizedBox(height: 6),
+        _Facilities(state: s, pill: pill),
       ],
     );
   }
@@ -494,6 +496,109 @@ class _Equipment extends StatelessWidget {
               style: const TextStyle(fontSize: 12, color: TeamColors.gold),
             ),
           ),
+        Divider(height: 18, color: c.line),
+      ],
+    );
+  }
+}
+
+/// The team's facilities: levels, what they do, and building them up.
+class _Facilities extends StatefulWidget {
+  const _Facilities({required this.state, required this.pill});
+  final AppState state;
+  final Widget Function(String label, VoidCallback? onTap) pill;
+
+  @override
+  State<_Facilities> createState() => _FacilitiesState();
+}
+
+class _FacilitiesState extends State<_Facilities> {
+  String? _answer;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.state;
+    final c = s.colors;
+    final career = s.career;
+    final fac = career.facilities;
+    final building = fac.building;
+    String day(DateTime d) =>
+        '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Label(tr('Facilities')),
+        const SizedBox(height: 6),
+        // Name, level as five dots and the action on one line, what a
+        // level does below it.
+        for (final f in Facility.values)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        f.label,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    for (var i = 1; i <= Facilities.maxLevel; i++)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 3),
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: i <= fac.level(career.teamId, f)
+                                ? TeamColors.gold
+                                : null,
+                            border: Border.all(color: c.line),
+                          ),
+                        ),
+                      ),
+                    const SizedBox(width: 10),
+                    if (building?.facility == f)
+                      Text(
+                        tr('ready on {0}', [day(building!.ready)]),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: TeamColors.green,
+                        ),
+                      )
+                    else if (fac.upgradeCost(f) case final cost?)
+                      widget.pill(
+                        tr('Expand · {0} €', [euro(cost)]),
+                        s.busy || building != null
+                            ? null
+                            : () => setState(
+                                () => _answer = s.upgradeFacility(f),
+                              ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  f.effect,
+                  style: const TextStyle(fontSize: 12, color: TeamColors.muted),
+                ),
+              ],
+            ),
+          ),
+        Text(
+          _answer ??
+              tr(
+                'Level 3 is the average of the peloton. Running all facilities costs {0} € a year; a new level takes some months to build.',
+                [euro(fac.upkeep(career.teamId))],
+              ),
+          style: TextStyle(
+            fontSize: 12,
+            color: _answer == null ? TeamColors.muted : TeamColors.gold,
+          ),
+        ),
         Divider(height: 18, color: c.line),
       ],
     );

@@ -3,7 +3,12 @@ import 'tactics.dart';
 /// State of the race at one kilometre, for the chart of the race report.
 class RaceSample {
   RaceSample(
-      this.km, this.frontGapS, this.frontSize, this.mainSize, this.lastGapS);
+      this.km, this.frontGapS, this.frontSize, this.mainSize, this.lastGapS,
+      [this.groups = const []]);
+
+  /// Every group on the road, head of the race first, for the stage in fast
+  /// motion. Kept only for the races the game shows that way.
+  List<GroupSample> groups;
 
   /// Race kilometre.
   final double km;
@@ -23,7 +28,14 @@ class RaceSample {
   final double lastGapS;
 
   /// @returns The sample as a compact list.
-  List<Object> toJson() => [km, frontGapS, frontSize, mainSize, lastGapS];
+  List<Object> toJson() => [
+        km,
+        frontGapS,
+        frontSize,
+        mainSize,
+        lastGapS,
+        if (groups.isNotEmpty) [for (final g in groups) g.toJson()],
+      ];
 
   /// @param j A list written by [toJson].
   /// @returns The sample.
@@ -32,7 +44,10 @@ class RaceSample {
       (j[1] as num).toDouble(),
       j[2] as int,
       j[3] as int,
-      (j[4] as num).toDouble());
+      (j[4] as num).toDouble(),
+      j.length > 5
+          ? [for (final g in j[5] as List) GroupSample.fromJson(g as List)]
+          : []);
 }
 
 /// What one rider did during a stage, for the race report.
@@ -197,5 +212,49 @@ class ClimbPower {
         (j[4] as num).toDouble(),
         (j[5] as num).toDouble(),
         (j[6] as num).toDouble(),
+      );
+}
+
+/// One group on the road at a moment of the stage.
+class GroupSample {
+  GroupSample(this.gapS, this.size, this.favourites, this.watched,
+      {this.breakaway = false, this.gruppetto = false});
+
+  /// Seconds behind the head of the race.
+  final double gapS;
+
+  /// Riders in the group.
+  final int size;
+
+  /// Favourites of the day in it.
+  final int favourites;
+
+  /// Ids of the riders of the watched team in it.
+  final List<int> watched;
+
+  /// Whether it is (part of) the break of the day.
+  final bool breakaway;
+
+  /// Whether it rides as a gruppetto.
+  final bool gruppetto;
+
+  /// @returns The group as a compact list.
+  List<Object> toJson() => [
+        gapS.round(),
+        size,
+        favourites,
+        watched,
+        (breakaway ? 1 : 0) + (gruppetto ? 2 : 0),
+      ];
+
+  /// @param j A list written by [toJson].
+  /// @returns The group.
+  static GroupSample fromJson(List<dynamic> j) => GroupSample(
+        (j[0] as num).toDouble(),
+        j[1] as int,
+        j[2] as int,
+        (j[3] as List).cast<int>(),
+        breakaway: (j[4] as int) & 1 != 0,
+        gruppetto: (j[4] as int) & 2 != 0,
       );
 }

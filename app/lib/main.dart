@@ -692,31 +692,17 @@ class _ShellState extends State<Shell> {
                       ),
                       child: Row(
                         children: [
-                          IconButton(
+                          _NavArrow(
+                            icon: LucideIcons.arrowLeft,
                             tooltip: tr('Back (Alt+←, Esc)'),
-                            visualDensity: VisualDensity.compact,
                             onPressed: _back.isEmpty ? null : _goBack,
-                            // Not the colour of the theme: with some team
-                            // colours that is the colour of the bar itself.
-                            icon: Icon(
-                              LucideIcons.arrowLeft,
-                              size: 18,
-                              color: _back.isEmpty
-                                  ? TeamColors.muted.withValues(alpha: 0.35)
-                                  : TeamColors.text,
-                            ),
+                            bar: c.panel2,
                           ),
-                          IconButton(
+                          _NavArrow(
+                            icon: LucideIcons.arrowRight,
                             tooltip: tr('Forward (Alt+→)'),
-                            visualDensity: VisualDensity.compact,
                             onPressed: _forward.isEmpty ? null : _goForward,
-                            icon: Icon(
-                              LucideIcons.arrowRight,
-                              size: 18,
-                              color: _forward.isEmpty
-                                  ? TeamColors.muted.withValues(alpha: 0.35)
-                                  : TeamColors.text,
-                            ),
+                            bar: c.panel2,
                           ),
                           const SizedBox(width: 8),
                           Column(
@@ -1255,4 +1241,50 @@ class SectionTitle extends StatelessWidget {
         ),
     ],
   );
+}
+
+/// Back or forward in the header: an arrow in a ring, light on a dark bar
+/// and dark on a light one, so that it shows with every team colour.
+class _NavArrow extends StatelessWidget {
+  const _NavArrow({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    required this.bar,
+  });
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  /// Colour of the bar the arrow sits on.
+  final Color bar;
+
+  @override
+  Widget build(BuildContext context) {
+    final ink = bar.computeLuminance() > 0.4
+        ? const Color(0xFF16132A)
+        : TeamColors.text;
+    final color = onPressed == null ? ink.withValues(alpha: 0.3) : ink;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      child: Tooltip(
+        message: tooltip,
+        child: InkResponse(
+          onTap: onPressed,
+          radius: 20,
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: color.withValues(alpha: onPressed == null ? 0.2 : 0.5),
+              ),
+            ),
+            child: Icon(icon, size: 17, color: color),
+          ),
+        ),
+      ),
+    );
+  }
 }

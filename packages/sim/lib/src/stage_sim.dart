@@ -1028,12 +1028,26 @@ class _RoadRace {
     final last = seg == route.segments.length - 1;
     if (km >= _nextSampleKm - 1e-6 || last) {
       _nextSampleKm += 2;
+      final head = groups.first.clock;
       _timeline.add(RaceSample(
           km,
-          main.clock - groups.first.clock,
+          main.clock - head,
           groups.first.members.length,
           main.members.length,
-          max(0.0, _middle(groups).clock - main.clock)));
+          max(0.0, _middle(groups).clock - main.clock), [
+        for (final g in groups)
+          GroupSample(
+            g.clock - head,
+            g.members.length,
+            g.members.where((m) => m.favorite).length,
+            [
+              for (final m in g.members)
+                if (_own(m)) m.rider.id,
+            ],
+            breakaway: g.members.every((m) => m.inBreak),
+            gruppetto: g.gruppetto,
+          ),
+      ]));
     }
   }
 

@@ -1050,7 +1050,7 @@ const german = <String, String>{
   '{0} · tactics {1}, race reading {2}, motivation {3} · {4}':
       '{0} · Taktik {1}, Rennlesen {2}, Motivation {3} · {4}',
   '{0} · {1} years · {2}': '{0} · {1} Jahre · {2}',
-  '{0} · {1} years · {2}{3}': '{0} · {1} Jahre · {2}{3}',
+  '{0} · born {1} · {2} years · {3}{4}': '{0} · geboren {1} · {2} Jahre · {3}{4}',
   '{0} · {1} to {2}': '{0} · {1} bis {2}',
   '{0} · {1} · from {2}': '{0} · {1} · ab {2}',
   '{0} · {1} · {2} · {3} riders at the start':
@@ -1548,4 +1548,65 @@ const german = <String, String>{
       'Sie bereiten die Räder vor und wechseln im Rennen: Gute Mechaniker verlieren bei einem Platten oder Sturz weniger Zeit und verhindern manchen Defekt. Einer für etwa acht Fahrer.',
   'Soigneurs and physiotherapists: in stage races good ones let the riders win back more of their fatigue overnight and on rest days. One for about ten riders.':
       'Betreuer und Physiotherapeuten: Bei Rundfahrten holen die Fahrer mit guten über Nacht und an Ruhetagen mehr von ihrer Ermüdung zurück. Einer für etwa zehn Fahrer.',
+  'Break': 'Ausreißer',
+  'Head of the race': 'Spitze',
+  'Group': 'Gruppe',
+  'Play': 'Abspielen',
+  'km {0} · {1} to go': 'km {0} · noch {1}',
+  '{0} favourites': '{0} Favoriten',
+  '{0} more groups behind': '{0} weitere Gruppen dahinter',
+  'Fast motion': 'Zeitraffer',
+  '1 favourite': '1 Favorit',
+  '1 rider': '1 Fahrer',
+  'Overtrained and run down, a few days off':
+      'Übertrainiert und ausgelaugt, einige Tage Pause',
+  'The team has no development team.': 'Das Team hat kein Nachwuchsteam.',
+  'Only riders up to {0} can ride for the development team.':
+      'Für das Nachwuchsteam fahren nur Fahrer bis {0}.',
+  'He is too strong for a development team and wants to turn professional.':
+      'Er ist zu stark für ein Nachwuchsteam und will Profi werden.',
+  'He does not want to negotiate again yet after the last refusal.':
+      'Er möchte nach der letzten Absage noch nicht wieder verhandeln.',
+  'The development team is full with {0} riders.':
+      'Das Nachwuchsteam ist mit {0} Fahrern voll.',
+  '{0} joins the development team': '{0} kommt ins Nachwuchsteam',
+  '{0} rides for {1} from {2} until {3}.': '{0} fährt ab {2} bis {3} für {1}.',
+  'Another facility is being built.':
+      'Gerade wird schon eine andere Einrichtung ausgebaut.',
+  'The facility is already at the top level.':
+      'Die Einrichtung ist schon auf der höchsten Stufe.',
+  'There is not enough money in the account.':
+      'Auf dem Konto ist nicht genug Geld.',
+  '{0} expanded': '{0} ausgebaut',
+  'The {0} is now at level {1} of {2}.': '{0}: jetzt Stufe {1} von {2}.',
+  'Facilities': 'Einrichtungen',
+  'ready on {0}': 'fertig am {0}',
+  'Expand · {0} €': 'Ausbauen · {0} €',
+  'Level 3 is the average of the peloton. Running all facilities costs {0} € a year; a new level takes some months to build.':
+      'Stufe 3 ist der Durchschnitt des Pelotons. Alle Einrichtungen kosten im Unterhalt {0} € im Jahr; eine neue Stufe braucht einige Monate Bauzeit.',
+  'Country of the team': 'Land des Teams',
+  'Height': 'Größe',
+  'Weight': 'Gewicht',
+  'Load for all riders:': 'Belastung für alle Fahrer:',
+  'The coach sets the load again every Monday; switch that off under Delegation.':
+      'Der Trainer setzt die Belastung jeden Montag neu; das lässt sich unter Aufgabenverteilung abschalten.',
+  'Signed for the development team from {0}.':
+      'Ab {0} für das Nachwuchsteam verpflichtet.',
+  'Sign for the development team ({0})':
+      'Für das Nachwuchsteam verpflichten ({0})',
+  'Training centre': 'Trainingszentrum',
+  'Riders develop faster: a twenty-fifth more per level above three.':
+      'Die Fahrer entwickeln sich schneller: ein Fünfundzwanzigstel mehr je Stufe über drei.',
+  'Medical centre': 'Medizinisches Zentrum',
+  'Lay-offs are a twentieth shorter per level above three, infections rarer.':
+      'Ausfälle sind je Stufe über drei ein Zwanzigstel kürzer, Infekte seltener.',
+  'Scouting network': 'Scouting-Netz',
+  'Riders of other teams are better known without a scout, and reports come faster.':
+      'Fahrer anderer Teams sind auch ohne Scout besser bekannt, und Berichte kommen schneller.',
+  'Sports science': 'Sportwissenschaft',
+  'Riders recover better overnight in stage races, as with better physiotherapists.':
+      'Die Fahrer erholen sich bei Rundfahrten über Nacht besser, wie mit besseren Physiotherapeuten.',
+  'Youth academy': 'Nachwuchsakademie',
+  'More and better talents come to the development team, and they develop faster.':
+      'Mehr und bessere Talente kommen ins Nachwuchsteam, und sie entwickeln sich schneller.',
 };

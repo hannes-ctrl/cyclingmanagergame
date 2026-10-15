@@ -265,9 +265,16 @@ class _DenseTableState<T> extends State<DenseTable<T>> implements _TableKeys {
                 widget.columns[i].title,
                 cellBox(
                   widget.columns[i],
-                  Label(
-                    widget.columns[i].title +
-                        (_sortColumn == i ? (_descending ? ' ▼' : ' ▲') : ''),
+                  // A long title shrinks rather than breaking over two lines.
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: widget.columns[i].numeric
+                        ? Alignment.centerRight
+                        : Alignment.centerLeft,
+                    child: Label(
+                      widget.columns[i].title +
+                          (_sortColumn == i ? (_descending ? ' ▼' : ' ▲') : ''),
+                    ),
                   ),
                 ),
               ),
@@ -371,7 +378,8 @@ Widget cellText(String text, {Color? color, bool bold = false}) => Text(
   ),
 );
 
-/// Elevation profile of a stage with mountain prizes, sprints and cobbled sectors.
+/// Elevation profile of a stage with mountain prizes, sprints, cobbled
+/// sectors and the roads open to the crosswind (light blue at the bottom).
 class ProfileView extends StatelessWidget {
   const ProfileView({super.key, required this.route, required this.colors});
   final SimRoute route;
@@ -458,6 +466,23 @@ class _ProfilePainter extends CustomPainter {
         : 5;
     for (var k = 0; k <= route.raceKm; k += step) {
       text('$k', Offset(x(k.toDouble()), top + h + 12), center: true);
+    }
+
+    // Roads open to the wind, light blue as in the classic manager games:
+    // where a crosswind can split the field.
+    final open = exposedSegments(route);
+    for (var i = 0; i < route.segments.length; i++) {
+      if (!open[i]) continue;
+      final s = route.segments[i];
+      canvas.drawRect(
+        Rect.fromLTRB(
+          x(s.km),
+          top + h - 8,
+          max(x(s.km) + 1, x(s.km + s.lengthM / 1000)),
+          top + h,
+        ),
+        Paint()..color = const Color(0xFF7FD1FF).withValues(alpha: 0.75),
+      );
     }
 
     for (final s in route.segments) {

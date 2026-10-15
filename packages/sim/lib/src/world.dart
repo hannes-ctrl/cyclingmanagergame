@@ -276,6 +276,37 @@ class World {
     }
   }
 
+  /// The courses of other years a race can switch to: the routes of
+  /// earlier seasons added by `worlddb variants`, without the year the
+  /// current routes come from.
+  ///
+  /// @param raceId Id of the race.
+  /// @returns Per year its stages in order, as id, number and name of the
+  ///   route; empty if the database has none.
+  Map<int, List<StageInfo>> routeYears(int raceId) {
+    final out = <int, List<StageInfo>>{};
+    try {
+      for (final r in _db.select(
+          'SELECT v.year, v.number, v.stage_id, o.name FROM stage_variant v '
+          'JOIN stage_route o ON o.stage_id = v.stage_id '
+          'WHERE v.race_id = ? AND v.year NOT IN ('
+          ' SELECT CAST(c.variant AS INTEGER) FROM stage s '
+          ' JOIN stage_route c ON c.stage_id = s.id WHERE s.race_id = ?) '
+          'ORDER BY v.year, v.number',
+          [raceId, raceId])) {
+        out.putIfAbsent(r['year'] as int, () => []).add(StageInfo(
+            r['stage_id'] as int,
+            r['number'] as int,
+            (r['name'] as String?) ?? '',
+            0,
+            0));
+      }
+    } on Object {
+      // The table only exists once the variants were imported.
+    }
+    return out;
+  }
+
   /// Looks up a stage of a race by its number.
   ///
   /// @param raceId Id of the race.

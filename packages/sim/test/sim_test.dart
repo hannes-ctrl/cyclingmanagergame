@@ -406,7 +406,9 @@ void materialTests() {
     });
 
     test('wide tyres puncture less on cobbles', () {
-      final t = SimTuning({'punctureRate': 0.001, 'crashRate': 0});
+      // Mostly punctures on the cobbles, where the tyres matter most.
+      final t = SimTuning(
+          {'punctureRate': 0.0002, 'cobbleMishap': 0.02, 'crashRate': 0});
       int punctures(Tyres tyres) {
         final kits = {
           for (final r in field) r.teamId: TeamKit(tyres: tyres),

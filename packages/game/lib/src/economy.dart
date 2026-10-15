@@ -4,6 +4,7 @@ import 'package:sim/sim.dart';
 
 import 'career.dart';
 import 'people.dart';
+import 'prizes.dart';
 import 'points.dart';
 
 /// A rider's contract. Wages in euros per year.
@@ -99,6 +100,8 @@ class Economy {
     }
     budget = wageBill(c.teamId) * 1.45;
     balance = budget * 0.1;
+    _anchorBudget = budget;
+    _anchorRank = _strengthRank();
     _initSponsors();
     _startSize.length; // record squad sizes now, not on first access
   }
@@ -161,6 +164,8 @@ class Economy {
   void found(double yearly) {
     budget = yearly;
     balance = yearly * 0.15;
+    _anchorBudget = yearly;
+    _anchorRank = _strengthRank();
     _initSponsors();
   }
 
@@ -182,7 +187,34 @@ class Economy {
     return at < 0 ? teams.length + 1 : at + 1;
   }
 
-  double _offerBase(Sponsor s) => s.amount * (0.8 + 0.4 * confidence / 100);
+  double _offerBase(Sponsor s) {
+    // What the slot is worth: its share of the budget the team had at the
+    // start, moved by how far the team has climbed or fallen in the
+    // ranking since, and a little by the board's standing with sponsors.
+    final i = sponsors.indexOf(s);
+    final share = const [0.6, 0.25, 0.15][(i < 0 ? 2 : i).clamp(0, 2)];
+    double weight(int rank) => 1 / (1 + 0.04 * (rank - 1));
+    return share *
+        _anchorBudget *
+        weight(ownRank) /
+        weight(_anchorRank) *
+        (0.9 + 0.2 * confidence / 100);
+  }
+
+  /// Budget and place in the team ranking at the start of the career (or
+  /// when the team was founded): what sponsor offers are measured against.
+  double _anchorBudget = 0;
+  int _anchorRank = 1;
+
+  /// Place of the player's team among all teams by strength, as at the
+  /// start of a career before any race.
+  int _strengthRank() {
+    final order = [
+      for (final t in c.teams.values)
+        if (t.division != 'Free') t.id,
+    ]..sort((a, b) => c.teamStrength(b).compareTo(c.teamStrength(a)));
+    return order.indexOf(c.teamId) + 1;
+  }
 
   /// 1 June: offers arrive for expiring contracts.
   void _openSponsorSearch() {
@@ -333,8 +365,6 @@ class Economy {
   bool grandTourStage = false;
   double _prize = 0;
 
-  static const _prizePerPoint = 60.0;
-
   /// Id of the pseudo team that holds the free agents.
   int get _freeTeam =>
       c.teams.values.where((t) => t.division == 'Free').firstOrNull?.id ?? 0;
@@ -484,6 +514,76 @@ class Economy {
     return null;
   }
 
+  /// Oldest a rider may be next season to ride for a development team.
+  static const devMaxAge = 22;
+
+  /// Largest squad of a development team.
+  static const devSquadMax = 16;
+
+  /// Whether a rider can be signed for the player's development team:
+  /// young enough, his contract running out, and not too strong for it.
+  ///
+  /// @param r The rider.
+  /// @returns null if he can, otherwise the reason.
+  String? devReason(SimRider r) {
+    final dev = c.devTeam.teamId;
+    if (dev == null) return tr('The team has no development team.');
+    if (c.year + 1 - r.born ~/ 10000 > devMaxAge) {
+      return tr('Only riders up to {0} can ride for the development team.',
+          [devMaxAge]);
+    }
+    if (rating(r) >= 76) {
+      return tr(
+          'He is too strong for a development team and wants to turn professional.');
+    }
+    return null;
+  }
+
+  /// Offers a young rider a place in the player's development team. The
+  /// development team pays its riders out of its yearly cost, so the offer
+  /// costs nothing beyond it; a rider takes it if nothing better is signed.
+  ///
+  /// @param riderId Id of the rider.
+  /// @param years Contract term, one or two years.
+  /// @returns null if he signs, otherwise the reason for the refusal.
+  String? offerDev(int riderId, int years) {
+    final r = c.riderById[riderId];
+    final k = contracts[riderId];
+    if (r == null || k == null) return tr('Rider not found.');
+    final reason = devReason(r);
+    if (reason != null) return reason;
+    if (!expiring(r)) {
+      return tr('The contract is still running or already settled.');
+    }
+    if (!windowOpen) {
+      return tr('Contract talks are only possible from 1 August.');
+    }
+    if (k.refusedUntil?.isAfter(c.today) ?? false) {
+      return tr(
+          'He does not want to negotiate again yet after the last refusal.');
+    }
+    final dev = c.devTeam.teamId!;
+    if (squadNextSeason(dev) >= devSquadMax) {
+      return tr('The development team is full with {0} riders.', [devSquadMax]);
+    }
+    k
+      ..nextTeam = dev
+      ..nextWage = 20000
+      ..nextEnd = c.year + years.clamp(1, 2);
+    c.inbox.add(Message(
+      c.today,
+      tr('Development team'),
+      tr('{0} joins the development team', [r.name]),
+      tr('{0} rides for {1} from {2} until {3}.', [
+        c.fullName(r.id),
+        c.devTeam.team?.name ?? '',
+        c.year + 1,
+        k.nextEnd,
+      ]),
+    ));
+    return null;
+  }
+
   static String _euro(num v) => v >= 1000000
       ? tr('{0} m €', [dec(v / 1000000, 2)])
       : '${(v / 1000).round()}.000 €';
@@ -496,6 +596,7 @@ class Economy {
   void daily(
       List<({RaceProgress race, int stageIndex, StageResult result})> ridden) {
     for (final day in ridden) {
+      _prizeMonth += Prizes.earned(day.race, day.result, c.teamId);
       final tier = day.race.race.tier;
       final p = day.result.placings;
       if (p.first.rider.teamId == c.teamId) {
@@ -520,23 +621,25 @@ class Economy {
     if (t.day == 1 && t.month == 8 && autoRenew) _renewOwn();
   }
 
-  double _pointsSeen = 0;
+  /// Prize money won since the last monthly statement.
+  double _prizeMonth = 0;
 
   /// Writes the monthly statement and updates the balance.
   void _closeMonth() {
-    final points = c.teamPoints[c.teamId] ?? 0;
-    _prize = (points - _pointsSeen) * _prizePerPoint;
-    _pointsSeen = points;
+    _prize = _prizeMonth;
+    _prizeMonth = 0;
     final line = MonthLine(
       c.today,
       budget / 12,
       _prize,
       wageBill(c.teamId) / 12,
-      // Travel and equipment as a flat rate, less what the suppliers pay,
-      // plus staff wages.
-      budget * 0.15 / 12 -
+      // Travel, equipment and running the team as a flat rate, less what the
+      // suppliers pay, plus staff wages. Riders' wages and this together
+      // take what a real team spends.
+      budget * 0.22 / 12 -
           c.equipment.supplyOf(c.teamId).fee / 12 +
           c.staff.wages(c.teamId) / 12 +
+          c.facilities.upkeep(c.teamId) / 12 +
           c.devTeam.cost / 12 +
           _charged,
     );
@@ -559,7 +662,36 @@ class Economy {
       final median = ratings[ratings.length ~/ 2];
       for (final r in squad) {
         if (!expiring(r) || rng.nextDouble() > 0.45) continue;
-        if (_worthKeeping(r, median)) _sign(r, team.id, 1 + rng.nextInt(3));
+        // A rider who has outgrown his team does not renew; he goes to a
+        // stronger one.
+        if (_worthKeeping(r, median) &&
+            rating(r) <= c.teamStrength(team.id) + 6) {
+          _sign(r, team.id, 1 + rng.nextInt(3));
+        }
+      }
+    }
+    // Promotions: a team with a development team first looks there. Up to
+    // two of its best young riders move up each year, if they are close to
+    // the level of the team or gifted enough to grow into it.
+    for (final team in teams) {
+      final dev = c.devTeam.links[team.id];
+      if (dev == null || team.id == c.teamId) continue;
+      final target = _target(team);
+      final level = c.teamStrength(team.id);
+      final young = [
+        for (final r in c.squads[dev] ?? const <SimRider>[])
+          if (contracts[r.id]?.nextTeam == null &&
+              (rating(r) >= level - 7 ||
+                  r.potential >= 5 && rating(r) >= level - 11))
+            r,
+      ]..sort((a, b) =>
+          (rating(b) + 2 * b.potential).compareTo(rating(a) + 2 * a.potential));
+      final already = _promoted[team.id] ?? 0;
+      for (final r in young.take(2 - already)) {
+        if (squadNextSeason(team.id) >= target) break;
+        if (rng.nextDouble() < 0.5) continue;
+        _sign(r, team.id, 2);
+        _promoted[team.id] = (_promoted[team.id] ?? 0) + 1;
       }
     }
     // Signings: every team with a gap takes up to two riders who suit it.
@@ -578,15 +710,14 @@ class Economy {
       final level = c.teamStrength(team.id);
       // Every team looks at the market through its style.
       final style = c.styleOf(team.id);
-      final wanted = [...pool]..sort((a, b) =>
-          (rating(b) + styleBonus(b, style))
-              .compareTo(rating(a) + styleBonus(a, style)));
+      double value(SimRider r) => outlook(r) + styleBonus(r, style);
+      final wanted = [...pool]..sort((a, b) => value(b).compareTo(value(a)));
       for (final r in wanted) {
         if (signed >= 2 || (sizes[team.id] ?? 0) >= target) break;
         if (!expiring(r) || r.teamId == team.id) continue;
-        // Nobody moves to a clearly weaker team, and no team gets a rider far
-        // above its level.
-        if (rating(r) > level + 2 || rating(r) < level - 9) continue;
+        // A rider does not move to a team far below his level, and no team
+        // takes riders far below its own.
+        if (rating(r) > level + 6 || outlook(r) < level - 9) continue;
         if (rng.nextDouble() < 0.5) continue;
         _sign(r, team.id, 1 + rng.nextInt(3));
         sizes[team.id] = (sizes[team.id] ?? 0) + 1;
@@ -621,6 +752,9 @@ class Economy {
     };
   }
 
+  /// Riders each team has promoted from its development team this season.
+  final _promoted = <int, int>{};
+
   /// Target size of a squad: as large as at the start of the career.
   ///
   /// @param team The team.
@@ -639,8 +773,21 @@ class Economy {
   /// @returns Whether the team renews with him.
   bool _worthKeeping(SimRider r, double median) {
     final age = c.year - r.born ~/ 10000;
-    if (age >= 37) return false;
+    if (age >= 37 || age >= 35 && rating(r) < median) return false;
     return rating(r) >= median - 4 || (age < 25 && r.potential >= 5);
+  }
+
+  /// What a rider is worth to a team that signs him for a few years: his
+  /// rating now, plus what a young rider of potential will still gain,
+  /// minus what an old one will lose.
+  ///
+  /// @param r The rider.
+  /// @returns A value on the rating scale.
+  double outlook(SimRider r) {
+    final age = c.year + 1 - r.born ~/ 10000;
+    final growth = max(0, 25 - age) * (r.potential - 3.5) * 0.35;
+    final decline = max(0, age - 32) * 1.5;
+    return rating(r) + growth - decline;
   }
 
   /// @param squad A squad.
@@ -764,8 +911,12 @@ class Economy {
           ..refusedUntil = null;
       } else if (k.endYear <= c.year) {
         if (r.teamId == c.teamId) left.add(c.fullName(r.id));
-        // Without a new contract: retirement for the old, otherwise free agent.
-        if (age >= 37 || (age >= 34 && rating(r) < 71)) {
+        // Without a new contract: retirement for the old, and for those who
+        // have already spent a season without a team; otherwise free agent.
+        if (age >= 38 ||
+            age >= 36 && rating(r) < 80 ||
+            age >= 34 && rating(r) < 73 ||
+            age >= 30 && r.teamId == free) {
           _retire(r);
         } else if (r.teamId != free) {
           _move(r, free);
@@ -775,6 +926,7 @@ class Economy {
         }
       }
     }
+    _promoted.clear();
     _intake(free);
     c.devTeam.intake(free);
     _fillSquads(free);
@@ -856,8 +1008,11 @@ class Economy {
       final names = byCountry[country]!;
       final last = names[rng.nextInt(names.length)].split(' ').last;
       final first = names[rng.nextInt(names.length)].split(' ').first;
-      // Everyone brings one strength; the rest lies below it.
-      final base = 56 + rng.nextDouble() * 9;
+      // Everyone brings one strength; the rest lies below it. A few each
+      // year are exceptional: further on at 18 and with the potential to
+      // reach the very top.
+      final star = n < 3;
+      final base = star ? 62 + rng.nextDouble() * 5 : 53 + rng.nextDouble() * 9;
       final strong = const [
         ['mountain', 'mediumMountain', 'hill'],
         ['sprint', 'acceleration', 'flat'],
@@ -866,7 +1021,9 @@ class Economy {
         ['hill', 'acceleration', 'mediumMountain'],
       ][rng.nextInt(5)];
       double value(String name) => (base +
-              (strong.contains(name) ? 5 + rng.nextDouble() * 5 : 0) +
+              (strong.contains(name)
+                  ? (star ? 9 : 5) + rng.nextDouble() * 5
+                  : 0) +
               rng.nextDouble() * 4)
           .clamp(50.0, 80.0);
       final attributes = Attributes(
@@ -887,7 +1044,7 @@ class Economy {
       );
       // Potential: mostly average, few exceptions.
       final talent = rng.nextDouble();
-      final potential = talent > 0.96
+      final potential = star || talent > 0.96
           ? 6.0
           : talent > 0.85
               ? 5.5
@@ -941,7 +1098,7 @@ class Economy {
       while ((c.squads[team.id]?.length ?? 0) < target) {
         final at = pool.indexWhere((r) {
           final age = c.year + 1 - r.born ~/ 10000;
-          return (!under23 || age <= 22) && rating(r) <= level + 2;
+          return (!under23 || age <= 22) && rating(r) <= level + 6;
         });
         if (at < 0) break;
         final r = pool.removeAt(at);
@@ -983,7 +1140,6 @@ class Economy {
     wins = 0;
     grandTourPodium = false;
     grandTourStage = false;
-    _pointsSeen = 0;
     final order = c.teams.values.map((t) => t.id).toList()
       ..sort((a, b) => c.teamStrength(b).compareTo(c.teamStrength(a)));
     final rank = order.indexOf(c.teamId) + 1;
@@ -1050,6 +1206,7 @@ class Economy {
         'budget': budget,
         'balance': balance,
         'confidence': confidence,
+        'anchor': [_anchorBudget, _anchorRank],
         'ledger': [
           for (final l in ledger)
             [_ms(l.month), l.sponsor, l.prize, l.wages, l.costs],
@@ -1058,10 +1215,11 @@ class Economy {
           for (final g in goals) [g.kind.index, g.target],
         ],
         'wins': wins,
+        'promoted': {for (final e in _promoted.entries) '${e.key}': e.value},
         'gtPodium': grandTourPodium,
         'gtStage': grandTourStage,
         'prize': _prize,
-        'pointsSeen': _pointsSeen,
+        'prizeMonth': _prizeMonth,
         'sponsors': [
           for (final s in sponsors)
             [s.name, s.amount, s.endYear, s.demandPlace],
@@ -1103,6 +1261,13 @@ class Economy {
     budget = d('budget');
     balance = d('balance');
     confidence = d('confidence');
+    if (j['anchor'] case [final num b, final int r]) {
+      _anchorBudget = b.toDouble();
+      _anchorRank = r;
+    } else {
+      _anchorBudget = budget;
+      _anchorRank = _strengthRank();
+    }
     ledger
       ..clear()
       ..addAll([
@@ -1120,10 +1285,17 @@ class Economy {
         _goal(GoalKind.values[g[0] as int], g[1] as int),
     ];
     wins = j['wins'] as int;
+    _promoted
+      ..clear()
+      ..addAll({
+        for (final e
+            in (j['promoted'] as Map<String, dynamic>? ?? const {}).entries)
+          int.parse(e.key): e.value as int,
+      });
     grandTourPodium = j['gtPodium'] as bool;
     grandTourStage = j['gtStage'] as bool;
     _prize = d('prize');
-    _pointsSeen = d('pointsSeen');
+    _prizeMonth = (j['prizeMonth'] as num?)?.toDouble() ?? 0;
     sponsors
       ..clear()
       ..addAll([

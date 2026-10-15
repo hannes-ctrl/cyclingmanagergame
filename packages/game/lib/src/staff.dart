@@ -418,7 +418,9 @@ class StaffBook {
         : division.startsWith('[2]')
             ? 0.5
             : 0.25;
-    return (base + 0.2 * _best(c.teamId, StaffRole.scout) / 20)
+    return (base +
+            0.2 * _best(c.teamId, StaffRole.scout) / 20 +
+            c.facilities.scoutingBonus(c.teamId))
         .clamp(0.0, 0.95);
   }
 
@@ -460,7 +462,9 @@ class StaffBook {
     }
     final s = idle.first;
     // A good scout needs two weeks, a weak one five.
-    final days = (38 - 1.3 * s.skill).round().clamp(10, 40);
+    final days = ((38 - 1.3 * s.skill) * c.facilities.scoutDays(c.teamId))
+        .round()
+        .clamp(7, 40);
     jobs.add(ScoutJob(riderId, s.id, c.today.add(Duration(days: days))));
     return null;
   }

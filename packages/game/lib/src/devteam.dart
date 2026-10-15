@@ -263,7 +263,8 @@ class DevTeam {
         return p != 0 ? p : Economy.rating(b).compareTo(Economy.rating(a));
       });
     final names = <String>[];
-    for (final r in pool.take(2)) {
+    // The academy decides how many of the new talents come.
+    for (final r in pool.take(c.facilities.academyIntake(c.teamId))) {
       c.economy.move(r, id);
       c.economy.contracts[r.id]!.endYear = c.year + 2;
       names.add(c.fullName(r.id));

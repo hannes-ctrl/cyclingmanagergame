@@ -122,13 +122,13 @@ void main() {
     await tester.pumpAndSettle();
     bool enabled(String tooltip) =>
         tester
-            .widget<IconButton>(
-              find.ancestor(
+            .widget<InkResponse>(
+              find.descendant(
                 of: find.byTooltip(tooltip),
-                matching: find.byType(IconButton),
+                matching: find.byType(InkResponse),
               ),
             )
-            .onPressed !=
+            .onTap !=
         null;
     const back = 'Zurück (Alt+←, Esc)', forward = 'Vor (Alt+→)';
     expect(enabled(back), isFalse);
@@ -702,6 +702,15 @@ void main() {
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/leistung.png'),
+    );
+    // The stage in fast motion, halfway.
+    await tester.tap(find.text('Zeitraffer').first);
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(Slider).first, const Offset(30, 0));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/zeitraffer.png'),
     );
 
     await tester.tap(find.text('Berg'));

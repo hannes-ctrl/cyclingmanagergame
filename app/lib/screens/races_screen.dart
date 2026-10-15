@@ -9,6 +9,7 @@ import '../app_state.dart';
 import '../ui.dart';
 import '../widgets.dart';
 import 'power_view.dart';
+import 'race_replay.dart';
 import 'race_chart.dart';
 import 'tactics_dialog.dart';
 import 'whatif_dialog.dart';
@@ -475,7 +476,8 @@ enum _Side {
   article('Report'),
   course('Course'),
   team('Our team'),
-  power('Power');
+  power('Power'),
+  replay('Fast motion');
 
   const _Side(this._label);
   final String _label;
@@ -512,8 +514,11 @@ class _ReportState extends State<_Report> {
     bool own(SimRider r) => r.teamId == s.team.id;
     final hasOwn = result.placings.any((p) => own(p.rider));
     final hasPower = result.power.isNotEmpty;
+    final hasReplay = result.timeline.any((x) => x.groups.isNotEmpty);
     final side =
-        _side == _Side.team && !hasOwn || _side == _Side.power && !hasPower
+        _side == _Side.team && !hasOwn ||
+            _side == _Side.power && !hasPower ||
+            _side == _Side.replay && !hasReplay
         ? _Side.article
         : _side;
     final article = writeArticle(
@@ -661,7 +666,8 @@ class _ReportState extends State<_Report> {
                   children: [
                     for (final v in _Side.values)
                       if ((v != _Side.team || hasOwn) &&
-                          (v != _Side.power || hasPower))
+                          (v != _Side.power || hasPower) &&
+                          (v != _Side.replay || hasReplay))
                         Material(
                           color: v == side
                               ? TeamColors.text
@@ -736,6 +742,14 @@ class _ReportState extends State<_Report> {
                           teamId: s.team.id,
                         ),
                       ],
+                      if (side == _Side.replay)
+                        RaceReplay(
+                          key: ValueKey(widget.index),
+                          result: result,
+                          route: widget.run.routes[widget.index],
+                          names: {for (final r in s.squad) r.id: r.name},
+                          colors: c,
+                        ),
                       if (side == _Side.power)
                         PowerView(result: result, teamId: s.team.id, colors: c),
                       if (side == _Side.course) ...[

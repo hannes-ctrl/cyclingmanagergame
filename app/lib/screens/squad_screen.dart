@@ -452,6 +452,40 @@ class _SquadScreenState extends State<SquadScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
+                // One click sets the training load of the whole squad.
+                if (_view == _View.shape)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Wrap(
+                      spacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          tr('Load for all riders:'),
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        for (final load in TrainingLoad.values)
+                          Pill(
+                            label: load.label,
+                            selected: state.squad.every(
+                              (r) => career.shapeOf(r.id).load == load,
+                            ),
+                            colors: c,
+                            onTap: () => state.setLoadAll(load),
+                          ),
+                        if (career.delegation.training)
+                          Text(
+                            tr(
+                              'The coach sets the load again every Monday; switch that off under Delegation.',
+                            ),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: TeamColors.gold,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 Text(
                   switch (_view) {
                     _View.attributes => tr(

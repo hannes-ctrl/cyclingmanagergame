@@ -103,7 +103,11 @@ class SeasonPlanner {
     }
   }
 
-  final _fits = <int, Map<int, double>>{};
+  /// Suitability per race and rider, with the attributes it was worked out
+  /// from: riders develop during the season, and a value from older
+  /// attributes would make the plan depend on when it was first asked (a
+  /// loaded game would plan otherwise than the one played on).
+  final _fits = <int, Map<int, (List<double>, double)>>{};
 
   /// How well a rider suits a race: the mean of his suitability for the
   /// three stages that suit him best.
@@ -113,14 +117,23 @@ class SeasonPlanner {
   /// @returns A value on the attribute scale.
   double fit(RaceEntry race, SimRider r) {
     final byRider = _fits.putIfAbsent(race.info.id, () => {});
-    return byRider.putIfAbsent(r.id, () {
-      final values = _values(r.attributes);
-      final fits = [
-        for (final s in race.stages) _dot(_coefficients(s.id), values),
-      ]..sort((a, b) => b.compareTo(a));
-      final top = fits.take(min(3, fits.length));
-      return top.reduce((a, b) => a + b) / top.length;
-    });
+    final values = _values(r.attributes);
+    final known = byRider[r.id];
+    if (known != null && _same(known.$1, values)) return known.$2;
+    final fits = [
+      for (final s in race.stages) _dot(_coefficients(s.id), values),
+    ]..sort((a, b) => b.compareTo(a));
+    final top = fits.take(min(3, fits.length));
+    final value = top.reduce((a, b) => a + b) / top.length;
+    byRider[r.id] = (values, value);
+    return value;
+  }
+
+  static bool _same(List<double> a, List<double> b) {
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   // The suitability of a rider for a route is a weighted sum of his

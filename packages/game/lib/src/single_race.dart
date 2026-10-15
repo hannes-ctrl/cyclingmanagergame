@@ -92,7 +92,7 @@ class SingleRace {
       if (gap > 1) {
         run.restDay({
           for (final t in {for (final r in run.riders) r.teamId})
-            t: TeamKit(physios: career.staff.physioQuality(t)),
+            t: TeamKit(physios: career.recoveryQuality(t)),
         });
       }
     }

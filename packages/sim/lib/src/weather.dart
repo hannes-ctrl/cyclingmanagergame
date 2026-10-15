@@ -128,12 +128,65 @@ class WindField {
 /// @param w Weather of the day.
 /// @param r Random source.
 /// @returns Head- and crosswind per segment.
+/// Which segments of a route lie open to the wind: flat roads low in the
+/// plain, without mountains close by, in blocks of five kilometres. Climbs,
+/// descents, valleys and high mountains are sheltered. Of the open blocks
+/// about half are exposed (fields, coast, dykes), the rest run between
+/// houses, hedges and woods; which ones is fixed per route, so that the
+/// same roads are open every year and the profile can show them.
+///
+/// @param route The stage.
+/// @returns Per segment whether it is open.
+List<bool> exposedSegments(SimRoute route) =>
+    _exposed[route] ??= _exposedSegments(route);
+
+final _exposed = Expando<List<bool>>();
+
+List<bool> _exposedSegments(SimRoute route) {
+  final segs = route.segments;
+  final out = List.filled(segs.length, false);
+  if (route.kind != StageKind.road || segs.isEmpty) return out;
+  final hash =
+      route.name.codeUnits.fold(17, (h, c) => (h * 31 + c) & 0x7fffffff);
+  var i = 0;
+  while (i < segs.length) {
+    final block = (segs[i].km / 5).floor();
+    var j = i;
+    var alt = 0.0, steep = 0.0, n = 0;
+    while (j < segs.length && (segs[j].km / 5).floor() == block) {
+      alt += segs[j].altitudeM;
+      steep += segs[j].grade.abs();
+      n++;
+      j++;
+    }
+    alt /= n;
+    steep /= n;
+    // The relief within ten kilometres: a valley floor has mountains
+    // around it.
+    var lo = double.infinity, hi = -double.infinity;
+    for (final s in segs) {
+      if ((s.km - segs[i].km).abs() > 10) continue;
+      lo = min(lo, s.altitudeM);
+      hi = max(hi, s.altitudeM);
+    }
+    final flatLand = alt < 800 && steep < 0.012 && hi - lo < 250;
+    final luck = Random(hash + block * 7919).nextDouble();
+    if (flatLand && luck < 0.5) {
+      for (var k = i; k < j; k++) {
+        out[k] = segs[k].climbKm == 0 && segs[k].grade.abs() < 0.02;
+      }
+    }
+    i = j;
+  }
+  return out;
+}
+
 WindField windAlong(SimRoute route, Weather w, Random r) {
   final n = route.segments.length;
   if (w.windMs < 0.5) return WindField.still(n);
   final head = List<double>.filled(n, 0), cross = List<double>.filled(n, 0);
+  final open = exposedSegments(route);
   var heading = 0.0;
-  var exposure = 1.0;
   var blockEnd = -1.0;
   for (var i = 0; i < n; i++) {
     final s = route.segments[i];
@@ -141,8 +194,10 @@ WindField windAlong(SimRoute route, Weather w, Random r) {
       blockEnd = s.km + 5;
       final u = max(r.nextDouble(), 1e-12);
       heading += 0.7 * sqrt(-2 * log(u)) * cos(2 * pi * r.nextDouble());
-      exposure = r.nextDouble() < 0.45 ? 1.0 : 0.35;
+      // Drawn as before, so that the random numbers stay in step.
+      r.nextDouble();
     }
+    final exposure = open[i] ? 1.0 : 0.35;
     // Climbs wind through valleys and woods; at rider height the wind is
     // weaker than at 10 m.
     final shelter = s.climbKm > 0 || s.grade < -0.03 ? 0.5 : 1.0;
