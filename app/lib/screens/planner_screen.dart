@@ -195,9 +195,23 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
     // A rider cannot start in two races at once.
     final clashes = career.programClashes();
+    final warnings = career.programWarnings();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (warnings.isNotEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: TeamColors.gold.withValues(alpha: 0.14),
+            child: Text(
+              warnings.take(4).join(' · ') +
+                  (warnings.length > 4
+                      ? tr(' and {0} more', [warnings.length - 4])
+                      : ''),
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
         if (clashes.isNotEmpty)
           Container(
             width: double.infinity,

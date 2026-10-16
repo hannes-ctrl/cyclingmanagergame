@@ -1,6 +1,7 @@
 import 'package:sim/sim.dart';
 
 import 'career.dart';
+import 'economy.dart';
 
 /// The facilities a team can run.
 enum Facility {
@@ -68,7 +69,7 @@ class Facilities {
   void _assign() {
     for (final t in c.teams.values) {
       if (t.division == 'Free') continue;
-      final base = ((c.teamStrength(t.id) - 60) / 5).round().clamp(1, maxLevel);
+      final base = fitting(t.id);
       levels[t.id] = {
         for (final f in Facility.values)
           // A little variety between the facilities of a team, fixed per
@@ -77,6 +78,14 @@ class Facilities {
       };
     }
   }
+
+  /// The level that fits a team of its strength: about 3 at 75, 4 at 80,
+  /// 5 at 85.
+  ///
+  /// @param teamId Id of a team.
+  /// @returns 1 to 5.
+  int fitting(int teamId) =>
+      ((c.teamStrength(teamId) - 60) / 5).round().clamp(1, maxLevel);
 
   /// @param teamId Id of a team.
   /// @param f A facility.
@@ -120,8 +129,17 @@ class Facilities {
 
   // --- Money -----------------------------------------------------------------
 
-  /// What one level of a facility costs per season to run.
-  static const upkeepPerLevel = 120000.0;
+  // Costs are shares of the team's budget, so that a continental team
+  // with a million pays for its small facilities what a WorldTeam pays for
+  // its large ones in proportion: a level costs half a per cent of the
+  // budget a year to run, and building the next one two and a half per cent
+  // of the budget times the level it starts from.
+
+  /// Share of the budget one level of a facility costs per season to run.
+  static const upkeepShare = 0.005;
+
+  /// Share of the budget per level that building the next level costs.
+  static const buildShare = 0.025;
 
   /// Running costs of all facilities of a team per season.
   ///
@@ -129,7 +147,16 @@ class Facilities {
   /// @returns Euros.
   double upkeep(int teamId) =>
       Facility.values.fold(0.0, (s, f) => s + level(teamId, f)) *
-      upkeepPerLevel;
+      upkeepShare *
+      c.finances.budgetOf(teamId);
+
+  /// What it costs a team to build a facility up from a level.
+  ///
+  /// @param teamId Id of the team.
+  /// @param level The level it has now.
+  /// @returns Euros.
+  double costAt(int teamId, int level) =>
+      buildShare * c.finances.budgetOf(teamId) * level;
 
   /// What it costs to build a facility up to the next level.
   ///
@@ -138,7 +165,7 @@ class Facilities {
   double? upgradeCost(Facility f) {
     final now = level(c.teamId, f);
     if (now >= maxLevel) return null;
-    return 600000.0 * now;
+    return costAt(c.teamId, now);
   }
 
   /// Days it takes to build the next level.
@@ -154,13 +181,43 @@ class Facilities {
     }
     final cost = upgradeCost(f);
     if (cost == null) return tr('The facility is already at the top level.');
-    if (c.economy.balance < cost) {
+    if (c.economy.available < cost) {
       return tr('There is not enough money in the account.');
     }
     c.economy.balance -= cost;
     building =
         Build(f, c.today.add(Duration(days: buildDays(level(c.teamId, f)))));
     return null;
+  }
+
+  /// On the first of a month, when the player has handed it to the board:
+  /// with no building going on, the board raises the weakest facility if
+  /// the account still holds a tenth of the budget afterwards.
+  void boardBuilds() {
+    if (building != null) return;
+    final open = [
+      for (final f in Facility.values)
+        if (level(c.teamId, f) < maxLevel) f,
+    ];
+    if (open.isEmpty) return;
+    final f =
+        open.reduce((a, b) => level(c.teamId, b) < level(c.teamId, a) ? b : a);
+    final cost = upgradeCost(f)!;
+    if (c.economy.available - cost < 0.1 * c.economy.budget) return;
+    if (upgrade(f) != null) return;
+    c.inbox.add(Message(
+      c.today,
+      tr('Board'),
+      tr('{0} is being expanded', [f.label]),
+      tr(
+          'The board has started building the {0} up to level {1} for {2}. It opens in {3} days.',
+          [
+            f.label,
+            level(c.teamId, f) + 1,
+            Economy.euro(cost),
+            buildDays(level(c.teamId, f)),
+          ]),
+    ));
   }
 
   /// Daily: a finished building opens.

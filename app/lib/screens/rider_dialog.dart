@@ -6,6 +6,7 @@ import 'package:sim/sim.dart';
 import '../app_state.dart';
 import '../ui.dart';
 import '../widgets.dart';
+import 'scout_button.dart';
 
 // Label, short code (also the key of the scouting range, so that every
 // screen shows the same estimate) and accessor.
@@ -778,17 +779,14 @@ class RiderPage extends StatelessWidget {
                               : tr('revealed by debug mode'),
                         ),
                       ],
-                      if (!exact)
+                      if (!exact && !own)
                         Padding(
-                          padding: EdgeInsets.only(top: 6),
-                          child: Text(
-                            tr(
-                              'Estimated. A scout makes the values exact (Transfers → Scout him).',
-                            ),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: TeamColors.muted,
-                            ),
+                          padding: const EdgeInsets.only(top: 6),
+                          child: ScoutButton(
+                            state: s,
+                            riderId: r.id,
+                            onAnswer: (text) => ScaffoldMessenger.of(context)
+                                .showSnackBar(SnackBar(content: Text(text))),
                           ),
                         ),
                     ],
@@ -848,6 +846,16 @@ class RiderPage extends StatelessWidget {
                         tr('Race days {0}', [career.year]),
                         '${shape.raceDays}',
                       ),
+                      if ((career.breakDays[r.id] ?? 0) > 0)
+                        fact(
+                          tr('Days in the break'),
+                          (career.combative[r.id] ?? 0) > 0
+                              ? tr('{0}, most combative {1} times', [
+                                  career.breakDays[r.id],
+                                  career.combative[r.id],
+                                ])
+                              : '${career.breakDays[r.id]}',
+                        ),
                       fact(
                         'Status',
                         injured
@@ -942,8 +950,9 @@ class RiderPage extends StatelessWidget {
                           ),
                         fact(
                           tr('Professionalism'),
-                          Personality.word(person.professionalism),
+                          Personality.word(people.professionalism(r.id)),
                         ),
+                        ..._mentoring(context, s, r, fact),
                         fact(tr('Ambition'), Personality.word(person.ambition)),
                         fact(tr('Loyalty'), Personality.word(person.loyalty)),
                         fact(
@@ -1143,4 +1152,71 @@ String birthDate(int born) {
 int ageOn(int born, DateTime day) {
   final y = born ~/ 10000, md = born % 10000;
   return day.year - y - (day.month * 100 + day.day < md ? 1 : 0);
+}
+
+/// Mentoring lines of the rider page: a young rider's mentor, chosen from
+/// the team, or the young riders an older one looks after.
+///
+/// @param context Where messages are shown.
+/// @param s Application state.
+/// @param r The rider.
+/// @param fact Builds one line of the page.
+/// @returns The lines, empty if mentoring does not apply to him.
+List<Widget> _mentoring(
+  BuildContext context,
+  AppState s,
+  SimRider r,
+  Widget Function(String, String, {Color? color}) fact,
+) {
+  final career = s.career;
+  final people = career.people;
+  final own = r.teamId == s.team.id || career.devTeam.has(r.id);
+  if (!own) return const [];
+  final age = career.year - r.born ~/ 10000;
+  final mentees = people.menteesOf(r.id);
+  if (age <= People.menteeAge) {
+    final mentor = people.mentorOf(r.id);
+    final candidates =
+        [
+          for (final x in s.squad)
+            if (x.id != r.id && people.mentorReason(x.id) == null) x,
+        ]..sort(
+          (a, b) => people
+              .professionalism(b.id)
+              .compareTo(people.professionalism(a.id)),
+        );
+    return [
+      PopupMenuButton<int>(
+        tooltip: tr('Choose a mentor'),
+        onSelected: (id) {
+          final answer = s.setMentor(r.id, id < 0 ? null : id);
+          if (answer != null) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(answer)));
+          }
+        },
+        itemBuilder: (context) => [
+          PopupMenuItem(value: -1, child: Text(tr('none'))),
+          for (final x in candidates)
+            PopupMenuItem(
+              value: x.id,
+              child: Text(
+                '${x.name} · ${Personality.word(people.professionalism(x.id))} · ${people.menteesOf(x.id).length}/${People.maxMentees}',
+              ),
+            ),
+        ],
+        child: fact(
+          'Mentor',
+          '${mentor == null ? tr('none') : career.riderById[mentor]?.name ?? ''} ▾',
+        ),
+      ),
+    ];
+  }
+  if (mentees.isEmpty) return const [];
+  return [
+    fact(
+      tr('Mentor of'),
+      mentees.map((id) => career.riderById[id]?.name ?? '').join(', '),
+    ),
+  ];
 }

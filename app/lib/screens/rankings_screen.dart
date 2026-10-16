@@ -8,7 +8,7 @@ import '../widgets.dart';
 import 'rider_dialog.dart';
 
 /// The views of the rankings page.
-enum _View { season, licences, archive }
+enum _View { season, breakaways, licences, archive }
 
 /// Rankings of the current season by points, and the three-year ranking by
 /// which the licences are awarded.
@@ -42,6 +42,7 @@ class _RankingsScreenState extends State<RankingsScreen> {
           colors: c,
           tabs: {
             _View.season: tr('Season'),
+            _View.breakaways: tr('Breakaways'),
             _View.licences: tr('Licences'),
             _View.archive: tr('Archive'),
           },
@@ -53,9 +54,146 @@ class _RankingsScreenState extends State<RankingsScreen> {
             padding: const EdgeInsets.all(16),
             child: switch (_view) {
               _View.season => _season(),
+              _View.breakaways => _breakaways(),
               _View.licences => _licences(),
               _View.archive => _archive(),
             },
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// @returns Riders and teams by days in the break this season, with the
+  ///   combativity awards: the rider of the break who did the most work in
+  ///   front on each road stage.
+  Widget _breakaways() {
+    final state = widget.state;
+    final c = state.colors;
+    final career = state.career;
+    final riders =
+        [
+          for (final e in career.breakDays.entries)
+            if (career.riderById[e.key] case final r?) (r, e.value),
+        ]..sort((a, b) {
+          final d = b.$2.compareTo(a.$2);
+          return d != 0
+              ? d
+              : (career.combative[b.$1.id] ?? 0).compareTo(
+                  career.combative[a.$1.id] ?? 0,
+                );
+        });
+    final teams = <int, int>{};
+    for (final (r, days) in riders) {
+      teams[r.teamId] = (teams[r.teamId] ?? 0) + days;
+    }
+    final teamRows = teams.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    if (riders.isEmpty) {
+      return Center(
+        child: Text(
+          tr('No break has gone yet this season.'),
+          style: TextStyle(color: TeamColors.muted),
+        ),
+      );
+    }
+    Col<T> place<T>() => Col<T>(
+      '',
+      40,
+      (_, i) => cellText('${i + 1}', color: TeamColors.muted),
+      numeric: true,
+    );
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          flex: 6,
+          child: Panel(
+            colors: c,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Label(tr('Riders')),
+                const SizedBox(height: 6),
+                Expanded(
+                  child: DenseTable<(SimRider, int)>(
+                    colors: c,
+                    rows: riders.take(300).toList(),
+                    onTap: (x) => state.openRider(x.$1.id),
+                    highlight: (x) => x.$1.teamId == state.team.id,
+                    columns: [
+                      place(),
+                      Col(
+                        'Name',
+                        200,
+                        (x, _) => cellText(career.fullName(x.$1.id)),
+                      ),
+                      Col(
+                        tr('Team'),
+                        70,
+                        (x, _) =>
+                            cellText(career.teams[x.$1.teamId]?.abbr ?? ''),
+                      ),
+                      Col(
+                        tr('Days in the break'),
+                        120,
+                        (x, _) => cellText('${x.$2}'),
+                        numeric: true,
+                        sortKey: (x) => x.$2,
+                      ),
+                      Col(
+                        tr('Most combative'),
+                        120,
+                        (x, _) => cellText('${career.combative[x.$1.id] ?? 0}'),
+                        numeric: true,
+                        sortKey: (x) => career.combative[x.$1.id] ?? 0,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 4,
+          child: Panel(
+            colors: c,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Label(tr('Teams')),
+                const SizedBox(height: 6),
+                Expanded(
+                  child: DenseTable<MapEntry<int, int>>(
+                    colors: c,
+                    rows: teamRows,
+                    highlight: (e) => e.key == state.team.id,
+                    columns: [
+                      place(),
+                      Col(
+                        tr('Team'),
+                        220,
+                        (e, _) => cellText(career.teams[e.key]?.name ?? ''),
+                      ),
+                      Col(
+                        tr('Days in the break'),
+                        120,
+                        (e, _) => cellText('${e.value}'),
+                        numeric: true,
+                      ),
+                      Col(
+                        tr('Most combative'),
+                        120,
+                        (e, _) => cellText('${career.teamCombative(e.key)}'),
+                        numeric: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],

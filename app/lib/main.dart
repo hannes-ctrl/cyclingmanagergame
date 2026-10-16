@@ -14,6 +14,7 @@ import 'app_state.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/camps_screen.dart';
 import 'screens/delegation_screen.dart';
+import 'screens/history_screen.dart';
 import 'screens/debug_screen.dart';
 import 'screens/dev_screen.dart';
 import 'screens/finance_screen.dart';
@@ -281,6 +282,7 @@ enum _Page {
   finance('Finances and goals', LucideIcons.landmark),
   staff('Staff', LucideIcons.idCard),
   delegation('Delegation', LucideIcons.clipboardList),
+  history('History', LucideIcons.bookOpen),
   saves('Save games', LucideIcons.save),
   debug('Debug', LucideIcons.bug);
 
@@ -597,6 +599,7 @@ class _ShellState extends State<Shell> {
     _Page.camps => CampsScreen(state: s),
     _Page.calendar => CalendarScreen(state: s, onOpenRace: _openRace),
     _Page.delegation => DelegationScreen(state: s),
+    _Page.history => HistoryScreen(state: s),
     _Page.saves => SavesScreen(state: s),
   };
 
@@ -1141,6 +1144,7 @@ class _Sidebar extends StatelessWidget {
           item(_Page.finance),
           item(_Page.staff),
           item(_Page.delegation),
+          item(_Page.history),
           const Spacer(),
           Divider(height: 1, color: c.onSide.withValues(alpha: 0.18)),
           if (state.debug) item(_Page.debug),

@@ -49,24 +49,28 @@ enum DirectorFocus {
 /// A staff member. Values run from 1 to 20.
 class Staff {
   Staff(this.id, this.name, this.role, this.skill, this.second, this.third,
-      this.focus, this.wage, this.teamId);
+      this.focus, this.wage, this.teamId,
+      {this.born = 0});
   final int id;
   final String name;
   final StaffRole role;
 
   /// Main value: tactics (sports director), training quality, medicine,
-  /// judgement (scout).
-  final int skill;
+  /// judgement (scout). Young people improve, old ones slowly lose touch.
+  int skill;
 
   /// Sports director only: reading the race.
-  final int second;
+  int second;
 
   /// Sports director only: motivation.
   final int third;
   final DirectorFocus focus;
 
   /// Wage in euros per year.
-  final int wage;
+  int wage;
+
+  /// Year of birth.
+  int born;
 
   /// Team, 0 = unemployed.
   int teamId;
@@ -93,13 +97,66 @@ class Staff {
   }
 }
 
-/// A rider a scout is currently watching.
+/// A rider a scout is currently watching, or a test at the team's base.
 class ScoutJob {
-  ScoutJob(this.riderId, this.scoutId, this.until);
+  ScoutJob(this.riderId, this.scoutId, this.until, [this.stage = 2]);
   final int riderId;
+
+  /// Id of the scout; 0 for a test at the base.
   final int scoutId;
   final DateTime until;
+
+  /// What the job brings: 1 a first impression, 2 a detailed report, 3 the
+  /// test at the base, after which everything is known.
+  final int stage;
 }
+
+/// A scout's standing assignment: he looks for riders of a country, an
+/// age and a kind, and reports on the most promising he finds.
+class ScoutAssignment {
+  ScoutAssignment(this.scoutId, this.country, this.maxAge, this.kind,
+      this.until, this.next);
+  final int scoutId;
+
+  /// Country code, or null for anywhere.
+  final String? country;
+
+  /// Oldest age that interests the team.
+  final int maxAge;
+
+  /// Kind of rider as in [Economy.kindOf], or null for any.
+  final String? kind;
+
+  /// Last day of the assignment.
+  final DateTime until;
+
+  /// Day of the next report.
+  DateTime next;
+
+  /// @returns The assignment as a compact list.
+  List<Object?> toJson() => [
+        scoutId,
+        country,
+        maxAge,
+        kind,
+        until.millisecondsSinceEpoch,
+        next.millisecondsSinceEpoch,
+      ];
+
+  /// @param j A list written by [toJson].
+  /// @returns The assignment.
+  static ScoutAssignment fromJson(List<dynamic> j) => ScoutAssignment(
+        j[0] as int,
+        j[1] as String?,
+        j[2] as int,
+        j[3] as String?,
+        DateTime.fromMillisecondsSinceEpoch(j[4] as int, isUtc: true),
+        DateTime.fromMillisecondsSinceEpoch(j[5] as int, isUtc: true),
+      );
+}
+
+/// An offer another team has made to one of the player's staff.
+typedef StaffLure = ({int teamId, int wage});
 
 /// Staff of all teams, assignment of sports directors, and scouting.
 ///
@@ -114,8 +171,26 @@ class StaffBook {
   final all = <Staff>[];
   final jobs = <ScoutJob>[];
 
-  /// Riders a scout has finished watching: their attributes are known.
+  /// Riders tested at the base (or, in older saves, scouted): everything
+  /// about them is known.
   final scouted = <int>{};
+
+  /// Reports on riders by rider id: 1 a first impression, 2 a detailed
+  /// report.
+  final reports = <int, int>{};
+
+  /// Standing assignments of the player's scouts.
+  final assignments = <ScoutAssignment>[];
+
+  /// Offers of other teams to the player's staff, by staff id; decided at
+  /// the turn of the year.
+  final lures = <int, StaffLure>{};
+
+  /// What a test at the base costs.
+  static const testCost = 6000;
+
+  /// Year of birth of a staff member, fixed by his id.
+  int _bornFor(int id) => c.year - 28 - (id * 7919 + c.seed) % 32;
 
   /// @param teamId Team id.
   /// @param role Optional role filter.
@@ -147,7 +222,7 @@ class StaffBook {
     void add(int teamId, StaffRole role, double base, {String? fixedName}) {
       final skill = level(base);
       all.add(Staff(
-        id++,
+        id,
         fixedName ?? name(),
         role,
         skill,
@@ -155,9 +230,11 @@ class StaffBook {
         level(base),
         DirectorFocus.values[rng.nextInt(DirectorFocus.values.length)],
         // Good people cost disproportionately more.
-        (20000 + 2500 * skill + 450 * skill * skill) ~/ 1000 * 1000,
+        wageFor(skill),
         teamId,
+        born: _bornFor(id),
       ));
+      id++;
     }
 
     for (final team in c.teams.values) {
@@ -199,6 +276,14 @@ class StaffBook {
     }
   }
 
+  /// What a staff member of a skill earns: good people cost
+  /// disproportionately more.
+  ///
+  /// @param skill His main value.
+  /// @returns Euros per year.
+  static int wageFor(int skill) =>
+      (20000 + 2500 * skill + 450 * skill * skill) ~/ 1000 * 1000;
+
   /// Mechanics and physiotherapists by tier.
   static (int, int) _careCrew(String division) => division.startsWith('[1]')
       ? (4, 3)
@@ -218,16 +303,10 @@ class StaffBook {
       final skill = level(base);
       final first = names[rng.nextInt(names.length)].split(' ').first;
       final last = names[rng.nextInt(names.length)].split(' ').last;
-      all.add(Staff(
-          id++,
-          '$first $last',
-          role,
-          skill,
-          level(base),
-          level(base),
-          DirectorFocus.stageRaces,
-          (20000 + 2500 * skill + 450 * skill * skill) ~/ 1000 * 1000,
-          teamId));
+      all.add(Staff(id, '$first $last', role, skill, level(base), level(base),
+          DirectorFocus.stageRaces, wageFor(skill), teamId,
+          born: _bornFor(id)));
+      id++;
     }
 
     for (final team in c.teams.values) {
@@ -389,9 +468,11 @@ class StaffBook {
     if (s.busyUntil?.isAfter(c.today) ?? false) {
       return tr('He is at a race right now.');
     }
-    if (jobs.any((j) => j.scoutId == staffId)) {
+    if (jobs.any((j) => j.scoutId == staffId) ||
+        assignments.any((a) => a.scoutId == staffId)) {
       return tr('He is on a scouting assignment.');
     }
+    lures.remove(staffId);
     s
       ..teamId = 0
       ..atRace = null;
@@ -401,8 +482,10 @@ class StaffBook {
   // --- Scouting ---------------------------------------------------------------
 
   /// How well the team knows a rider of another team. Everyone has a fair
-  /// idea of well-known professionals, hardly any of riders from small teams
-  /// and free agents.
+  /// idea of well-known professionals, little of riders from small teams
+  /// and hardly any of free agents. Reports narrow it in stages: a first
+  /// impression, a detailed report, and a test at the base after which
+  /// everything is known.
   ///
   /// @param riderId Id of the rider.
   /// @returns A value from 0 to 1; 1 means exact values are known.
@@ -413,16 +496,29 @@ class StaffBook {
     if (r.teamId == c.teamId || scouted.contains(riderId)) return 1;
     if (c.devTeam.has(riderId)) return 1;
     final division = c.teams[r.teamId]?.division ?? 'Free';
-    final base = division.startsWith('[1]')
-        ? 0.7
-        : division.startsWith('[2]')
-            ? 0.5
-            : 0.25;
-    return (base +
-            0.2 * _best(c.teamId, StaffRole.scout) / 20 +
-            c.facilities.scoutingBonus(c.teamId))
-        .clamp(0.0, 0.95);
+    final scout = _best(c.teamId, StaffRole.scout) / 20;
+    final base = (division.startsWith('[1]')
+            ? 0.65
+            : division.startsWith('[2]')
+                ? 0.45
+                : division == 'Free'
+                    ? 0.1
+                    : 0.2) +
+        0.15 * scout +
+        c.facilities.scoutingBonus(c.teamId);
+    final report = switch (reports[riderId] ?? 0) {
+      0 => 0.0,
+      1 => 0.72 + 0.05 * scout,
+      _ => 0.88 + 0.05 * scout,
+    };
+    return max(base, report).clamp(0.0, 0.95);
   }
+
+  /// @param riderId Id of a rider.
+  /// @returns How far the team's scouting of him has come: 0 nothing, 1 a
+  ///   first impression, 2 a detailed report, 3 tested at the base.
+  int stageOf(int riderId) =>
+      scouted.contains(riderId) ? 3 : reports[riderId] ?? 0;
 
   /// Range in which an attribute is believed to lie. The middle is not the
   /// true value, otherwise it could be read off; the offset is fixed per
@@ -443,7 +539,17 @@ class StaffBook {
     return (mid - width ~/ 2, mid + (width - width ~/ 2));
   }
 
-  /// Sends a free scout to watch a rider.
+  /// Scouts of the player's team without a job or an assignment, the best
+  /// first.
+  List<Staff> get idleScouts => of(c.teamId, StaffRole.scout)
+      .where((s) =>
+          !jobs.any((j) => j.scoutId == s.id) &&
+          !assignments.any((a) => a.scoutId == s.id))
+      .toList()
+    ..sort((a, b) => b.skill.compareTo(a.skill));
+
+  /// Sends a free scout to watch a rider: the next stage of his scouting,
+  /// a first impression or a detailed report.
   ///
   /// @param riderId Id of the rider.
   /// @returns null if a scout is on his way, otherwise the reason.
@@ -451,22 +557,130 @@ class StaffBook {
     if (knowledge(riderId) >= 1) return tr('Everything is known about him.');
     if (jobs.any((j) => j.riderId == riderId))
       return tr('He is already being scouted.');
-    final idle = of(c.teamId, StaffRole.scout)
-        .where((s) => !jobs.any((j) => j.scoutId == s.id))
-        .toList()
-      ..sort((a, b) => b.skill.compareTo(a.skill));
+    final stage = (reports[riderId] ?? 0) + 1;
+    if (stage > 2) {
+      return tr(
+          'The scouts have seen enough; only a test at the base tells more.');
+    }
+    final idle = idleScouts;
     if (idle.isEmpty) {
       return of(c.teamId, StaffRole.scout).isEmpty
           ? tr('The team has no scout.')
           : tr('All scouts are on assignment.');
     }
     final s = idle.first;
-    // A good scout needs two weeks, a weak one five.
-    final days = ((38 - 1.3 * s.skill) * c.facilities.scoutDays(c.teamId))
+    // A first impression takes one to two weeks, a detailed report two
+    // weeks for a good scout and five for a weak one.
+    final days = ((stage == 1 ? 20 - 0.6 * s.skill : 38 - 1.3 * s.skill) *
+            c.facilities.scoutDays(c.teamId))
         .round()
-        .clamp(7, 40);
-    jobs.add(ScoutJob(riderId, s.id, c.today.add(Duration(days: days))));
+        .clamp(5, 40);
+    jobs.add(ScoutJob(riderId, s.id, c.today.add(Duration(days: days)), stage));
     return null;
+  }
+
+  /// Invites a rider for a test at the team's base after a detailed report:
+  /// a few days and some money, and then everything about him is known,
+  /// his potential included.
+  ///
+  /// @param riderId Id of the rider.
+  /// @returns null if the test is arranged, otherwise the reason.
+  String? test(int riderId) {
+    if (knowledge(riderId) >= 1) return tr('Everything is known about him.');
+    if (jobs.any((j) => j.riderId == riderId))
+      return tr('He is already being scouted.');
+    if ((reports[riderId] ?? 0) < 2) {
+      return tr('A test at the base comes after a detailed report.');
+    }
+    if (c.economy.available < testCost) {
+      return tr('There is not enough money in the account.');
+    }
+    c.economy.charge(testCost.toDouble());
+    jobs.add(ScoutJob(riderId, 0, c.today.add(const Duration(days: 5)), 3));
+    return null;
+  }
+
+  /// Gives a free scout a standing assignment for two months.
+  ///
+  /// @param scoutId Id of the scout.
+  /// @param country Country code, or null for anywhere.
+  /// @param maxAge Oldest age that interests the team.
+  /// @param kind Kind of rider as in [Economy.kindOf], or null for any.
+  /// @returns null on success, otherwise the reason.
+  String? assign(int scoutId, String? country, int maxAge, String? kind) {
+    final s =
+        of(c.teamId, StaffRole.scout).where((x) => x.id == scoutId).firstOrNull;
+    if (s == null) return tr('Does not belong to the team.');
+    if (!idleScouts.contains(s)) return tr('He is on a scouting assignment.');
+    assignments.add(ScoutAssignment(
+      scoutId,
+      country,
+      maxAge.clamp(18, 40),
+      kind,
+      c.today.add(const Duration(days: 60)),
+      c.today.add(Duration(days: _interval(s))),
+    ));
+    return null;
+  }
+
+  /// Ends a scout's assignment early.
+  ///
+  /// @param scoutId Id of the scout.
+  /// @returns null on success, otherwise the reason.
+  String? recall(int scoutId) {
+    final before = assignments.length;
+    assignments.removeWhere((a) => a.scoutId == scoutId);
+    return assignments.length < before ? null : tr('He has no assignment.');
+  }
+
+  /// Days between two reports of an assignment: a good scout finds
+  /// riders faster.
+  int _interval(Staff s) =>
+      ((22 - 0.6 * s.skill) * c.facilities.scoutDays(c.teamId))
+          .round()
+          .clamp(6, 22);
+
+  /// A report of an assignment: the two riders the scout rates highest
+  /// among those he has not reported on yet. His judgement errs by up to
+  /// a few points, the more the weaker he is.
+  void _assignmentReport(ScoutAssignment a) {
+    final scout = all.where((x) => x.id == a.scoutId).firstOrNull;
+    if (scout == null) return;
+    final error = (20 - scout.skill) / 20 * 6;
+    double judged(SimRider r) =>
+        c.economy.outlook(r) +
+        (Economy.unit(r.id * 13 + scout.id, c.year) * 2 - 1) * error;
+    final found = [
+      for (final r in c.riderById.values)
+        if (r.teamId != c.teamId &&
+            !c.devTeam.has(r.id) &&
+            (reports[r.id] ?? 0) == 0 &&
+            !scouted.contains(r.id) &&
+            (a.country == null || r.country == a.country) &&
+            c.year - r.born ~/ 10000 <= a.maxAge &&
+            (a.kind == null || Economy.kindOf(r) == a.kind))
+          r,
+    ]..sort((x, y) => judged(y).compareTo(judged(x)));
+    final picked = found.take(2).toList();
+    if (picked.isEmpty) return;
+    for (final r in picked) {
+      reports[r.id] = 1;
+    }
+    c.inbox.add(Message(
+      c.today,
+      scout.name,
+      tr('Scouting assignment: {0}', [
+        picked.map((r) => r.name).join(', '),
+      ]),
+      tr(
+          'First impressions from my assignment: {0}. Their estimates are now narrower in the market; a detailed report tells more.',
+          [
+            [
+              for (final r in picked)
+                '${c.fullName(r.id)} (${c.year - r.born ~/ 10000}, ${c.teams[r.teamId]?.name ?? r.team}${c.economy.expiring(r) ? ', ' + tr('contract ending') : ''})',
+            ].join('; ')
+          ]),
+    ));
   }
 
   /// Lets the head scout choose: he sends free scouts to riders on the market
@@ -512,31 +726,93 @@ class StaffBook {
         final first = names[rng.nextInt(names.length)].split(' ').first;
         final last = names[rng.nextInt(names.length)].split(' ').last;
         all.add(Staff(
-          id++,
+          id,
           '$first $last',
           role,
           skill,
           level(base),
           level(base),
           DirectorFocus.values[rng.nextInt(DirectorFocus.values.length)],
-          (20000 + 2500 * skill + 450 * skill * skill) ~/ 1000 * 1000,
+          wageFor(skill),
           0,
+          born: _bornFor(id),
         ));
+        id++;
       }
     }
   }
 
   void daily() {
     if (c.today.day == 1) _renewMarket();
+    if (c.today.day == 1 && c.today.month == 11) _ambitions();
+    if (c.today.weekday == DateTime.monday) _weeklyNote();
+    for (final a in [...assignments]) {
+      if (c.today.isAfter(a.until)) {
+        assignments.remove(a);
+        continue;
+      }
+      if (c.today.isBefore(a.next)) continue;
+      _assignmentReport(a);
+      final scout = all.where((x) => x.id == a.scoutId).firstOrNull;
+      a.next =
+          c.today.add(Duration(days: scout == null ? 14 : _interval(scout)));
+    }
     final done = jobs.where((j) => !j.until.isAfter(c.today)).toList();
     for (final j in done) {
       jobs.remove(j);
-      scouted.add(j.riderId);
       final r = c.riderById[j.riderId];
+      if (j.stage >= 3) {
+        scouted.add(j.riderId);
+      } else {
+        reports[j.riderId] = max(reports[j.riderId] ?? 0, j.stage);
+      }
       if (r == null) continue;
+      final scoutName = j.scoutId == 0
+          ? tr('Coach')
+          : all.where((s) => s.id == j.scoutId).firstOrNull?.name ?? 'Scout';
+      if (j.stage == 1) {
+        final (low, high) = range(r.id, 'Strength', Economy.rating(r));
+        c.inbox.add(Message(
+          c.today,
+          scoutName,
+          tr('First impression of {0}', [r.name]),
+          tr(
+              '{0} ({1}, {2}, {3}): I would put him between {4} and {5}, above all a {6}. A detailed report would tell more.',
+              [
+                c.fullName(r.id),
+                c.year - r.born ~/ 10000,
+                r.country,
+                c.teams[r.teamId]?.name ?? r.team,
+                low,
+                high,
+                tr(Economy.kindLabel(Economy.kindOf(r))),
+              ]),
+        ));
+        continue;
+      }
+      if (j.stage == 2) {
+        final (low, high) = range(r.id, 'Strength', Economy.rating(r));
+        final (pLow, pHigh) = range(r.id, 'Potential', r.potential * 10);
+        c.inbox.add(Message(
+          c.today,
+          scoutName,
+          tr('Detailed report on {0}', [r.name]),
+          tr(
+              '{0} ({1}, {2}): strength {3} to {4}, potential {5} to {6}, {7}. A test at the base would make everything exact.',
+              [
+                c.fullName(r.id),
+                c.year - r.born ~/ 10000,
+                c.teams[r.teamId]?.name ?? r.team,
+                low,
+                high,
+                dec(pLow / 10),
+                dec(pHigh / 10),
+                c.people.of(r.id).label,
+              ]),
+        ));
+        continue;
+      }
       final a = r.attributes;
-      final scoutName =
-          all.where((s) => s.id == j.scoutId).firstOrNull?.name ?? 'Scout';
       c.inbox.add(Message(
         c.today,
         scoutName,
@@ -562,6 +838,207 @@ class StaffBook {
     }
   }
 
+  // --- Over the seasons -------------------------------------------------------
+
+  /// At the turn of the year: young staff get better and old staff a little
+  /// worse, staff the player did not keep go to the teams that lured them,
+  /// and the other teams replace their weakest people where the market has
+  /// clearly better ones.
+  void closeSeason() {
+    for (final s in all) {
+      final age = c.year - s.born;
+      final roll = Economy.unit(s.id * 31 + 7, c.year);
+      if (age < 40 && roll < 0.45 * (20 - s.skill) / 18) {
+        s.skill = (s.skill + 1).clamp(2, 20);
+        if (s.role == StaffRole.director)
+          s.second = (s.second + 1).clamp(2, 20);
+      } else if (age >= 56 && roll > 0.7) {
+        s.skill = (s.skill - 1).clamp(2, 20);
+      }
+    }
+    for (final e in lures.entries) {
+      final s = all.where((x) => x.id == e.key).firstOrNull;
+      if (s == null || s.teamId != c.teamId) continue;
+      final team = e.value.teamId;
+      // The one he replaces there goes on the market.
+      final there = of(team, s.role).toList()
+        ..sort((a, b) => a.skill.compareTo(b.skill));
+      if (there.isNotEmpty) there.first.teamId = 0;
+      s
+        ..teamId = team
+        ..wage = e.value.wage
+        ..atRace = null;
+      c.inbox.add(Message(
+        c.today,
+        tr('Staff'),
+        tr('{0} leaves for {1}', [s.name, c.teams[team]?.name ?? '']),
+        tr('{0} has accepted the offer of {1} and leaves the team at the turn of the year.',
+            [s.name, c.teams[team]?.name ?? '']),
+      ));
+    }
+    lures.clear();
+    _othersHire();
+  }
+
+  /// Every other team replaces its weakest person of one role a season, if
+  /// the market has one at least three points better at a wage it can pay.
+  void _othersHire() {
+    for (final team in c.teams.values) {
+      if (team.id == c.teamId || team.division == 'Free') continue;
+      for (final role in StaffRole.values) {
+        final mine = of(team.id, role).toList();
+        if (mine.isEmpty) continue;
+        final weakest = mine.reduce((a, b) => b.skill < a.skill ? b : a);
+        final better = of(0, role)
+            .where((x) =>
+                x.skill >= weakest.skill + 3 && x.wage <= weakest.wage * 1.6)
+            .toList();
+        if (better.isEmpty) continue;
+        final pick = better.reduce((a, b) => b.skill > a.skill ? b : a);
+        weakest.teamId = 0;
+        pick.teamId = team.id;
+        break;
+      }
+    }
+  }
+
+  /// 1 November: other teams try to lure the player's best people. A
+  /// stronger team whose best of the role is weaker offers a third more.
+  void _ambitions() {
+    final level = c.teamStrength(c.teamId);
+    for (final s in of(c.teamId).toList()) {
+      if (s.skill < 13 || lures.containsKey(s.id)) continue;
+      if (Economy.unit(s.id, c.year * 3 + 1) >= 0.2) continue;
+      final keen = [
+        for (final t in c.teams.values)
+          if (t.id != c.teamId &&
+              t.division.startsWith('[1]') &&
+              c.teamStrength(t.id) > level &&
+              _best(t.id, s.role) < s.skill)
+            t,
+      ]..sort((a, b) => c.teamStrength(b.id).compareTo(c.teamStrength(a.id)));
+      if (keen.isEmpty) continue;
+      final team = keen.first;
+      final wage = (s.wage * 1.33 / 1000).round() * 1000;
+      lures[s.id] = (teamId: team.id, wage: wage);
+      c.inbox.add(Message(
+        c.today,
+        tr('Staff'),
+        tr('{0} has an offer from {1}', [s.name, team.name]),
+        tr('{1} offers {0} ({2}) {3} a year. Match it on the staff page by 31 December, or he leaves at the turn of the year.',
+            [s.name, team.name, s.role.label, Economy.euro(wage)]),
+      ));
+    }
+  }
+
+  /// Matches another team's offer: the staff member stays at its wage.
+  ///
+  /// @param staffId Id of the staff member.
+  /// @returns null on success, otherwise the reason.
+  String? keep(int staffId) {
+    final lure = lures[staffId];
+    final s = all.where((x) => x.id == staffId).firstOrNull;
+    if (lure == null || s == null) return tr('He has no other offer.');
+    s.wage = lure.wage;
+    lures.remove(staffId);
+    return null;
+  }
+
+  /// Monday: one of the staff writes what he would change, the most
+  /// pressing matter first and a different one from week to week.
+  void _weeklyNote() {
+    final squad = c.squads[c.teamId] ?? const <SimRider>[];
+    final notes = <(StaffRole, String, String)>[];
+    // The coach: riders who are run down.
+    final tired = [
+      for (final r in squad)
+        if (c.shapeOf(r.id).freshness < -25 &&
+            c.shapeOf(r.id).load != TrainingLoad.low &&
+            !c.isInjured(r.id, c.today))
+          r.name,
+    ];
+    if (tired.isNotEmpty) {
+      notes.add((
+        StaffRole.coach,
+        tr('Tired riders'),
+        tr('{0} are run down. I would set their training to easy for a week.',
+            [tired.take(4).join(', ')]),
+      ));
+    }
+    // The sports director: a race soon with places nobody is planned for.
+    if (!c.delegation.planning) {
+      for (final race in c.ownRaces) {
+        final days = race.start.difference(c.today).inDays;
+        if (days < 3 || days > 14 || c.progress.containsKey(race.info.id)) {
+          continue;
+        }
+        final planned = c.program[race.info.id]?.length ?? 0;
+        final size = c.world.raceField(race.info.id).ridersPerTeam;
+        if (planned < size) {
+          notes.add((
+            StaffRole.director,
+            tr('{0} in {1} days', [race.info.name, days]),
+            tr('Only {0} of {1} places are planned for {2}. I would fill them now in the race planner.',
+                [planned, size, race.info.name]),
+          ));
+          break;
+        }
+      }
+    }
+    // The coach: young riders without a mentor while an older one is free.
+    final young = [
+      for (final r in squad)
+        if (c.year - r.born ~/ 10000 <= 22 && c.people.mentorOf(r.id) == null)
+          r,
+    ];
+    final free = [
+      for (final r in squad)
+        if (c.people.mentorReason(r.id) == null &&
+            c.people.menteesOf(r.id).length < 2)
+          r,
+    ];
+    if (young.isNotEmpty && free.isNotEmpty) {
+      notes.add((
+        StaffRole.coach,
+        tr('A mentor for {0}', [young.first.name]),
+        tr('{0} has nobody to learn from. {1} could look after him; he would develop a little faster.',
+            [young.first.name, free.first.name]),
+      ));
+    }
+    // The scout: from August, a rider on the market who would suit us.
+    if (c.economy.windowOpen) {
+      final level = c.teamStrength(c.teamId);
+      final fit = [
+        for (final r in c.economy.market())
+          if (knowledge(r.id) >= 0.7 &&
+              Economy.rating(r) >= level - 2 &&
+              Economy.rating(r) <= level + 4 &&
+              !c.watch.contains(r.id))
+            r,
+      ]..sort((a, b) => Economy.rating(b).compareTo(Economy.rating(a)));
+      if (fit.isNotEmpty) {
+        notes.add((
+          StaffRole.scout,
+          tr('{0} is available', [fit.first.name]),
+          tr('{0} ({1}) has no contract for next season yet and would suit us. I would put him on the shortlist.',
+              [c.fullName(fit.first.id), c.teams[fit.first.teamId]?.name ?? '']),
+        ));
+      }
+    }
+    if (notes.isEmpty) return;
+    final week = c.today.difference(DateTime.utc(c.year, 1, 1)).inDays ~/ 7;
+    final (role, subject, text) = notes[week % notes.length];
+    final who = of(c.teamId, role).fold<Staff?>(
+        null, (best, s) => best == null || s.skill > best.skill ? s : best);
+    if (who == null) return;
+    c.inbox.add(Message(
+      c.today,
+      tr('Staff'),
+      tr('{0}: {1}', [who.name, subject]),
+      text,
+    ));
+  }
+
   /// @returns All staff, scouting jobs and scouted riders as a JSON-encodable map.
   Map<String, dynamic> toJson() => {
         'all': [
@@ -578,13 +1055,20 @@ class StaffBook {
               s.teamId,
               s.busyUntil?.millisecondsSinceEpoch,
               s.atRace,
+              s.born,
             ],
         ],
         'jobs': [
           for (final j in jobs)
-            [j.riderId, j.scoutId, j.until.millisecondsSinceEpoch],
+            [j.riderId, j.scoutId, j.until.millisecondsSinceEpoch, j.stage],
         ],
         'scouted': scouted.toList(),
+        'reports': {for (final e in reports.entries) '${e.key}': e.value},
+        'assignments': [for (final a in assignments) a.toJson()],
+        'lures': {
+          for (final e in lures.entries)
+            '${e.key}': [e.value.teamId, e.value.wage],
+        },
       };
 
   /// Replaces the generated staff with that of a snapshot.
@@ -608,6 +1092,7 @@ class StaffBook {
             DirectorFocus.values[s[6] as int],
             s[7] as int,
             s[8] as int,
+            born: s.length > 11 ? s[11] as int : _bornFor(s[0] as int),
           )
             ..busyUntil = date(s[9])
             ..atRace = s[10] as int?,
@@ -616,11 +1101,37 @@ class StaffBook {
       ..clear()
       ..addAll([
         for (final x in (j['jobs'] as List).cast<List<dynamic>>())
-          ScoutJob(x[0] as int, x[1] as int, date(x[2])!),
+          // A job from before the stages makes everything known.
+          ScoutJob(x[0] as int, x[1] as int, date(x[2])!,
+              x.length > 3 ? x[3] as int : 3),
       ]);
     scouted
       ..clear()
       ..addAll((j['scouted'] as List).cast<int>());
+    reports
+      ..clear()
+      ..addAll({
+        for (final e
+            in (j['reports'] as Map<String, dynamic>? ?? const {}).entries)
+          int.parse(e.key): e.value as int,
+      });
+    assignments
+      ..clear()
+      ..addAll([
+        for (final a
+            in (j['assignments'] as List? ?? const []).cast<List<dynamic>>())
+          ScoutAssignment.fromJson(a),
+      ]);
+    lures
+      ..clear()
+      ..addAll({
+        for (final e
+            in (j['lures'] as Map<String, dynamic>? ?? const {}).entries)
+          int.parse(e.key): (
+            teamId: (e.value as List)[0] as int,
+            wage: e.value[1] as int,
+          ),
+      });
     if (!all.any((s) => s.role == StaffRole.mechanic)) _addCareCrew();
   }
 }

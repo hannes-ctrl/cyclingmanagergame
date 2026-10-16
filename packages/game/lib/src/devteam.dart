@@ -214,7 +214,8 @@ class DevTeam {
       c.economy.contracts[riderId]?.nextTeam == c.teamId;
 
   /// Promotes a rider of the development team to the professional team for
-  /// next season. He always accepts, at the market wage.
+  /// next season. He always accepts, at the market wage, if the board
+  /// approves it within the wage limit.
   ///
   /// @param riderId Id of the rider.
   /// @returns null on success, otherwise the reason.
@@ -234,6 +235,11 @@ class DevTeam {
       return tr('The squad for next season is full with 30 riders.');
     }
     final wage = c.economy.marketWage(r);
+    if (c.economy.wageBill(c.teamId, nextSeason: true) + wage >
+        c.finances.wageLimit(c.teamId)) {
+      return tr(
+          'The board does not approve the wage: the wage budget would be exceeded.');
+    }
     k
       ..nextTeam = c.teamId
       ..nextWage = wage
@@ -248,8 +254,9 @@ class DevTeam {
     return null;
   }
 
-  /// At the turn of the season the development team of a professional team
-  /// attracts talent: the two most gifted free agents of the new intake join.
+  /// When the new young riders arrive on 1 November, the development team
+  /// of the player's team attracts talent: the most gifted of them sign for
+  /// next season, as many as the academy brings.
   ///
   /// @param freeTeam Id of the pseudo team holding the free agents.
   void intake(int freeTeam) {
@@ -257,7 +264,9 @@ class DevTeam {
     if (id == null) return;
     final pool = [
       for (final r in c.squads[freeTeam] ?? const <SimRider>[])
-        if (c.year + 1 - r.born ~/ 10000 <= 20) r,
+        if (c.year + 1 - r.born ~/ 10000 <= 20 &&
+            c.economy.contracts[r.id]?.nextTeam == null)
+          r,
     ]..sort((a, b) {
         final p = b.potential.compareTo(a.potential);
         return p != 0 ? p : Economy.rating(b).compareTo(Economy.rating(a));
@@ -265,8 +274,10 @@ class DevTeam {
     final names = <String>[];
     // The academy decides how many of the new talents come.
     for (final r in pool.take(c.facilities.academyIntake(c.teamId))) {
-      c.economy.move(r, id);
-      c.economy.contracts[r.id]!.endYear = c.year + 2;
+      c.economy.contracts[r.id]!
+        ..nextTeam = id
+        ..nextWage = 20000
+        ..nextEnd = c.year + 2;
       names.add(c.fullName(r.id));
     }
     if (names.isEmpty) return;
@@ -274,7 +285,8 @@ class DevTeam {
       c.today,
       tr('Development team'),
       tr('New talents in the development team'),
-      tr('New at {0}: {1}.', [team?.name, names.join(', ')]),
+      tr('New at {0} from {1}: {2}.',
+          [team?.name, c.year + 1, names.join(', ')]),
     ));
   }
 }

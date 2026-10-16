@@ -6,6 +6,7 @@ import 'package:sim/sim.dart';
 import '../app_state.dart';
 import '../ui.dart';
 import '../widgets.dart';
+import 'presets.dart';
 import 'rider_dialog.dart';
 
 /// Attributes a minimum can be asked for: name (the key of the
@@ -81,7 +82,39 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     // The filters as the player left them, also after a restart.
-    final v = widget.state.viewOf('search');
+    _load(widget.state.viewOf('search'));
+  }
+
+  /// The filters as a JSON-encodable map, for remembering and presets.
+  Map<String, dynamic> get _filters => {
+    'team': _team,
+    'country': _country,
+    'level': _level.toList(),
+    'types': _types.toList(),
+    'ageFrom': _ages.start,
+    'ageTo': _ages.end,
+    'strength': _strength,
+    'potential': _potential,
+    'attribute': _attribute,
+    'minimum': _minimum,
+    'expiring': _expiring,
+    'watched': _watched,
+  };
+
+  /// Sets the filters from a map written by [_filters]; null or an
+  /// unreadable map sets the defaults.
+  void _load(Map<String, dynamic>? v) {
+    _team = null;
+    _country = null;
+    _level.clear();
+    _types.clear();
+    _ages = const RangeValues(17, 45);
+    _strength = 50;
+    _potential = 1;
+    _attribute = null;
+    _minimum = 70;
+    _expiring = false;
+    _watched = false;
     if (v == null) return;
     try {
       _team = v['team'] as int?;
@@ -140,20 +173,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     _takeCountry();
-    widget.state.rememberView('search', {
-      'team': _team,
-      'country': _country,
-      'level': _level.toList(),
-      'types': _types.toList(),
-      'ageFrom': _ages.start,
-      'ageTo': _ages.end,
-      'strength': _strength,
-      'potential': _potential,
-      'attribute': _attribute,
-      'minimum': _minimum,
-      'expiring': _expiring,
-      'watched': _watched,
-    });
+    widget.state.rememberView('search', _filters);
     final s = widget.state;
     final c = s.colors;
     final career = s.career;
@@ -268,6 +288,76 @@ class _SearchScreenState extends State<SearchScreen> {
       onChanged: (v) => setState(() => onChanged(v)),
     );
 
+    final columns = <Col<SimRider>>[
+      Col('', 30, (r, _) => watchStar(s, r)),
+      Col(
+        tr('Rider'),
+        190,
+        (r, _) => cellText(career.fullName(r.id)),
+        sortKey: (r) => r.lastName,
+      ),
+      Col(
+        tr('Team'),
+        58,
+        (r, _) =>
+            cellText(r.team.isEmpty ? '–' : r.team, color: TeamColors.muted),
+        sortKey: (r) => r.team,
+      ),
+      Col('Nat', 70, (r, _) => flagCell(r.country), sortKey: (r) => r.country),
+      Col(
+        tr('Age'),
+        50,
+        (r, _) => cellText('${year - r.born ~/ 10000}'),
+        numeric: true,
+        sortKey: (r) => -r.born,
+      ),
+      Col(
+        tr('Type'),
+        120,
+        (r, _) => cellText(
+          book.knowledge(r.id) >= 1 ? tr(riderType(r)) : '?',
+          color: TeamColors.muted,
+        ),
+      ),
+      value('Strength', Economy.rating),
+      Col(
+        'Pot',
+        44,
+        (r, _) => cellText(
+          book.knowledge(r.id) < 0.6 ? '?' : r.potential.toStringAsFixed(1),
+        ),
+        numeric: true,
+        sortKey: (r) => r.potential,
+      ),
+      value('FL', (r) => r.attributes.flat),
+      value('MTN', (r) => r.attributes.mountain),
+      value('MED', (r) => r.attributes.mediumMountain),
+      value('HIL', (r) => r.attributes.hill),
+      value('TT', (r) => r.attributes.timeTrial),
+      value('COB', (r) => r.attributes.cobble),
+      value('SPR', (r) => r.attributes.sprint),
+      value('ACC', (r) => r.attributes.acceleration),
+      value('STA', (r) => r.attributes.endurance),
+      Col(
+        tr('Contract until'),
+        92,
+        (r, _) => cellText(switch (eco.contracts[r.id]?.endYear) {
+          final year? when career.teams[r.teamId]?.division != 'Free' =>
+            contractEnd(year),
+          _ => '–',
+        }, color: TeamColors.muted),
+        numeric: true,
+        sortKey: (r) => eco.contracts[r.id]?.endYear ?? 0,
+      ),
+      Col(
+        tr('Market value'),
+        96,
+        (r, _) =>
+            cellText(book.knowledge(r.id) >= 1 ? euro(eco.marketWage(r)) : '?'),
+        numeric: true,
+        sortKey: (r) => eco.marketWage(r),
+      ),
+    ];
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -471,6 +561,22 @@ class _SearchScreenState extends State<SearchScreen> {
                         icon: const Icon(LucideIcons.download, size: 16),
                         label: Text(tr('As CSV')),
                       ),
+                      const SizedBox(width: 8),
+                      FilterPresets(
+                        state: s,
+                        list: 'search',
+                        current: () => _filters,
+                        onApply: (f) => setState(() => _load(f)),
+                      ),
+                      ColumnPicker(
+                        state: s,
+                        list: 'search',
+                        titles: [
+                          for (final col in columns.skip(1))
+                            if (col.title.isNotEmpty) col.title,
+                        ],
+                        onChanged: () => setState(() {}),
+                      ),
                       const Spacer(),
                       Text(
                         tr(
@@ -490,91 +596,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       rows: rows,
                       highlight: (r) => r.teamId == s.team.id,
                       onTap: (r) => showRiderDialog(context, s, r.id),
-                      columns: [
-                        Col('', 30, (r, _) => watchStar(s, r)),
-                        Col(
-                          tr('Rider'),
-                          190,
-                          (r, _) => cellText(career.fullName(r.id)),
-                          sortKey: (r) => r.lastName,
-                        ),
-                        Col(
-                          tr('Team'),
-                          58,
-                          (r, _) => cellText(
-                            r.team.isEmpty ? '–' : r.team,
-                            color: TeamColors.muted,
-                          ),
-                          sortKey: (r) => r.team,
-                        ),
-                        Col(
-                          'Nat',
-                          70,
-                          (r, _) => flagCell(r.country),
-                          sortKey: (r) => r.country,
-                        ),
-                        Col(
-                          tr('Age'),
-                          50,
-                          (r, _) => cellText('${year - r.born ~/ 10000}'),
-                          numeric: true,
-                          sortKey: (r) => -r.born,
-                        ),
-                        Col(
-                          tr('Type'),
-                          120,
-                          (r, _) => cellText(
-                            book.knowledge(r.id) >= 1 ? tr(riderType(r)) : '?',
-                            color: TeamColors.muted,
-                          ),
-                        ),
-                        value('Strength', Economy.rating),
-                        Col(
-                          'Pot',
-                          44,
-                          (r, _) => cellText(
-                            book.knowledge(r.id) < 0.6
-                                ? '?'
-                                : r.potential.toStringAsFixed(1),
-                          ),
-                          numeric: true,
-                          sortKey: (r) => r.potential,
-                        ),
-                        value('FL', (r) => r.attributes.flat),
-                        value('MTN', (r) => r.attributes.mountain),
-                        value('MED', (r) => r.attributes.mediumMountain),
-                        value('HIL', (r) => r.attributes.hill),
-                        value('TT', (r) => r.attributes.timeTrial),
-                        value('COB', (r) => r.attributes.cobble),
-                        value('SPR', (r) => r.attributes.sprint),
-                        value('ACC', (r) => r.attributes.acceleration),
-                        value('STA', (r) => r.attributes.endurance),
-                        Col(
-                          tr('Contract until'),
-                          92,
-                          (r, _) =>
-                              cellText(switch (eco.contracts[r.id]?.endYear) {
-                                final year?
-                                    when career.teams[r.teamId]?.division !=
-                                        'Free' =>
-                                  contractEnd(year),
-                                _ => '–',
-                              }, color: TeamColors.muted),
-                          numeric: true,
-                          sortKey: (r) => eco.contracts[r.id]?.endYear ?? 0,
-                        ),
-                        Col(
-                          tr('Market value'),
-                          96,
-                          (r, _) => cellText(
-                            book.knowledge(r.id) >= 1
-                                ? euro(eco.marketWage(r))
-                                : '?',
-                          ),
-                          numeric: true,
-                          sortKey: (r) => eco.marketWage(r),
-                        ),
-                      ],
+                      columns: ColumnPicker.visible(s, 'search', columns),
                     ),
                   ),
                 ],

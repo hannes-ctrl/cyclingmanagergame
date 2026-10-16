@@ -5,6 +5,8 @@ import 'package:sim/sim.dart';
 import '../app_state.dart';
 import '../ui.dart';
 import '../widgets.dart';
+import 'presets.dart';
+import 'scout_button.dart';
 import 'rider_dialog.dart';
 
 /// Contracts and transfer market. Riders move at the turn of the year; talks
@@ -38,6 +40,39 @@ class _TransfersScreenState extends State<TransfersScreen> {
   void dispose() {
     _wage.dispose();
     super.dispose();
+  }
+
+  /// The market filters as a JSON-encodable map, for presets.
+  Map<String, dynamic> get _filters => {
+    'types': _types.toList(),
+    'ageFrom': _ages.start,
+    'ageTo': _ages.end,
+    'contract': _contract,
+  };
+
+  /// Sets the market filters from a map written by [_filters], or the
+  /// defaults for null.
+  void _load(Map<String, dynamic>? v) {
+    _types.clear();
+    _ages = const RangeValues(17, 45);
+    _contract = 0;
+    if (v == null) return;
+    try {
+      _types.addAll((v['types'] as List).cast<String>());
+      _ages = RangeValues(
+        (v['ageFrom'] as num).toDouble(),
+        (v['ageTo'] as num).toDouble(),
+      );
+      _contract = v['contract'] as int;
+    } on Object {
+      // Written by another version: keep the defaults.
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _load(FilterPresets.defaultOf(widget.state, 'market'));
   }
 
   void _select(SimRider r) => setState(() {
@@ -87,7 +122,8 @@ class _TransfersScreenState extends State<TransfersScreen> {
               .toList()
         : s.squad;
     final selected = _selected == null ? null : career.riderById[_selected];
-    final frame = eco.budget * 0.72;
+    // The wage limit: the share of the budget plus half of the savings.
+    final frame = career.finances.wageLimit(s.team.id);
     final nextBill = eco.wageBill(s.team.id, nextSeason: true);
 
     String status(SimRider r) {
@@ -164,6 +200,61 @@ class _TransfersScreenState extends State<TransfersScreen> {
       ),
     );
 
+    final columns = <Col<SimRider>>[
+      Col('', 30, (r, _) => watchStar(s, r)),
+      Col(
+        tr('Rider'),
+        190,
+        (r, _) => cellText(career.fullName(r.id)),
+        sortKey: (r) => r.lastName,
+      ),
+      if (_market)
+        Col(
+          'Team',
+          56,
+          (r, _) =>
+              cellText(r.team.isEmpty ? '–' : r.team, color: TeamColors.muted),
+          sortKey: (r) => r.team,
+        ),
+      Col('Nat', 70, (r, _) => flagCell(r.country), sortKey: (r) => r.country),
+      Col(
+        tr('Age'),
+        50,
+        (r, _) => cellText('${year - r.born ~/ 10000}'),
+        numeric: true,
+        sortKey: (r) => -r.born,
+      ),
+      value('Strength', Economy.rating),
+      Col(
+        'Pot',
+        44,
+        (r, _) => cellText(
+          book.knowledge(r.id) < 0.6 ? '?' : r.potential.toStringAsFixed(1),
+        ),
+        numeric: true,
+        sortKey: (r) => r.potential,
+      ),
+      value('MTN', (r) => r.attributes.mountain),
+      value('HIL', (r) => r.attributes.hill),
+      value('TT', (r) => r.attributes.timeTrial),
+      value('SPR', (r) => r.attributes.sprint),
+      value('COB', (r) => r.attributes.cobble),
+      Col(
+        _market ? tr('Market value') : tr('Wage'),
+        90,
+        (r, _) => cellText(
+          euro(_market ? eco.marketWage(r) : eco.contracts[r.id]!.wage),
+        ),
+        numeric: true,
+        sortKey: (r) => _market ? eco.marketWage(r) : eco.contracts[r.id]!.wage,
+      ),
+      Col(
+        tr('Contract'),
+        150,
+        (r, _) => cellText(status(r), color: statusColor(r)),
+        sortKey: (r) => eco.contracts[r.id]!.endYear,
+      ),
+    ];
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -212,6 +303,26 @@ class _TransfersScreenState extends State<TransfersScreen> {
                             colors: c,
                             width: null,
                             onChanged: (v) => setState(() => _search = v),
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            children: [
+                              FilterPresets(
+                                state: s,
+                                list: 'market',
+                                current: () => _filters,
+                                onApply: (f) => setState(() => _load(f)),
+                              ),
+                              ColumnPicker(
+                                state: s,
+                                list: 'market',
+                                titles: [
+                                  for (final col in columns.skip(1))
+                                    if (col.title.isNotEmpty) col.title,
+                                ],
+                                onChanged: () => setState(() {}),
+                              ),
+                            ],
                           ),
                           FilterHead(tr('Contract')),
                           for (final (i, label) in [
@@ -303,76 +414,7 @@ class _TransfersScreenState extends State<TransfersScreen> {
                       rows: rows,
                       highlight: (r) => r.id == _selected,
                       onTap: _select,
-                      columns: [
-                        Col('', 30, (r, _) => watchStar(s, r)),
-                        Col(
-                          tr('Rider'),
-                          190,
-                          (r, _) => cellText(career.fullName(r.id)),
-                          sortKey: (r) => r.lastName,
-                        ),
-                        if (_market)
-                          Col(
-                            'Team',
-                            56,
-                            (r, _) => cellText(
-                              r.team.isEmpty ? '–' : r.team,
-                              color: TeamColors.muted,
-                            ),
-                            sortKey: (r) => r.team,
-                          ),
-                        Col(
-                          'Nat',
-                          70,
-                          (r, _) => flagCell(r.country),
-                          sortKey: (r) => r.country,
-                        ),
-                        Col(
-                          tr('Age'),
-                          50,
-                          (r, _) => cellText('${year - r.born ~/ 10000}'),
-                          numeric: true,
-                          sortKey: (r) => -r.born,
-                        ),
-                        value('Strength', Economy.rating),
-                        Col(
-                          'Pot',
-                          44,
-                          (r, _) => cellText(
-                            book.knowledge(r.id) < 0.6
-                                ? '?'
-                                : r.potential.toStringAsFixed(1),
-                          ),
-                          numeric: true,
-                          sortKey: (r) => r.potential,
-                        ),
-                        value('MTN', (r) => r.attributes.mountain),
-                        value('HIL', (r) => r.attributes.hill),
-                        value('TT', (r) => r.attributes.timeTrial),
-                        value('SPR', (r) => r.attributes.sprint),
-                        value('COB', (r) => r.attributes.cobble),
-                        Col(
-                          _market ? tr('Market value') : tr('Wage'),
-                          90,
-                          (r, _) => cellText(
-                            euro(
-                              _market
-                                  ? eco.marketWage(r)
-                                  : eco.contracts[r.id]!.wage,
-                            ),
-                          ),
-                          numeric: true,
-                          sortKey: (r) => _market
-                              ? eco.marketWage(r)
-                              : eco.contracts[r.id]!.wage,
-                        ),
-                        Col(
-                          tr('Contract'),
-                          150,
-                          (r, _) => cellText(status(r), color: statusColor(r)),
-                          sortKey: (r) => eco.contracts[r.id]!.endYear,
-                        ),
-                      ],
+                      columns: ColumnPicker.visible(s, 'market', columns),
                     ),
                   ),
                 ),
@@ -459,7 +501,10 @@ class _TransfersScreenState extends State<TransfersScreen> {
     final career = s.career;
     final eco = career.economy;
     final own = r.teamId == s.team.id;
-    final open = eco.expiring(r);
+    final waiting = eco.pending[r.id];
+    final open =
+        waiting == null &&
+        (eco.expiring(r) || own && eco.contracts[r.id]?.nextTeam == null);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -499,37 +544,25 @@ class _TransfersScreenState extends State<TransfersScreen> {
             child: Text(tr('Open profile')),
           ),
         ),
-        if (career.staff.knowledge(r.id) < 1) ...[
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  tr('The values are estimates.'),
-                  style: TextStyle(fontSize: 12, color: TeamColors.muted),
-                ),
-              ),
-              OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: TeamColors.text,
-                  side: BorderSide(color: c.line),
-                ),
-                onPressed: s.busy
-                    ? null
-                    : () => setState(
-                        () => _answer =
-                            s.scout(r.id) ??
-                            tr(
-                              'A scout is on his way. The report will arrive in the inbox.',
-                            ),
-                      ),
-                child: Text(tr('Scout him')),
-              ),
-            ],
-          ),
-        ],
+        const SizedBox(height: 8),
+        ScoutButton(
+          state: s,
+          riderId: r.id,
+          onAnswer: (text) => setState(() => _answer = text),
+        ),
         const SizedBox(height: 14),
-        if (!open)
+        if (waiting != null)
+          Text(
+            tr(
+              'He is considering your offer of {0} € and answers by {1}.{2}.',
+              [
+                euro(waiting.wage),
+                waiting.until.day.toString().padLeft(2, '0'),
+                waiting.until.month.toString().padLeft(2, '0'),
+              ],
+            ),
+          )
+        else if (!open)
           Text(
             tr('There is nothing to negotiate for this rider.'),
             style: TextStyle(color: TeamColors.muted),
@@ -644,9 +677,10 @@ class _TransfersScreenState extends State<TransfersScreen> {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             ),
-            onPressed: s.busy || !eco.windowOpen
+            onPressed: s.busy || !eco.windowOpen && !eco.isFreeAgent(r) && !own
                 ? null
                 : () {
+                    final free = eco.isFreeAgent(r);
                     final thousands = int.tryParse(_wage.text.trim()) ?? 0;
                     final answer = s.offer(
                       r.id,
@@ -657,9 +691,15 @@ class _TransfersScreenState extends State<TransfersScreen> {
                     setState(
                       () => _answer =
                           answer ??
-                          tr('Signed. The contract runs from {0}.', [
-                            career.year + 1,
-                          ]),
+                          (free
+                              ? tr('Signed. He joins the team today.')
+                              : eco.pending.containsKey(r.id)
+                              ? tr(
+                                  'Offer made. He answers within a week; other teams may bid too.',
+                                )
+                              : tr('Signed. The contract runs from {0}.', [
+                                  career.year + 1,
+                                ])),
                     );
                   },
             child: Text(
@@ -688,7 +728,27 @@ class _TransfersScreenState extends State<TransfersScreen> {
                 ),
               ),
             ),
-          if (!eco.windowOpen)
+          if (eco.isFreeAgent(r))
+            Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                tr(
+                  'Without a team he can be signed at any time and joins at once.',
+                ),
+                style: TextStyle(fontSize: 12, color: TeamColors.muted),
+              ),
+            )
+          else if (own && !eco.windowOpen)
+            Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                tr(
+                  'Your own riders can be renewed at any time; the new terms apply from next season.',
+                ),
+                style: TextStyle(fontSize: 12, color: TeamColors.muted),
+              ),
+            )
+          else if (!eco.windowOpen)
             Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text(

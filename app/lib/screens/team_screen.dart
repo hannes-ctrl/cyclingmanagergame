@@ -167,6 +167,15 @@ class TeamPage extends StatelessWidget {
                   place > 0 ? '$place.' : '–',
                 ),
                 tile(tr('Wins {0}', [career.year]), '$wins'),
+                // Every team keeps books; the player sees what others can spend.
+                tile(
+                  tr('Budget'),
+                  '${euro(career.finances.budgetOf(teamId))} €',
+                ),
+                tile(
+                  tr('Balance'),
+                  '${euro(career.finances.balanceOf(teamId))} €',
+                ),
               ],
             ],
           ),

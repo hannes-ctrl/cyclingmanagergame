@@ -317,6 +317,34 @@ class _Sponsors extends StatelessWidget {
             '${sp.demandPlace == null ? '' : tr(' · requires place {0} in the team ranking, otherwise a fifth less', [sp.demandPlace])}',
             style: const TextStyle(fontSize: 12, color: TeamColors.muted),
           ),
+          if (i < eco.wishes.length)
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text(
+                eco.wishesMet.contains(i)
+                    ? tr(
+                        'Wish {0}: {1} · met, bonus {2} € at the end of the year',
+                        [
+                          year,
+                          eco.wishes[i].text,
+                          euro(sp.amount * Economy.wishBonus),
+                        ],
+                      )
+                    : tr('Wish {0}: {1} · {2} of {3} · bonus {4} €', [
+                        year,
+                        eco.wishes[i].text,
+                        eco.progressOf(eco.wishes[i]),
+                        eco.wishes[i].target,
+                        euro(sp.amount * Economy.wishBonus),
+                      ]),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: eco.wishesMet.contains(i)
+                      ? TeamColors.green
+                      : TeamColors.text,
+                ),
+              ),
+            ),
           if (eco.signed[i] case final next?)
             Padding(
               padding: const EdgeInsets.only(top: 4),

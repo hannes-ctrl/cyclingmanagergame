@@ -326,6 +326,7 @@ class _PlanScreenState extends State<PlanScreen> {
                     color: injured ? TeamColors.red : null,
                   ),
                 ),
+                _TemplateMenu(state: s, rider: r),
                 SizedBox(
                   width: 84,
                   child: Text(
@@ -618,6 +619,97 @@ class _PlanScreenState extends State<PlanScreen> {
                 style: const TextStyle(fontSize: 12, color: TeamColors.muted),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Programme templates for one rider: apply a built-in or own template,
+/// save his programme as one, or delete an own one.
+class _TemplateMenu extends StatelessWidget {
+  const _TemplateMenu({required this.state, required this.rider});
+  final AppState state;
+  final SimRider rider;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = state;
+    final career = s.career;
+    return SizedBox(
+      width: 24,
+      child: PopupMenuButton<String>(
+        tooltip: tr('Programme templates'),
+        padding: EdgeInsets.zero,
+        iconSize: 15,
+        icon: const Icon(LucideIcons.listPlus, color: TeamColors.muted),
+        enabled: !s.busy,
+        onSelected: (choice) async {
+          final messenger = ScaffoldMessenger.of(context);
+          void say(String text) =>
+              messenger.showSnackBar(SnackBar(content: Text(text)));
+          if (choice == '+save') {
+            final name = await _askName(context, s);
+            if (name == null) return;
+            say(
+              s.saveTemplate(name, rider.id) ??
+                  tr('Template {0} saved.', [name]),
+            );
+          } else if (choice.startsWith('-')) {
+            s.deleteTemplate(choice.substring(1));
+            say(tr('Template {0} deleted.', [choice.substring(1)]));
+          } else {
+            final added = s.applyTemplate(choice, rider.id);
+            say(tr('{0}: {1} races added.', [rider.name, added]));
+          }
+        },
+        itemBuilder: (context) => [
+          for (final t in career.templates)
+            PopupMenuItem(
+              value: t.key,
+              child: Text(tr('Apply: {0}', [t.name])),
+            ),
+          const PopupMenuDivider(),
+          PopupMenuItem(
+            value: '+save',
+            child: Text(tr('Save his programme as a template …')),
+          ),
+          for (final t in career.ownTemplates)
+            PopupMenuItem(
+              value: '-${t.key}',
+              child: Text(
+                tr('Delete: {0}', [t.name]),
+                style: const TextStyle(color: TeamColors.muted),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Asks for the name of a new template.
+  static Future<String?> _askName(BuildContext context, AppState s) {
+    final field = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: s.colors.panel,
+        title: Text(tr('Save as template')),
+        content: TextField(
+          controller: field,
+          autofocus: true,
+          decoration: InputDecoration(hintText: tr('Name')),
+          onSubmitted: (v) => Navigator.pop(context, v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(tr('Cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, field.text),
+            child: Text(tr('Save')),
           ),
         ],
       ),

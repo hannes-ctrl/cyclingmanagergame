@@ -57,7 +57,9 @@ class Camp {
 ///
 /// A camp ties up its riders for its duration, loads them hard, improves the
 /// attributes of its focus and raises form between day 6 and day 28 after
-/// it. Camps are booked in advance and paid with the next monthly statement.
+/// it. Camps are booked in advance and paid with the next monthly statement;
+/// from 1 November also for January and February, and such a camp runs on
+/// over the turn of the year.
 class Camps {
   Camps(this.c);
   final Career c;
@@ -104,8 +106,13 @@ class Camps {
   String? book(CampType type, DateTime start, int days, List<int> riderIds) {
     final riders = riderIds.toSet();
     if (start.isBefore(c.today)) return tr('The start lies in the past.');
-    if (start.year != c.year)
-      return tr('Camps can only be booked in the running season.');
+    // In the winter, camps can be booked for the start of the next season.
+    final winter =
+        c.today.month >= 11 && start.year == c.year + 1 && start.month <= 2;
+    if (start.year != c.year && !winter) {
+      return tr(
+          'Camps can be booked in the running season, and from 1 November for January and February.');
+    }
     if (days < minDays || days > maxDays) {
       return tr('A camp lasts {0} to {1} days.', [minDays, maxDays]);
     }
@@ -126,7 +133,7 @@ class Camps {
       }
     }
     final camp = Camp(type, start, days, riders);
-    if (camp.cost > c.economy.balance) {
+    if (camp.cost > c.economy.available) {
       return tr(
           'The camp costs {0},000 €; there is not that much in the account.',
           [camp.cost ~/ 1000]);

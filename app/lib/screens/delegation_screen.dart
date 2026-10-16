@@ -212,6 +212,17 @@ class DelegationScreen extends StatelessWidget {
                 ),
                 Divider(height: 1, color: c.line),
                 row(
+                  tr('Facilities'),
+                  tr('Board'),
+                  tr('You decide yourself which facility is built up.'),
+                  tr(
+                    'On the first of every month the board builds up the weakest facility, one at a time, as long as a tenth of the budget stays in the account.',
+                  ),
+                  d.facilities,
+                  (v) => s.delegate('facilities', v),
+                ),
+                Divider(height: 1, color: c.line),
+                row(
                   tr('Contract renewals'),
                   tr('Board'),
                   tr('You negotiate expiring contracts yourself.'),

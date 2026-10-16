@@ -346,7 +346,7 @@ staff:["Sports directors, coaches, doctors, scouts, mechanics and physios with t
 mat:["Supplier deals for frames, wheels, tyres and time trial bikes from real brands","Small bonuses by terrain instead of a complex construction kit","Tyre and time trial bike choice before each race"],
 rang:["UCI individual, team and nation rankings","Three-year ranking for the licences","Race history, winners, records"],
 scout:["Send scouts to regions or races","Values of other riders as ranges that narrow as the scouting goes on","Reports with a recommendation and a comparison with the own squad"],
-nach:["Development team with its own calendar","Stagiaires from August","A yearly intake of new, generated talents; young riders signed on the market"],
+nach:["Development team with its own calendar","Stagiaires from August","A yearly intake of new riders made after real young ones; young riders signed on the market"],
 fin:["Budget, wages, prize money, travel and facilities month by month","Sponsor deals with length and goals","Facilities with five levels, built up over months"],
 ziele:["Season goals of sponsor and board with weights","A confidence bar that decides on budget and job","Long-term vision: keep the licence, win a Grand Tour, develop youth"]};
 teamChips();
@@ -375,7 +375,7 @@ const REQ=[
 ["T-07","Transfers in the real rhythm: talks from 1 August, moves at the turn of the year, stagiaires, negotiation with the agent.","Must","done"],
 ["T-08","Sports directors with their own values (tactics, race reading, motivation, experience per race type). They decide how well the tactics are carried out in the simulated race, how the team reacts to race situations and how precise the radio is.","Must","done"],
 ["T-09","More staff with values: coaches, doctors, scouts, mechanics, physiotherapists.","Should","done"],
-["T-10","Scouting: values of other riders are ranges that only scouts make precise.","Should","done"],
+["T-10","Scouting in stages: values of other riders are ranges that a first impression, a detailed report and a test at the base make precise; scouts take assignments by country, age and kind.","Should","done"],
 ["T-11","Injuries, illness and crash consequences with lay-offs.","Should","done"],
 ["T-12","Morale and contentment, depending on role, starts, results and kept promises.","Should","done"],
 ["T-13","Development team with its own calendar, filled from the academy and the market.","Should","done"],
@@ -410,7 +410,7 @@ const REQ=[
 ["B-05","The whole interface is tinted in the own team's colours (strong sidebar, subtle surfaces and lines, accent for buttons).","Should","done"],
 ["B-06","Every area can be delegated to staff (training, programme, line-up, contract renewals).","Should","done"],
 ["B-07","Global search, back and forward, every row with a rider, team or race can be clicked.","Should","done"],
-["B-08","History: honours per rider, winners, records, own career record.","Should","partly"]]],
+["B-08","History: honours per rider, winners, records, own career record, the trophy room and the careers of retired riders.","Should","done"]]],
 ["Quality",[
 ["Q-01","Computing time is a budget for accuracy: a race day with five races may take about 20 s, a whole year about 1 h. That allows a step-by-step simulation with groups, drafting and energy instead of a result formula.","Must","done"],
 ["Q-02","Every simulation is reproducible from a seed.","Must","done"],
@@ -489,7 +489,7 @@ H($("#t-plan"),`<div><h2>Decisions</h2></div>
 <li><b>Depth (done).</b> Staff with values, scouting with ranges, forecast, what if, licences, development teams, delegation, real equipment suppliers, team styles.</li>
 <li><b>0.3.0 alpha (released 14 Oct 2026).</b> Finer physics and race events, the same sports director logic for every team, comfort features throughout the interface.</li>
 <li><b>0.3.1 alpha (released 15 Oct 2026).</b> Race shape: riders sitting up on hard days, the gruppetto on hilly days, the shelter of the pace setters, breaks let go in stage races, crosswind only on open roads, courses that change from year to year; facilities; market fixes. Calibration error 7.65 to 6.61.</li>
-<li><b>A world over ten seasons (in progress).</b> A multi-season test plays seasons without a player and measures squad strength, age, youth, top riders, licences, morale and money.</li>
+<li><b>0.4.0 A world over ten seasons (in progress).</b> Books for every team with a wage limit, retirements from 31, an intake made after real young riders, a winter from the last race in October with the young riders in November, free agents at any time and winter camps; scouting in stages, competing offers, mentoring, programme templates, sponsor wishes met in races, staff who develop and can be lured away, and a history page. Over ten seasons the strength of the field (WorldTour 77.5 to 77.9), the age (28.3 to 28.8) and the balances hold.</li>
 </ol>
 <p class="small mut">The detailed plan is in ROADMAP.md, the changes in CHANGELOG.md, all features in FEATURES.md.</p>
 

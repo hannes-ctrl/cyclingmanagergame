@@ -83,6 +83,56 @@ class _PrepScreenState extends State<PrepScreen> {
   /// Sports director in the car; preset to the best free one.
   int? _director;
 
+  /// Earlier states of the line-up and the tactics, for "undo".
+  final _undo = <_Choice>[];
+
+  _Choice get _choice => _Choice(
+    {..._selected},
+    {..._roles},
+    {..._wanted},
+    {..._pinned},
+    _approach,
+    _breakPolicy,
+    _pinApproach,
+    _pinBreak,
+    _fixAll,
+    _ownTactics,
+  );
+
+  /// Every change of the line-up or the tactics can be taken back.
+  @override
+  void setState(VoidCallback fn) {
+    final before = _choice;
+    super.setState(fn);
+    if (!before.same(_choice)) {
+      _undo.add(before);
+      if (_undo.length > 30) _undo.removeAt(0);
+    }
+  }
+
+  /// Goes back to the line-up and tactics before the last change.
+  void _takeBack() {
+    if (_undo.isEmpty) return;
+    final c = _undo.removeLast();
+    super.setState(() {
+      _selected = c.selected;
+      _roles = c.roles;
+      _wanted
+        ..clear()
+        ..addAll(c.wanted);
+      _pinned
+        ..clear()
+        ..addAll(c.pinned);
+      _approach = c.approach;
+      _breakPolicy = c.breakPolicy;
+      _pinApproach = c.pinApproach;
+      _pinBreak = c.pinBreak;
+      _fixAll = c.fixAll;
+      _ownTactics = c.ownTactics;
+      _forecast = null;
+    });
+  }
+
   /// Forecast for the current line-up; discarded as soon as it changes.
   Forecast? _forecast;
   var _forecasting = false;
@@ -257,6 +307,82 @@ class _PrepScreenState extends State<PrepScreen> {
     _pinned.removeWhere((id) => !_selected.contains(id));
     _takeSuggestion();
   });
+
+  /// The player's saved line-ups: apply one, save the current one, or
+  /// delete one.
+  Widget _templates(AppState s) {
+    final c = s.colors;
+    final saved = s.career.lineupTemplates;
+    return PopupMenuButton<String>(
+      tooltip: tr('Line-up templates'),
+      onSelected: (choice) async {
+        if (choice == '+save') {
+          final name = await _askName(context, s);
+          if (name == null || name.trim().isEmpty) return;
+          s.saveLineupTemplate(name.trim(), [for (final r in _lineup) r.id]);
+          setState(() {});
+        } else if (choice.startsWith('-')) {
+          s.saveLineupTemplate(choice.substring(1), null);
+          setState(() {});
+        } else if (saved[choice] case final ids?) {
+          _lastYear(ids);
+        }
+      },
+      itemBuilder: (context) => [
+        for (final name in saved.keys)
+          PopupMenuItem(value: name, child: Text(tr('Apply: {0}', [name]))),
+        if (saved.isNotEmpty) const PopupMenuDivider(),
+        PopupMenuItem(
+          value: '+save',
+          child: Text(tr('Save this line-up as a template …')),
+        ),
+        for (final name in saved.keys)
+          PopupMenuItem(
+            value: '-$name',
+            child: Text(
+              tr('Delete: {0}', [name]),
+              style: const TextStyle(color: TeamColors.muted),
+            ),
+          ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        decoration: BoxDecoration(
+          border: Border.all(color: c.line),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(tr('Templates ▾')),
+      ),
+    );
+  }
+
+  /// Asks for the name of a new line-up template.
+  static Future<String?> _askName(BuildContext context, AppState s) {
+    final field = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: s.colors.panel,
+        title: Text(tr('Save as template')),
+        content: TextField(
+          controller: field,
+          autofocus: true,
+          decoration: InputDecoration(hintText: tr('Name')),
+          onSubmitted: (v) => Navigator.pop(context, v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(tr('Cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, field.text),
+            child: Text(tr('Save')),
+          ),
+        ],
+      ),
+    );
+  }
 
   /// Tyres and bikes of the day, with the suppliers of the team.
   Widget _material(AppState s) {
@@ -512,6 +638,13 @@ class _PrepScreenState extends State<PrepScreen> {
                 ),
                 const SizedBox(width: 10),
               ],
+              _templates(s),
+              const SizedBox(width: 10),
+              TextButton(
+                onPressed: _undo.isEmpty ? null : _takeBack,
+                child: Text(tr('Undo')),
+              ),
+              const SizedBox(width: 10),
               FilledButton(
                 style: FilledButton.styleFrom(
                   backgroundColor: c.accent,
@@ -1088,4 +1221,46 @@ class _PrepScreenState extends State<PrepScreen> {
       ),
     );
   }
+}
+
+/// The line-up and the tactics at one moment of the preparation.
+class _Choice {
+  _Choice(
+    this.selected,
+    this.roles,
+    this.wanted,
+    this.pinned,
+    this.approach,
+    this.breakPolicy,
+    this.pinApproach,
+    this.pinBreak,
+    this.fixAll,
+    this.ownTactics,
+  );
+  final Set<int> selected;
+  final Map<int, Role> roles;
+  final Map<int, Role> wanted;
+  final Set<int> pinned;
+  final Approach approach;
+  final BreakPolicy breakPolicy;
+  final bool pinApproach, pinBreak, fixAll, ownTactics;
+
+  /// @param o Another moment.
+  /// @returns Whether nothing differs.
+  bool same(_Choice o) =>
+      selected.length == o.selected.length &&
+      selected.containsAll(o.selected) &&
+      _mapSame(roles, o.roles) &&
+      _mapSame(wanted, o.wanted) &&
+      pinned.length == o.pinned.length &&
+      pinned.containsAll(o.pinned) &&
+      approach == o.approach &&
+      breakPolicy == o.breakPolicy &&
+      pinApproach == o.pinApproach &&
+      pinBreak == o.pinBreak &&
+      fixAll == o.fixAll &&
+      ownTactics == o.ownTactics;
+
+  static bool _mapSame(Map<int, Role> a, Map<int, Role> b) =>
+      a.length == b.length && a.entries.every((e) => b[e.key] == e.value);
 }

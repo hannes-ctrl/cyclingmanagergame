@@ -192,7 +192,7 @@ class _SquadScreenState extends State<SquadScreen> {
           'Form',
           86,
           (r) => shape(r).form,
-          text: (v) => '${((v - 1) * 100).toStringAsFixed(1)} %',
+          text: formStep,
           // Where the form is heading since the last weekly record.
           suffix: (r) => widget.state.formTrend(r.id),
           color: (v) => v >= 1.005
@@ -372,7 +372,7 @@ class _SquadScreenState extends State<SquadScreen> {
           'Form',
           86,
           (r) => shape(r).form,
-          text: (v) => '${((v - 1) * 100).toStringAsFixed(1)} %',
+          text: formStep,
           // Where the form is heading since the last weekly record.
           suffix: (r) => widget.state.formTrend(r.id),
         ),

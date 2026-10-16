@@ -492,6 +492,7 @@ const german = <String, String>{
   'Leader': 'Kapitän',
   'Start career': 'Karriere starten',
   'Balance': 'Kasse',
+  'Budget': 'Budget',
   'No rider selected.': 'Kein Fahrer gewählt.',
   'No development team': 'Kein Nachwuchsteam',
   'No more races this season.': 'Kein Rennen mehr in dieser Saison.',
@@ -520,8 +521,6 @@ const german = <String, String>{
   'Load': 'Laden',
   'Situation': 'Lage',
   'Book a camp': 'Lager buchen',
-  'Camps can only be booked in the running season.':
-      'Lager gibt es nur in der laufenden Saison.',
   'Camps {0}': 'Lager {0}',
   'Country': 'Land',
   'Long climbs over several kilometres.':
@@ -594,7 +593,6 @@ const german = <String, String>{
   'Name or team abbreviation …': 'Name oder Teamkürzel …',
   'Name, team or country': 'Name, Team oder Land',
   'Name, e.g. "{0} before the Tour"': 'Name, z. B. „{0} vor der Tour"',
-  'New at {0}: {1}.': 'Neu bei {0}: {1}.',
   'New in the WorldTour: {0}. Relegated: {1}.':
       'Neu in der WorldTour: {0}. Abgestiegen: {1}.',
   'New career': 'Neue Karriere',
@@ -1050,7 +1048,8 @@ const german = <String, String>{
   '{0} · tactics {1}, race reading {2}, motivation {3} · {4}':
       '{0} · Taktik {1}, Rennlesen {2}, Motivation {3} · {4}',
   '{0} · {1} years · {2}': '{0} · {1} Jahre · {2}',
-  '{0} · born {1} · {2} years · {3}{4}': '{0} · geboren {1} · {2} Jahre · {3}{4}',
+  '{0} · born {1} · {2} years · {3}{4}':
+      '{0} · geboren {1} · {2} Jahre · {3}{4}',
   '{0} · {1} to {2}': '{0} · {1} bis {2}',
   '{0} · {1} · from {2}': '{0} · {1} · ab {2}',
   '{0} · {1} · {2} · {3} riders at the start':
@@ -1609,4 +1608,244 @@ const german = <String, String>{
   'Youth academy': 'Nachwuchsakademie',
   'More and better talents come to the development team, and they develop faster.':
       'Mehr und bessere Talente kommen ins Nachwuchsteam, und sie entwickeln sich schneller.',
+  'He has decided to end his career after this season.':
+      'Er hat beschlossen, seine Karriere nach dieser Saison zu beenden.',
+  'End of career: {0}': 'Karriereende: {0}',
+  'These riders will not sign again and end their careers after the season: {0}. Their places are free for next year.':
+      'Diese Fahrer unterschreiben nicht mehr und beenden ihre Karriere nach der Saison: {0}. Ihre Plätze sind für das nächste Jahr frei.',
+  'The racing season {0} is over': 'Die Rennsaison {0} ist vorbei',
+  'We end the season in place {0} of the team ranking with {1} points; the board assesses the goals at the turn of the year. Until then: contracts for next season can still be signed (the other teams decide by 15 November), the new young riders arrive on 1 November, riders without a team can be signed at once, and from 1 November camps can be booked for January and February.':
+      'Wir beenden die Saison auf Platz {0} der Teamwertung mit {1} Punkten; der Vorstand bewertet die Ziele zum Jahreswechsel. Bis dahin: Verträge für die nächste Saison können weiter geschlossen werden (die anderen Teams entscheiden bis zum 15. November), die neuen jungen Fahrer kommen am 1. November, Fahrer ohne Team können sofort verpflichtet werden, und ab dem 1. November lassen sich Lager für Januar und Februar buchen.',
+  'The young riders of {0}': 'Die jungen Fahrer für {0}',
+  '150 young riders of 18 and 19 are on the market without a team. They can be signed for next season, for the development team too; what they are worth only a scout can tell.':
+      '150 junge Fahrer von 18 und 19 Jahren sind ohne Team auf dem Markt. Sie können für die nächste Saison verpflichtet werden, auch für das Nachwuchsteam; was sie wert sind, kann nur ein Scout sagen.',
+  'The squad is full with 30 riders.': 'Der Kader ist mit 30 Fahrern voll.',
+  '{0} joins the team': '{0} kommt ins Team',
+  'New at {0} from {1}: {2}.': 'Neu bei {0} ab {1}: {2}.',
+  'Camps can be booked in the running season, and from 1 November for January and February.':
+      'Lager lassen sich in der laufenden Saison buchen und ab dem 1. November für Januar und Februar.',
+  '{0} is being expanded': '{0} wird ausgebaut',
+  'The board has started building the {0} up to level {1} for {2}. It opens in {3} days.':
+      'Der Vorstand hat den Ausbau von {0} auf Stufe {1} für {2} begonnen. Er ist in {3} Tagen fertig.',
+  'Signed. He joins the team today.':
+      'Unterschrieben. Er kommt heute ins Team.',
+  'Without a team he can be signed at any time and joins at once.':
+      'Ohne Team kann er jederzeit verpflichtet werden und kommt sofort.',
+  'You decide yourself which facility is built up.':
+      'Du entscheidest selbst, welche Einrichtung ausgebaut wird.',
+  'On the first of every month the board builds up the weakest facility, one at a time, as long as a tenth of the budget stays in the account.':
+      'Am Ersten jedes Monats baut der Vorstand die schwächste Einrichtung aus, eine nach der anderen, solange ein Zehntel des Budgets auf dem Konto bleibt.',
+  '{0}: {1} riders pencilled in for {2} places.':
+      '{0}: {1} Fahrer für {2} Plätze eingeplant.',
+  '{0} is not planned for his goal race {1}.':
+      '{0} ist für sein Zielrennen {1} nicht eingeplant.',
+  'The template needs a name.': 'Die Vorlage braucht einen Namen.',
+  'He has no races in his programme.':
+      'Er hat keine Rennen in seinem Programm.',
+  'A built-in template already has that name.':
+      'Eine eingebaute Vorlage trägt schon diesen Namen.',
+  'Programme templates': 'Programmvorlagen',
+  'Template {0} saved.': 'Vorlage {0} gespeichert.',
+  'Template {0} deleted.': 'Vorlage {0} gelöscht.',
+  '{0}: {1} races added.': '{0}: {1} Rennen hinzugefügt.',
+  'Apply: {0}': 'Anwenden: {0}',
+  'Save his programme as a template …': 'Sein Programm als Vorlage speichern …',
+  'Delete: {0}': 'Löschen: {0}',
+  'Save as template': 'Als Vorlage speichern',
+  'Save': 'Speichern',
+  'Cobbled classics': 'Pflasterklassiker',
+  'Ardennes classics': 'Ardennenklassiker',
+  'Giro programme': 'Giro-Programm',
+  'Tour helper': 'Tour-Helfer',
+  'Vuelta programme': 'Vuelta-Programm',
+  'Sprinter\'s spring': 'Sprinterfrühling',
+  'Autumn classics': 'Herbstklassiker',
+  'Line-up templates': 'Aufgebotsvorlagen',
+  'Save this line-up as a template …':
+      'Dieses Aufgebot als Vorlage speichern …',
+  'Templates ▾': 'Vorlagen ▾',
+  'Undo': 'Rückgängig',
+  '{0} is pleased': '{0} ist zufrieden',
+  'The wish of {0} for this season is met: {1}. A bonus of {2} follows at the end of the year.':
+      'Der Wunsch von {0} für diese Saison ist erfüllt: {1}. Zum Jahresende folgt eine Prämie von {2}.',
+  '{0} pays a bonus of {1} for the wish that was met':
+      '{0} zahlt {1} Prämie für den erfüllten Wunsch',
+  'A rider in the break at a race in {0}':
+      'Ein Fahrer in der Fluchtgruppe bei einem Rennen in {0}',
+  'A win in {0}': 'Ein Sieg in {0}',
+  '{0} days in the break': '{0} Tage in der Fluchtgruppe',
+  '{0} combativity awards': '{0} Auszeichnungen als kämpferischster Fahrer',
+  'A stage win at a Grand Tour': 'Ein Etappensieg bei einer Grand Tour',
+  'A top ten in a monument':
+      'Ein Platz unter den ersten zehn bei einem Monument',
+  'Wish {0}: {1} · met, bonus {2} € at the end of the year':
+      'Wunsch {0}: {1} · erfüllt, {2} € Prämie zum Jahresende',
+  'Wish {0}: {1} · {2} of {3} · bonus {4} €':
+      'Wunsch {0}: {1} · {2} von {3} · Prämie {4} €',
+  'He is still considering your offer.':
+      'Er denkt noch über dein Angebot nach.',
+  '{0} considers your offer': '{0} prüft dein Angebot',
+  '{0} will answer by {1}.{2}.': '{0} antwortet bis zum {1}.{2}.',
+  'Also interested: {0}.': 'Ebenfalls interessiert: {0}.',
+  '{0} chooses {1}': '{0} entscheidet sich für {1}',
+  '{0} has turned down your offer and signed with {1} for {2} a year.':
+      '{0} hat dein Angebot abgelehnt und bei {1} für {2} im Jahr unterschrieben.',
+  '{0} cannot join': '{0} kann nicht kommen',
+  '{0} would have signed, but the squad or the wage budget for next season is full now.':
+      '{0} hätte unterschrieben, aber der Kader oder das Gehaltsbudget für die nächste Saison ist inzwischen voll.',
+  'He turned down {0}.': 'Er hat {0} abgesagt.',
+  'He is considering your offer of {0} € and answers by {1}.{2}.':
+      'Er prüft dein Angebot über {0} € und antwortet bis zum {1}.{2}.',
+  'Offer made. He answers within a week; other teams may bid too.':
+      'Angebot abgegeben. Er antwortet innerhalb einer Woche; andere Teams können mitbieten.',
+  'Your own riders can be renewed at any time; the new terms apply from next season.':
+      'Eigene Fahrer lassen sich jederzeit verlängern; die neuen Bedingungen gelten ab der nächsten Saison.',
+  'A mentor is at least {0} years old.':
+      'Ein Mentor ist mindestens {0} Jahre alt.',
+  'He does not ride for the team.': 'Er fährt nicht für das Team.',
+  'Only riders up to {0} get a mentor.':
+      'Nur Fahrer bis {0} bekommen einen Mentor.',
+  'The mentor must ride for the team.': 'Der Mentor muss für das Team fahren.',
+  '{0} already looks after {1} young riders.':
+      '{0} betreut schon {1} junge Fahrer.',
+  'Choose a mentor': 'Mentor wählen',
+  'Mentor of': 'Mentor von',
+  'The scouts have seen enough; only a test at the base tells more.':
+      'Die Scouts haben genug gesehen; mehr verrät nur ein Test am Teamsitz.',
+  'A test at the base comes after a detailed report.':
+      'Ein Test am Teamsitz folgt erst auf einen ausführlichen Bericht.',
+  'He has no assignment.': 'Er hat keinen Auftrag.',
+  'Scouting assignment: {0}': 'Scout-Auftrag: {0}',
+  'First impressions from my assignment: {0}. Their estimates are now narrower in the market; a detailed report tells more.':
+      'Erste Eindrücke aus meinem Auftrag: {0}. Ihre Schätzungen sind im Markt jetzt enger; ein ausführlicher Bericht verrät mehr.',
+  'contract ending': 'Vertrag läuft aus',
+  'First impression of {0}': 'Erster Eindruck von {0}',
+  '{0} ({1}, {2}, {3}): I would put him between {4} and {5}, above all a {6}. A detailed report would tell more.':
+      '{0} ({1}, {2}, {3}): Ich schätze ihn zwischen {4} und {5} ein, vor allem ein {6}. Ein ausführlicher Bericht würde mehr verraten.',
+  'Detailed report on {0}': 'Ausführlicher Bericht über {0}',
+  '{0} ({1}, {2}): strength {3} to {4}, potential {5} to {6}, {7}. A test at the base would make everything exact.':
+      '{0} ({1}, {2}): Stärke {3} bis {4}, Potenzial {5} bis {6}, {7}. Ein Test am Teamsitz würde alles genau zeigen.',
+  'Being scouted until {0}.{1}.': 'Wird bis zum {0}.{1}. beobachtet.',
+  'Everything about him is known.': 'Über ihn ist alles bekannt.',
+  'A first impression is in.': 'Ein erster Eindruck liegt vor.',
+  'A detailed report is in.': 'Ein ausführlicher Bericht liegt vor.',
+  'First impression': 'Erster Eindruck',
+  'Detailed report': 'Ausführlicher Bericht',
+  'Test at the base ({0} €)': 'Test am Teamsitz ({0} €)',
+  'He is coming to the base for a test. The result follows in five days.':
+      'Er kommt zum Test an den Teamsitz. Das Ergebnis folgt in fünf Tagen.',
+  'first impression': 'erster Eindruck',
+  'detailed report': 'ausführlicher Bericht',
+  'tested at the base': 'am Teamsitz getestet',
+  'New assignment': 'Neuer Auftrag',
+  'A scout looks for two months for riders of a country, an age and a kind, and reports on the most promising ones every one to three weeks. How good his choice is depends on his skill.':
+      'Ein Scout sucht zwei Monate lang nach Fahrern eines Landes, eines Alters und einer Art und berichtet alle ein bis drei Wochen über die vielversprechendsten. Wie gut seine Wahl ist, hängt von seinem Können ab.',
+  'anywhere': 'überall',
+  'Kind': 'Art',
+  'any': 'jede',
+  'Up to age': 'Bis Alter',
+  'The scout sets out.': 'Der Scout macht sich auf den Weg.',
+  'Send out': 'Losschicken',
+  'Assignments': 'Aufträge',
+  'None.': 'Keine.',
+  '{0}: {1}, up to {2}, {3} · until {4}': '{0}: {1}, bis {2}, {3} · bis {4}',
+  'Recall': 'Zurückrufen',
+  'Riders being watched': 'Beobachtete Fahrer',
+  'Nobody. On the rider page or in the transfer market a scout can be sent to a rider.':
+      'Niemand. Auf der Fahrerseite oder im Transfermarkt lässt sich ein Scout zu einem Fahrer schicken.',
+  'Reports · {0}': 'Berichte · {0}',
+  'ending': 'läuft aus',
+  'climber': 'Kletterer',
+  'puncheur': 'Puncheur',
+  'time triallist': 'Zeitfahrer',
+  'sprinter': 'Sprinter',
+  'cobble specialist': 'Pflasterspezialist',
+  'rouleur': 'Rouleur',
+  '{0} leaves for {1}': '{0} wechselt zu {1}',
+  '{0} has accepted the offer of {1} and leaves the team at the turn of the year.':
+      '{0} hat das Angebot von {1} angenommen und verlässt das Team zum Jahreswechsel.',
+  '{0} has an offer from {1}': '{0} hat ein Angebot von {1}',
+  '{1} offers {0} ({2}) {3} a year. Match it on the staff page by 31 December, or he leaves at the turn of the year.':
+      '{1} bietet {0} ({2}) {3} im Jahr. Zieh bis zum 31. Dezember auf der Personalseite gleich, sonst geht er zum Jahreswechsel.',
+  'He has no other offer.': 'Er hat kein anderes Angebot.',
+  'Tired riders': 'Müde Fahrer',
+  '{0} are run down. I would set their training to easy for a week.':
+      '{0} sind ausgelaugt. Ich würde ihr Training für eine Woche auf locker stellen.',
+  '{0} in {1} days': '{0} in {1} Tagen',
+  'Only {0} of {1} places are planned for {2}. I would fill them now in the race planner.':
+      'Für {2} sind erst {0} von {1} Plätzen eingeplant. Ich würde sie jetzt im Rennplaner füllen.',
+  'A mentor for {0}': 'Ein Mentor für {0}',
+  '{0} has nobody to learn from. {1} could look after him; he would develop a little faster.':
+      '{0} hat niemanden, von dem er lernen kann. {1} könnte sich um ihn kümmern; er würde sich etwas schneller entwickeln.',
+  '{0} is available': '{0} ist zu haben',
+  '{0} ({1}) has no contract for next season yet and would suit us. I would put him on the shortlist.':
+      '{0} ({1}) hat noch keinen Vertrag für die nächste Saison und würde zu uns passen. Ich würde ihn auf die Beobachtungsliste setzen.',
+  'Other offer': 'Fremdangebot',
+  '{0} stays for {1} a year.': '{0} bleibt für {1} im Jahr.',
+  '{0}: match {1}': '{0}: {1} bieten',
+  'Breakaways': 'Ausreißer',
+  'No break has gone yet this season.':
+      'In dieser Saison gab es noch keine Fluchtgruppe.',
+  'Riders': 'Fahrer',
+  'Teams': 'Teams',
+  'Days in the break': 'Tage in der Fluchtgruppe',
+  'Most combative': 'Kämpferischster',
+  '{0}, most combative {1} times': '{0}, {1}-mal kämpferischster Fahrer',
+  'History': 'Historie',
+  'Trophy room': 'Trophäenschrank',
+  'Seasons': 'Saisons',
+  'Records': 'Rekorde',
+  'Retired riders': 'Zurückgetretene Fahrer',
+  'No big race won yet. Monuments, Grand Tours, WorldTour races and championships come here.':
+      'Noch kein großes Rennen gewonnen. Monumente, Grand Tours, WorldTour-Rennen und Meisterschaften erscheinen hier.',
+  'Trophy room · {0}': 'Trophäenschrank · {0}',
+  'Category': 'Kategorie',
+  'Seasons of {0}': 'Saisons von {0}',
+  '{0} (running)': '{0} (läuft)',
+  'Place': 'Platz',
+  'Big races': 'Große Rennen',
+  'Most points in a season': 'Meiste Punkte in einer Saison',
+  '{0}: {1} ({2}, {3})': '{0}: {1} ({2}, {3})',
+  'Most wins in a season': 'Meiste Siege in einer Saison',
+  'Most race days in a season': 'Meiste Renntage in einer Saison',
+  'Most wins since the start of the career':
+      'Meiste Siege seit Beginn der Karriere',
+  'Best season of {0}': 'Beste Saison von {0}',
+  '{0}: place {1}, {2} points': '{0}: Platz {1}, {2} Punkte',
+  'The records fill at the end of the first season.':
+      'Die Rekorde füllen sich am Ende der ersten Saison.',
+  'Records since {0}': 'Rekorde seit {0}',
+  'Riders who end their careers appear here from the first turn of the year.':
+      'Fahrer, die ihre Karriere beenden, erscheinen hier ab dem ersten Jahreswechsel.',
+  'Retired riders · {0}': 'Zurückgetretene Fahrer · {0}',
+  'Last team': 'Letztes Team',
+  'Retired': 'Rücktritt',
+  'Best season': 'Beste Saison',
+  '{0} points': '{0} Punkte',
+  'Click a rider to see his career.':
+      'Klicke auf einen Fahrer, um seine Karriere zu sehen.',
+  '{0} · born {1} · retired {2}': '{0} · geboren {1} · Rücktritt {2}',
+  '{0} · {1} · {2} points, {3} wins, {4} race days':
+      '{0} · {1} · {2} Punkte, {3} Siege, {4} Renntage',
+  'Honours': 'Erfolge',
+  'Saved filters': 'Gespeicherte Filter',
+  'Save filters': 'Filter speichern',
+  'Reset filters': 'Filter zurücksetzen',
+  'Reset to the default ({0})': 'Auf den Standard zurücksetzen ({0})',
+  '{0} (default)': '{0} (Standard)',
+  'Save the current filters …': 'Aktuelle Filter speichern …',
+  'No longer the default: {0}': 'Nicht mehr Standard: {0}',
+  'Make the default: {0}': 'Zum Standard machen: {0}',
+  'Filters ▾': 'Filter ▾',
+  'Columns': 'Spalten',
+  'Save column set': 'Spaltensatz speichern',
+  'Show all columns': 'Alle Spalten zeigen',
+  'Column set: {0}': 'Spaltensatz: {0}',
+  'Save as a column set …': 'Als Spaltensatz speichern …',
+  'Columns ▾': 'Spalten ▾',
+  'peak': 'Topform',
+  'very good': 'sehr gut',
+  'average': 'durchschnittlich',
+  'below par': 'unter Normalform',
+  'poor': 'schwach',
 };

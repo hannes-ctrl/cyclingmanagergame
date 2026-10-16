@@ -8,7 +8,7 @@ Nothing here is promised; priorities are set version by version. Ideas come from
 
 The working list, in order. It is rewritten whenever something on it is done; the sections below hold the full plan.
 
-1. **A world that lasts ten seasons.** *Started:* the multi-season test (`bin/world.dart`), prize money, promotions from development teams, exceptional talents, a market that values the future, sponsors anchored to the ranking. Open: money in balance over ten seasons, the surplus of a team nobody runs, and the slow growth of the whole field. The multi-season test first, because every later balance change is judged by it: finances, squad strength per tier, licences, age structure, top riders, and now also morale and goals over several seasons. Then money, the exceptional talents of the yearly intake, and the other teams promoting from their development teams.
+1. **A world that lasts ten seasons.** *Mostly done:* the multi-season test (`bin/world.dart`), prize money, promotions from development teams, a market that values the future, sponsors anchored to the ranking, books for every team with a wage limit, wages negotiated within it, budgets that follow the wage level of the world, riders who end their careers from 31, and an intake made after real young riders. Over ten seasons the number of professionals (919 to 914), the strength of the field (WorldTour 77.5 to 77.9, riders of 80 and more 14 to 21), the age (28.3 to 28.8) and the balances of the WorldTeams (median 2 to 10 m €) hold. Decided: the board stays out of the transfer market, also in a vacation mode; a team it runs for ten seasons falls back, as intended. Open: facilities still creep up (3.4 to 3.7).
 2. **The stage in fast motion.** *Done in a first form* in the race report; open: watching a stage live before its result, and the riders of other teams. The data for it exists (gaps and group sizes along the route, events with their kilometre, incidents), and with the simulation in the background nothing blocks it any more. It is the largest visible step.
 3. **The people, third step.** Personality, morale for every team, standing in the team and promises (also in contract talks) exist. Open: mentoring, leadership of the road captain, talks as a choice in the inbox, adaptability after a transfer, a rider who asks to leave, the other teams acting on the morale of their riders.
 4. **Scouting in stages and competition on the market,** once the money is balanced.
@@ -16,7 +16,7 @@ The working list, in order. It is rewritten whenever something on it is done; th
 
 6. **The race shape, second step.** What the calibration of 0.3.1 could not reach, because five tuning values sit at the edge of their range: the middle of the field finishes too close to the winner (0:52 against 1:36 behind, 16:34 against 22:04 in the mountains), breaks in the mountains win too rarely (21 % against 31 %), hilly stages end in a bunch sprint too rarely (6 % against 18 %), sector races end solo too rarely (46 % against 74 %), and the favourites win too often (59 % against 47 %, in time trials 83 % against 58 %). The power figures are a few per cent high (427 W over Paris-Roubaix for a 92 kg rider).
 
-Done since the last version of this list: release 0.3.1 alpha on 15 October 2026, with the race shape in the model and its calibration run (error 7.65 to 6.61, control races 8.75 to 8.43).
+Done since the last version of this list: release 0.3.1 alpha on 15 October 2026; for 0.4.0 the books of every team, retirements, an intake as strong as a real year, fixes in the money calculations (ranking of teams without points, the wage index, the retirement roll, bookings not yet charged), the winter, signings by need, facilities handed to the board, scouting in stages, competing offers, mentoring, programme and line-up templates, sponsor wishes, staff who develop and leave, the history page, and saved filters and columns.
 
 ## Principles
 
@@ -74,12 +74,12 @@ Open:
 *Second, because money and squad balance are the ground under transfers, staff, facilities and sponsors.*
 
 - **Multi-season test.** A tool plays ten seasons without a player and reports finances, squad strength per tier, licence moves, age structure and the number of top riders. It runs before each release. *Done:* `packages/game/bin/world.dart`, about two minutes a season.
-- **Money.** Salaries, sponsor income, prize money from the WorldDB, camp and staff costs are set against real orders of magnitude. The budget is planned once per season; a surplus carries over and can be spent (signing bonuses, facilities later). No yearly renewal chores. [2]
-- **The top of the field.** The yearly intake brings a few exceptional talents, so that riders with a best value of 84 or more do not die out. *Done:* three a year.
-- **The other teams act like teams.** They promote from their development teams, sign for their needs (a sprinter when theirs leaves, riders from the sponsor's country) and let riders go. [VV] *Done so far:* each of them plans its season like the player's sports director.
+- **Money.** Salaries, sponsor income, prize money from the WorldDB, camp and staff costs are set against real orders of magnitude. The budget is planned once per season; a surplus carries over and can be spent (signing bonuses, facilities later). No yearly renewal chores. [2] *Started:* every team keeps books by the player's rules, with a wage limit that includes savings, budgets from the ranking and facilities bought from surpluses.
+- **The top of the field.** The yearly intake is as strong as a real year, so that riders with a best value of 84 or more neither die out nor multiply. *Done:* each new rider is made after a real one of 19 to 21; over ten seasons riders of 80 and more go from 14 to 21.
+- **The other teams act like teams.** They promote from their development teams, sign for their needs (a sprinter when theirs leaves, riders from the sponsor's country) and let riders go. [VV] *Done:* each of them plans its season like the player's sports director and signs for what it lacks, riders of its own country a little preferred.
 - **Licences on the three-year ranking,** as in reality. [VV]
 - **Courses that change.** Races ride other routes from year to year. *Done* with the routes of 2021 to 2025 in the WorldDB, about 400 races; a generator from real climbs would give races without other years new courses.
-- **The winter has content:** training camps, contract talks, the season plan and the intake fall into the weeks without races. [2] *Started:* the season plan and the review of the season arrive at the turn of the year.
+- **The winter has content:** training camps, contract talks, the season plan and the intake fall into the weeks without races. [2] *Done:* the racing season ends with the last race (25 October) and its review; the young riders arrive on 1 November, free agents sign at any time, camps for January and February are booked from November and run over the turn of the year. Open: the season plan of the next year in December, which needs the next calendar before the turn of the year.
 
 ### 0.5.0 The rider as a person
 
@@ -90,9 +90,9 @@ Open:
 - **Personal attributes.** A small set, visible only through scouting: professionalism (development), ambition (reacts more strongly, wants race days), loyalty (contract talks), consistency (spread of the form from race to race). [VV] *Done,* with a summary term per rider. Adaptability after a transfer is missing.
 - **Morale.** One value per rider, moved by programme, results and promises, acting on form within a narrow band. [2, FM] *Done* for every team. For the player's riders the role in the race against the standing in the team moves it too; injured and ill riders take no offence.
 - **Promises.** "Leader at the Tour", "a start at the Giro", checked when the race starts. [FM] *Done,* for one race or, in contract talks, for the first season of the contract.
-- **Mentoring.** An experienced rider takes one or two young riders, including from the development team; they develop a little faster and take on some of his professionalism. [VV]
+- **Mentoring.** An experienced rider takes one or two young riders, including from the development team; they develop a little faster and take on some of his professionalism. [VV] *Done,* for every team.
 - **Leadership and race sense** as attributes of the road captain, which decide how well the plan is carried out without radio. [2]
-- **Programme templates.** "Classics", "Grand Tour helper", "sprinter's spring" assigned with one click. [PCM]
+- **Programme templates.** "Classics", "Grand Tour helper", "sprinter's spring" assigned with one click. [PCM] *Done:* seven built in, own ones from a rider's programme.
 
 Talks are kept small on purpose: a choice in the inbox with a visible effect, no press conferences with repeated questions. [7]
 
@@ -100,12 +100,12 @@ Talks are kept small on purpose: a choice in the inbox with a visible effect, no
 
 *Fourth, because it needs balanced money (0.4.0) and riders with a will of their own (0.5.0).*
 
-- **Scouting in stages.** A scout gets an assignment (region, age, profile) and delivers reports; each report narrows the range of a rider's values and potential, up to a test at the team's base. Scouts have skills and a limited number of riders they can follow. [VV, FM]
+- **Scouting in stages.** A scout gets an assignment (region, age, profile) and delivers reports; each report narrows the range of a rider's values and potential, up to a test at the team's base. Scouts have skills and a limited number of riders they can follow. [VV, FM] *Done.*
 - **Shortlist.** A watch list with messages only for what matters: contract running out, rider available, another team bidding. [FM] *Done in a first form:* available at the start of the signing period, renewed, signed elsewhere.
 - **Comparison** of two or more riders side by side. [FM] *Done for two riders,* as a second column on the rider page.
-- **Competition.** Other teams bid at the same time, offers have deadlines, a rider chooses by wage, role, team level and distance from home. [VV]
-- **Contracts.** Renewal at any time, clauses (role, bonus, release clause), a signing bonus. [2]
-- **Lower tiers.** Riders outside the scouted area are shown with wide ranges, so that looking there pays. [VV]
+- **Competition.** Other teams bid at the same time, offers have deadlines, a rider chooses by wage, role, team level and distance from home. [VV] *Done* for riders of other teams; free agents sign at once.
+- **Contracts.** Renewal at any time, clauses (role, bonus, release clause), a signing bonus. [2] *Started:* renewal at any time.
+- **Lower tiers.** Riders outside the scouted area are shown with wide ranges, so that looking there pays. [VV] *Done.*
 
 ### 0.7.0 Race day
 
@@ -115,19 +115,19 @@ Talks are kept small on purpose: a choice in the inbox with a visible effect, no
 - **Race plan with roles.** Leader, second leader, attackers, sprinter, lead-out, road captain, set before the start and changed by radio. Most exists; it becomes one page. [VV]
 - **Sprint train and team time trial order.** [PCM]
 - **Jerseys** of the WorldDB for the leaders in report and race view. [PCM]
-- **Combativity and days in the break** as counted results, so that small teams have goals they can meet. [2]
+- **Combativity and days in the break** as counted results, so that small teams have goals they can meet. [2] *Done,* with a ranking and as sponsor wishes.
 - **A written report as a news item,** with the decisive moments named. Exists; it gains incidents and weather. [7]
 
 ### 0.8.0 The organisation
 
 *Sixth, because investments that pay off over years can only be balanced once the money has been stable for many seasons.*
 
-- **Sponsors.** Contracts over several years, income that follows tier and results, wishes that are met by the race itself (jersey in the break at the home race, a win in the sponsor's country) instead of abstract targets. Offers fit the team: nationality of riders and where it wins. [2]
-- **Staff.** Coaches, directors, scouts and doctors improve, have ambitions and can be lured away. A weekly note from the staff: "this is what I would change". [VV, FM]
+- **Sponsors.** Contracts over several years, income that follows tier and results, wishes that are met by the race itself (jersey in the break at the home race, a win in the sponsor's country) instead of abstract targets. Offers fit the team: nationality of riders and where it wins. [2] *Done:* staggered contracts, offers from the ranking, a wish per sponsor and season with a bonus.
+- **Staff.** Coaches, directors, scouts and doctors improve, have ambitions and can be lured away. A weekly note from the staff: "this is what I would change". [VV, FM] *Done.*
 - **Facilities.** Medical, training, scouting, marketing, equipment, each with a few levels and a cost per season. [VV] *Done* for training, medical, scouting, sports science and the youth academy, with levels from the team's strength at the start; marketing is open.
 - **Equipment.** The supplier's material with a small effect on time trials and cobbles. [2] *Done* with the real suppliers, tyre and bike choice per race; the effects still need calibrating.
 - **The manager's career.** Reputation, offers from other teams, dismissal when goals are missed. [FM]
-- **History.** Season review, awards, a trophy room, records, the career of every retired rider. [7, VV] *Started:* a review message with four awards at the turn of the year.
+- **History.** Season review, awards, a trophy room, records, the career of every retired rider. [7, VV] *Done:* the review after the last race and a history page with trophy room, seasons, records and retired riders.
 
 ### 0.9.0 Beta
 
@@ -147,7 +147,7 @@ These are spread over the versions above rather than saved for the end. The firs
 
 **Lists**
 
-- Saved filters and saved column sets per list, with a default the player chooses. PCM added saved search filters in a patch after its players asked. [10]
+- Saved filters and saved column sets per list, with a default the player chooses. PCM added saved search filters in a patch after its players asked. [10] *Done* for the rider search and the transfer market.
 - Multi-select with checkboxes for actions on several riders: assign a programme, a camp, a training focus, put on the shortlist. [7] *A first step:* a star per row for the shortlist.
 - Sorting by any column, remembered per list. *Done for the session.*
 - Export of any list as CSV. [7] *Done* for the rider search and team pages.
@@ -164,18 +164,18 @@ These are spread over the versions above rather than saved for the end. The firs
 - "Simulate until" stops for what the player has chosen: own race, contract offer, injury, transfer deadline. [9] *Done* by topic of the inbox.
 - **Vacation mode.** The assistant takes over for a period, with rules for what he may decide. [9]
 - Autosave with several rolling files; a weekly save can be opened again. A PCM thread asks for a way to go back a few days. [4] *Done:* four weekly files.
-- Undo for the last line-up or plan change before it is confirmed.
+- Undo for the last line-up or plan change before it is confirmed. *Done* in the race preparation.
 
 **Planning**
 
-- The season planner shows conflicts at once: rider entered twice, too many race days, a goal race without the leader. [2] *Started:* riders entered for two overlapping races.
-- Copy a line-up from the last race or from a template. *Done for last year's line-up;* templates are open.
+- The season planner shows conflicts at once: rider entered twice, too many race days, a goal race without the leader. [2] *Done:* overlapping races, more than 85 race days, a goal race he is not planned for, more riders than places.
+- Copy a line-up from the last race or from a template. *Done:* last year's line-up and saved templates.
 - An assistant's proposal for every chore (line-up, programme, training), which the player accepts or changes. Nothing has to be done by hand that the player does not care about. *Done* for line-ups, tactics (pins), the season plan and training.
 
 **Reading**
 
 - Text scaling and layouts for wide and high-resolution screens. Exists as a scale; needs a check at 4K and 21:9. [7]
-- A clearer form display than the scale from −3 % to +4 %: steps with an arrow for the trend. *Started:* the trend arrow in the squad.
+- A clearer form display than the scale from −3 % to +4 %: steps with an arrow for the trend. *Done.*
 - Notes on a rider, written by the player. *Done.*
 - A glossary behind the tooltips, and a short introduction for new careers. *Done:* the help page and a welcome message.
 - Singular and plural in English, dates in the format of the language, command-line tools in English. *Started:* contract dates. *Done:* English is the source language of all texts of the game, German a translation table.

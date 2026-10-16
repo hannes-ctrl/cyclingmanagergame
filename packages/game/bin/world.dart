@@ -6,7 +6,7 @@
 //   dart run bin/world.dart [--seasons n] [--seed s] [--team ABBR] [--csv file]
 //
 // All decisions are delegated: line-ups, radio, training, scouting, season
-// plan and contract renewals. The stages run on other isolates.
+// plan, contract renewals and facilities. The stages run on other isolates.
 import 'dart:io';
 import 'dart:math';
 
@@ -43,13 +43,15 @@ Future<void> main(List<String> argv) async {
     ..delegation.radio = RadioMode.off
     ..delegation.training = true
     ..delegation.scouting = true
-    ..delegation.planning = true;
+    ..delegation.planning = true
+    ..delegation.facilities = true;
   c.economy.autoRenew = true;
 
   final rows = <List<Object>>[];
   const header = [
     'Saison',
     'Fahrer',
+    'in Teams',
     'WT',
     'Pro',
     'Conti',
@@ -74,6 +76,12 @@ Future<void> main(List<String> argv) async {
     'Talente',
     'bei Profis',
     'Talent bester',
+    'Budget WT',
+    'Konto WT',
+    'Budget Pro',
+    'im Minus',
+    'Einr. WT',
+    'Winter ab',
     'Min',
   ];
   stdout.writeln(header.join('\t'));
@@ -83,8 +91,13 @@ Future<void> main(List<String> argv) async {
   };
   for (var s = 0; s < seasons; s++) {
     final watch = Stopwatch()..start();
+    // The day the last race is ridden and the winter begins.
+    var winter = '-';
     while (!c.seasonOver) {
       await c.advanceAsync();
+      if (c.racingOver && winter == '-') {
+        winter = '${c.today.day}.${c.today.month}.';
+      }
     }
     // The season as it ended, before the turn of the year.
     double mean(Iterable<double> x) =>
@@ -110,6 +123,26 @@ Future<void> main(List<String> argv) async {
         if (r.potential >= 6 && age(r) <= 25) r,
     ];
     final proIds = {...wt, ...pro};
+    // The money of the other teams, as the season ended.
+    final fin = c.finances;
+    double median(List<double> x) {
+      if (x.isEmpty) return 0;
+      x.sort();
+      return x[x.length ~/ 2];
+    }
+
+    final budgetWt = mean(wt.map(fin.budgetOf));
+    final balanceWt = median([for (final id in wt) fin.balanceOf(id)]);
+    final budgetPro = mean(pro.map(fin.budgetOf));
+    final inDebt = [...wt, ...pro].where((id) => fin.balanceOf(id) < 0).length;
+    final facilitiesWt = mean([
+      for (final id in wt)
+        mean(Facility.values.map((f) => c.facilities.level(id, f).toDouble())),
+    ]);
+    // Riders under contract in every division, development teams included.
+    final inTeams = c.riderById.values
+        .where((r) => (c.teams[r.teamId]?.division ?? 'Free') != 'Free')
+        .length;
     // Turn of the year: contracts, retirements, intake, licences.
     c.startNextSeason();
     final now = {...c.riderById.keys};
@@ -125,6 +158,7 @@ Future<void> main(List<String> argv) async {
     final row = <Object>[
       year,
       pros.length,
+      inTeams,
       mean(wt.map(c.teamStrength)).toStringAsFixed(1),
       mean(pro.map(c.teamStrength)).toStringAsFixed(1),
       mean(conti.map(c.teamStrength)).toStringAsFixed(1),
@@ -153,6 +187,12 @@ Future<void> main(List<String> argv) async {
       talents.isEmpty
           ? 0
           : talents.map(Economy.rating).reduce(max).toStringAsFixed(1),
+      (budgetWt / 1e6).toStringAsFixed(1),
+      (balanceWt / 1e6).toStringAsFixed(1),
+      (budgetPro / 1e6).toStringAsFixed(1),
+      inDebt,
+      facilitiesWt.toStringAsFixed(2),
+      winter,
       watch.elapsed.inMinutes,
     ];
     rows.add(row);

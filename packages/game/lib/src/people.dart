@@ -277,7 +277,146 @@ class People {
   /// @param riderId Id of a rider.
   /// @returns Factor on his development: 0.9 for a careless rider, 1.1 for
   ///   a very professional one.
-  double growthFactor(int riderId) => 0.9 + 0.2 * of(riderId).professionalism;
+  double growthFactor(int riderId) => 0.9 + 0.2 * professionalism(riderId);
+
+  // --- Mentoring --------------------------------------------------------------
+
+  /// Mentor per young rider id. A pair only counts while both ride for the
+  /// same team (or the young one for its development team) and the young
+  /// one is still young enough.
+  final mentors = <int, int>{};
+
+  /// Professionalism a rider has taken on from his mentor, by rider id.
+  final learned = <int, double>{};
+
+  /// Youngest a mentor may be, oldest his protégé.
+  static const mentorAge = 28, menteeAge = 23;
+
+  /// Most young riders one mentor looks after.
+  static const maxMentees = 2;
+
+  int _age(SimRider r) => c.year - r.born ~/ 10000;
+
+  /// @param riderId Id of a rider.
+  /// @returns His professionalism with what he has learned from a mentor.
+  double professionalism(int riderId) =>
+      (of(riderId).professionalism + (learned[riderId] ?? 0)).clamp(0.0, 1.0);
+
+  bool _together(SimRider mentor, SimRider young) =>
+      young.teamId == mentor.teamId ||
+      c.devTeam.parentOf(young.teamId) == mentor.teamId;
+
+  /// @param riderId Id of a rider.
+  /// @returns null if he can be a mentor, otherwise the reason.
+  String? mentorReason(int riderId) {
+    final r = c.riderById[riderId];
+    if (r == null) return tr('Rider not found.');
+    if (_age(r) < mentorAge) {
+      return tr('A mentor is at least {0} years old.', [mentorAge]);
+    }
+    return null;
+  }
+
+  /// @param riderId Id of a young rider.
+  /// @returns Id of his mentor while the pair holds, otherwise null.
+  int? mentorOf(int riderId) {
+    final m = mentors[riderId];
+    if (m == null) return null;
+    final young = c.riderById[riderId], mentor = c.riderById[m];
+    if (young == null || mentor == null) return null;
+    if (_age(young) > menteeAge || !_together(mentor, young)) return null;
+    return m;
+  }
+
+  /// @param mentorId Id of a rider.
+  /// @returns The young riders he looks after.
+  List<int> menteesOf(int mentorId) => [
+        for (final e in mentors.entries)
+          if (e.value == mentorId && mentorOf(e.key) == mentorId) e.key,
+      ];
+
+  /// Gives a young rider of the player's team or development team a mentor
+  /// from the team, or takes him away.
+  ///
+  /// @param youngId Id of the young rider.
+  /// @param mentorId Id of the mentor, or null to end the pairing.
+  /// @returns null on success, otherwise the reason.
+  String? setMentor(int youngId, int? mentorId) {
+    final young = c.riderById[youngId];
+    if (young == null) return tr('Rider not found.');
+    if (young.teamId != c.teamId && !c.devTeam.has(youngId)) {
+      return tr('He does not ride for the team.');
+    }
+    if (mentorId == null) {
+      mentors.remove(youngId);
+      return null;
+    }
+    if (_age(young) > menteeAge) {
+      return tr('Only riders up to {0} get a mentor.', [menteeAge]);
+    }
+    final mentor = c.riderById[mentorId];
+    if (mentor == null || mentor.teamId != c.teamId) {
+      return tr('The mentor must ride for the team.');
+    }
+    final reason = mentorReason(mentorId);
+    if (reason != null) return reason;
+    if (menteesOf(mentorId).where((id) => id != youngId).length >= maxMentees) {
+      return tr('{0} already looks after {1} young riders.',
+          [mentor.name, maxMentees]);
+    }
+    mentors[youngId] = mentorId;
+    return null;
+  }
+
+  /// Factor on a young rider's development from his mentor: up to a
+  /// twelfth more with a very professional one.
+  ///
+  /// @param riderId Id of a rider.
+  /// @returns 1.0 without a mentor, up to 1.08.
+  double mentorFactor(int riderId) {
+    final m = mentorOf(riderId);
+    return m == null ? 1.0 : 1 + 0.08 * professionalism(m);
+  }
+
+  /// Monthly: a protégé takes on a little of his mentor's professionalism,
+  /// about a third of the difference in a year.
+  void mentoring() {
+    for (final youngId in mentors.keys.toList()) {
+      final m = mentorOf(youngId);
+      if (m == null) continue;
+      final gap = professionalism(m) - professionalism(youngId);
+      if (gap > 0) learned[youngId] = (learned[youngId] ?? 0) + 0.03 * gap;
+    }
+  }
+
+  /// At the start of a season: pairs that no longer hold end, and every
+  /// other team pairs its most professional riders of 30 and more with its
+  /// young riders who have no mentor.
+  void pairOthers() {
+    mentors.removeWhere((young, _) => mentorOf(young) == null);
+    for (final e in c.squads.entries) {
+      final team = c.teams[e.key];
+      if (e.key == c.teamId || team == null || team.division == 'Free') {
+        continue;
+      }
+      final squad = e.value;
+      final elders = [
+        for (final r in squad)
+          if (_age(r) >= 30) r,
+      ]..sort((a, b) => professionalism(b.id).compareTo(professionalism(a.id)));
+      final young = [
+        for (final r in [...squad, ...?c.squads[c.devTeam.links[e.key]]])
+          if (_age(r) <= menteeAge && mentorOf(r.id) == null) r,
+      ]..sort((a, b) => b.potential.compareTo(a.potential));
+      for (final m in elders.take(2)) {
+        for (final y in young
+            .where((y) => mentorOf(y.id) == null)
+            .take(max(0, maxMentees - menteesOf(m.id).length))) {
+          mentors[y.id] = m.id;
+        }
+      }
+    }
+  }
 
   /// What a rider's mood and character do to the wage he asks of the
   /// player: his own rider asks less if he is loyal and content; a rider of
@@ -623,6 +762,8 @@ class People {
         'out': {for (final e in outDays.entries) '${e.key}': e.value},
         'grandTour': _startedGrandTour.toList(),
         'led': _ledBigRace.toList(),
+        'mentors': {for (final e in mentors.entries) '${e.key}': e.value},
+        'learned': {for (final e in learned.entries) '${e.key}': e.value},
       };
 
   /// @param j A map written by [toJson], or null for a save from before
@@ -637,6 +778,8 @@ class People {
     outDays.clear();
     _startedGrandTour.clear();
     _ledBigRace.clear();
+    mentors.clear();
+    learned.clear();
     if (j == null) return;
     for (final e in (j['morale'] as Map<String, dynamic>).entries) {
       morale[int.parse(e.key)] = (e.value as num).toDouble();
@@ -662,5 +805,13 @@ class People {
     }
     _startedGrandTour.addAll((j['grandTour'] as List? ?? const []).cast<int>());
     _ledBigRace.addAll((j['led'] as List? ?? const []).cast<int>());
+    for (final e
+        in (j['mentors'] as Map<String, dynamic>? ?? const {}).entries) {
+      mentors[int.parse(e.key)] = e.value as int;
+    }
+    for (final e
+        in (j['learned'] as Map<String, dynamic>? ?? const {}).entries) {
+      learned[int.parse(e.key)] = (e.value as num).toDouble();
+    }
   }
 }

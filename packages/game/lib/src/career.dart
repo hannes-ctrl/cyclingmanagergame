@@ -9,11 +9,13 @@ import 'economy.dart';
 import 'entries.dart';
 import 'equipment.dart';
 import 'facilities.dart';
+import 'finances.dart';
 import 'licence.dart';
 import 'people.dart';
 import 'planning.dart';
 import 'points.dart';
 import 'staff.dart';
+import 'templates.dart';
 import 'weather_forecast.dart';
 
 /// A race in the season's calendar.
@@ -104,6 +106,9 @@ class Delegation {
   /// The sports director draws up the race programme of the season and
   /// replaces riders who drop out.
   bool planning = true;
+
+  /// The board builds up the facilities when the savings allow it.
+  bool facilities = false;
 }
 
 /// Training focus: these attributes develop faster, the others more slowly.
@@ -196,6 +201,7 @@ class Message {
     'Contracts',
     'Licence',
     'Board',
+    'Staff',
     'Scouting',
   ];
 
@@ -213,6 +219,7 @@ class Message {
     if (from_(['Agent'])) return 'Contracts';
     if (from_(['UCI'])) return 'Licence';
     if (from_(['Board'])) return 'Board';
+    if (from_(['Staff'])) return 'Staff';
     return 'Scouting';
   }
 
@@ -284,8 +291,11 @@ class Career {
     staff.all.length; // create staff now, not on first access
     equipment.supply.length;
     facilities.levels.length;
+    finances.books.length;
+    if (custom == null) economy.startBudget(finances.breakEven(teamId));
     _assignStyles();
     economy.openSeason();
+    people.pairOthers();
     _buildCalendar();
   }
 
@@ -594,6 +604,9 @@ class Career {
   /// Facilities of all teams.
   late final facilities = Facilities(this);
 
+  /// The money of every team.
+  late final finances = Finances(this);
+
   /// Quality of a team's care for its riders in stage races, 0 to 1: its
   /// physiotherapists and its sports science.
   ///
@@ -741,6 +754,27 @@ class Career {
   final progress = <int, RaceProgress>{};
   final riderPoints = <int, double>{};
   final teamPoints = <int, double>{};
+
+  /// The place of every team in the team ranking of the season: teams with
+  /// points by their points, then those without by strength. Every team has
+  /// a place on the same scale as the order by strength at the start of a
+  /// career, so that a team without points does not count as better placed
+  /// than its strength.
+  ///
+  /// @returns Places from 1 by team id, the free agents left out.
+  Map<int, int> rankingPlaces() {
+    final order = [
+      for (final t in teams.values)
+        if (t.division != 'Free') t.id,
+    ]..sort((a, b) {
+        final points = (teamPoints[b] ?? 0).compareTo(teamPoints[a] ?? 0);
+        if (points != 0) return points;
+        final strength = teamStrength(b).compareTo(teamStrength(a));
+        return strength != 0 ? strength : a.compareTo(b);
+      });
+    return {for (final (i, id) in order.indexed) id: i + 1};
+  }
+
   final inbox = <Message>[];
 
   /// Tactics of the player's team per race; without an entry the sports
@@ -788,10 +822,14 @@ class Career {
     }
   }
 
-  /// Names the best of the season in a message: the rider with the most
-  /// points, the best rider aged 23 or younger, the rider with the most
-  /// wins and the best team. Runs before the rankings start over.
-  void _awards() {
+  /// Names the best of the season: the rider with the most points, the
+  /// best rider aged 23 or younger, the rider with the most wins and the
+  /// best team. Runs after the last race and again before the rankings
+  /// start over.
+  ///
+  /// @param message Whether to send the message.
+  /// @param record Whether to note the winners in the archive of the season.
+  void _awards({bool message = true, bool record = true}) {
     if (riderPoints.isEmpty) return;
     SimRider? best(Iterable<SimRider> of, num Function(SimRider) by) {
       SimRider? top;
@@ -822,7 +860,7 @@ class Career {
         tr('Team of the year: {0}, {1} points',
             [teams[team.key]?.name ?? '', team.value.round()]),
     ];
-    if (archive.isNotEmpty) {
+    if (record && archive.isNotEmpty) {
       archive.last['awards'] = {
         'rider': rider?.id,
         'young': young?.id,
@@ -830,11 +868,31 @@ class Career {
         'team': team?.key,
       };
     }
+    if (!message) return;
     inbox.add(Message(
       today,
       tr('Season review'),
       tr('The best of the {0} season', [year]),
       lines.join('\n'),
+    ));
+  }
+
+  /// Whether the last race of the season has been ridden and the winter
+  /// has begun.
+  bool racingOver = false;
+
+  /// The day of the last race: the best of the season, and what the winter
+  /// holds until the turn of the year.
+  void _endOfRacing() {
+    racingOver = true;
+    _awards(record: false);
+    final place = rankingPlaces()[teamId];
+    inbox.add(Message(
+      today,
+      tr('Board'),
+      tr('The racing season {0} is over', [year]),
+      tr('We end the season in place {0} of the team ranking with {1} points; the board assesses the goals at the turn of the year. Until then: contracts for next season can still be signed (the other teams decide by 15 November), the new young riders arrive on 1 November, riders without a team can be signed at once, and from 1 November camps can be booked for January and February.',
+          [place ?? '-', (teamPoints[teamId] ?? 0).round()]),
     ));
   }
 
@@ -1051,6 +1109,157 @@ class Career {
     }
     return out;
   }
+
+  /// What else speaks against the season plan beside riders entered twice:
+  /// riders who would reach too many race days, goal races a rider is not
+  /// planned for, and races with more riders pencilled in than places.
+  ///
+  /// @returns The warnings, empty if there is nothing to say.
+  List<String> programWarnings() {
+    final out = <String>[];
+    final ahead = [
+      for (final r in ownRaces)
+        if (!progress.containsKey(r.info.id)) r,
+    ];
+    final days = <int, int>{};
+    for (final race in ahead) {
+      final planned = program[race.info.id] ?? const <int>{};
+      final size = world.raceField(race.info.id).ridersPerTeam;
+      if (planned.length > size) {
+        out.add(tr('{0}: {1} riders pencilled in for {2} places.',
+            [race.info.name, planned.length, size]));
+      }
+      for (final id in planned) {
+        days[id] = (days[id] ?? 0) + race.stages.length;
+      }
+    }
+    for (final r in squads[teamId] ?? const <SimRider>[]) {
+      final total = shapeOf(r.id).raceDays + (days[r.id] ?? 0);
+      if (total > 85) {
+        out.add(tr('{0} would reach {1} race days.', [r.name, total]));
+      }
+      for (final goal in people.goals[r.id] ?? const <int>{}) {
+        final race = ahead.where((x) => x.info.id == goal).firstOrNull;
+        if (race != null && !(program[goal]?.contains(r.id) ?? false)) {
+          out.add(tr('{0} is not planned for his goal race {1}.',
+              [r.name, race.info.name]));
+        }
+      }
+    }
+    return out;
+  }
+
+  /// Line-ups the player saved under a name, as rider ids.
+  final lineupTemplates = <String, List<int>>{};
+
+  /// The player's own programme templates.
+  final ownTemplates = <ProgramTemplate>[];
+
+  /// The built-in templates and the player's own.
+  List<ProgramTemplate> get templates =>
+      [...ProgramTemplate.builtIns, ...ownTemplates];
+
+  /// Pencils a rider in for the races of a template that lie ahead, as far
+  /// as they do not overlap with races he is already planned for.
+  ///
+  /// @param key Key of the template: the English name of a built-in one,
+  ///   the name of an own one.
+  /// @param riderId Id of the rider.
+  /// @returns The number of races added.
+  int applyTemplate(String key, int riderId) {
+    final t = templates.where((x) => x.key == key).firstOrNull;
+    if (t == null) return 0;
+    final ahead = [
+      for (final r in ownRaces)
+        if (r.start.isAfter(today) && !progress.containsKey(r.info.id)) r,
+    ]..sort((a, b) => a.start.compareTo(b.start));
+    bool overlaps(RaceEntry race) => ahead.any((x) =>
+        x != race &&
+        (program[x.info.id]?.contains(riderId) ?? false) &&
+        !x.start.isAfter(race.end) &&
+        !race.start.isAfter(x.end));
+    var added = 0;
+    for (final race in ahead) {
+      if (!t.includes(this, race) || overlaps(race)) continue;
+      final set = program.putIfAbsent(race.info.id, () => {});
+      if (set.add(riderId)) added++;
+    }
+    return added;
+  }
+
+  /// Saves the season programme of a rider as an own template.
+  ///
+  /// @param name Name of the template; one of the same name is replaced.
+  /// @param riderId Id of the rider whose programme it takes.
+  /// @returns null on success, otherwise the reason.
+  String? saveTemplate(String name, int riderId) {
+    final races = [
+      for (final r in ownRaces)
+        if (program[r.info.id]?.contains(riderId) ?? false) r.info.id,
+    ];
+    if (name.trim().isEmpty) return tr('The template needs a name.');
+    if (races.isEmpty) return tr('He has no races in his programme.');
+    if (ProgramTemplate.builtIns.any((t) => t.key == name.trim())) {
+      return tr('A built-in template already has that name.');
+    }
+    ownTemplates
+      ..removeWhere((t) => t.key == name.trim())
+      ..add(ProgramTemplate.own(name.trim(), races));
+    return null;
+  }
+
+  /// Deletes an own template.
+  ///
+  /// @param name Its name.
+  void deleteTemplate(String name) =>
+      ownTemplates.removeWhere((t) => t.key == name);
+
+  // --- Breakaways ---------------------------------------------------------------
+
+  /// Days in the break of the season per rider id.
+  final breakDays = <int, int>{};
+
+  /// Combativity awards of the season per rider id: on every road stage
+  /// the rider of the break who did the most work in front.
+  final combative = <int, int>{};
+
+  /// Counts the break of a stage and names its most combative rider.
+  ///
+  /// @param result The stage just ridden.
+  void _countBreak(StageResult result) {
+    int? best;
+    var bestKm = -1.0;
+    var bestPlace = 1 << 20;
+    final place = {
+      for (final (i, p) in result.placings.indexed) p.rider.id: i,
+    };
+    for (final e in result.traces.entries) {
+      if (!e.value.inBreak) continue;
+      breakDays[e.key] = (breakDays[e.key] ?? 0) + 1;
+      final km = e.value.frontKm;
+      final at = place[e.key] ?? 1 << 19;
+      if (km > bestKm || km == bestKm && at < bestPlace) {
+        best = e.key;
+        bestKm = km;
+        bestPlace = at;
+      }
+    }
+    if (best != null) combative[best] = (combative[best] ?? 0) + 1;
+  }
+
+  /// @param team A team.
+  /// @returns The days its riders spent in the break this season.
+  int teamBreakDays(int team) => [
+        for (final r in squads[team] ?? const <SimRider>[])
+          breakDays[r.id] ?? 0,
+      ].fold(0, (a, b) => a + b);
+
+  /// @param team A team.
+  /// @returns Its combativity awards this season.
+  int teamCombative(int team) => [
+        for (final r in squads[team] ?? const <SimRider>[])
+          combative[r.id] ?? 0,
+      ].fold(0, (a, b) => a + b);
 
   /// The shortlist: riders the player keeps an eye on. He gets a message
   /// when one of them becomes available or signs somewhere.
@@ -1461,6 +1670,8 @@ class Career {
     if (today.day == 1) {
       _recordGrowth();
       _develop();
+      people.mentoring();
+      if (delegation.facilities) facilities.boardBuilds();
     }
     if (today.weekday == DateTime.monday) {
       _recordForm();
@@ -1468,6 +1679,14 @@ class Career {
     }
     if (delegation.training && today.weekday == DateTime.monday) _coachPlans();
     economy.daily(ridden);
+    finances.daily(ridden);
+    if (!racingOver &&
+        calendar.isNotEmpty &&
+        !date.isBefore(calendar
+            .map((r) => r.end)
+            .reduce((a, b) => a.isAfter(b) ? a : b))) {
+      _endOfRacing();
+    }
     staff.daily();
     equipment.daily();
     facilities.daily();
@@ -1655,18 +1874,39 @@ class Career {
   /// @returns The ceiling on the attribute scale.
   static double ceiling(SimRider r) => 70 + 2.8 * r.potential;
 
-  /// Scales a gain so that an attribute slows down as it nears the rider's
-  /// ceiling and stops there.
+  /// Scales a gain so that an attribute slows down over the last ten points
+  /// below the rider's ceiling and stops there.
   ///
   /// @param r The rider.
   /// @param value Current value of the attribute.
   /// @param gain Gain without the ceiling.
   /// @returns The gain that is actually applied.
   static double capped(SimRider r, double value, double gain) =>
-      gain <= 0 ? gain : gain * ((ceiling(r) - value) / 7).clamp(0.0, 1.0);
+      gain <= 0 ? gain : gain * ((ceiling(r) - value) / 10).clamp(0.0, 1.0);
 
   /// How much faster or slower a rider develops than one of potential 5.
   static double _talent(SimRider r) => ((r.potential - 2) / 3).clamp(0.2, 1.4);
+
+  /// A rider as he was a year earlier: what a year of development at that
+  /// age adds with an average coach and normal training, taken off again.
+  ///
+  /// @param r The rider.
+  /// @param age His age during the year that is taken off.
+  /// @returns The rider a year younger in his attributes.
+  static SimRider yearEarlier(SimRider r, int age) {
+    final step = _yearlyStep(age) * _talent(r);
+    if (step <= 0) return r;
+    var lo = 100.0, hi = 0.0;
+    r.attributes.adjusted((_, v) {
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
+      return v;
+    });
+    return r.withAttributes(r.attributes.adjusted((_, v) {
+      final profile = hi == lo ? 1.0 : 0.3 + 0.7 * (v - lo) / (hi - lo);
+      return (v - capped(r, v, step * profile)).clamp(50.0, 86.0);
+    }));
+  }
 
   /// What a rider can expect over the next twelve months with normal
   /// training and an average coach.
@@ -1753,6 +1993,7 @@ class Career {
                 load *
                 coach *
                 people.growthFactor(r.id) *
+                people.mentorFactor(r.id) *
                 facilities.development(r.teamId) *
                 // A development team grows with the academy of its parent.
                 _academy(r.teamId)
@@ -1795,17 +2036,18 @@ class Career {
   /// over, riders keep their development.
   void startNextSeason() {
     _archiveSeason();
-    _awards();
+    _awards(message: !racingOver);
+    racingOver = false;
     people.closeSeason();
+    staff.closeSeason();
+    finances.closeSeason();
     economy.closeSeason();
     equipment.closeSeason();
     licences.closeSeason();
-    final ranking = teamPoints.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
     history.add((
       year: year,
       points: teamPoints[teamId] ?? 0,
-      rank: ranking.indexWhere((e) => e.key == teamId) + 1,
+      rank: rankingPlaces()[teamId] ?? 0,
     ));
     year++;
     today = DateTime.utc(year, 1, 1);
@@ -1814,6 +2056,8 @@ class Career {
     devTeam.stagiaires.clear();
     riderPoints.clear();
     teamPoints.clear();
+    breakDays.clear();
+    combative.clear();
     ownPlans.clear();
     ownWishes.clear();
     program.clear();
@@ -1825,7 +2069,9 @@ class Career {
     _invited.clear();
     entries.reset();
     _twinCache = null;
-    camps.all.clear();
+    // Camps of the winter run on; those over for four weeks are forgotten.
+    camps.all.removeWhere(
+        (k) => k.closed && today.difference(k.end) > const Duration(days: 28));
     for (final s in staff.all) {
       s
         ..busyUntil = null
@@ -1842,6 +2088,7 @@ class Career {
     _ownRaces = null;
     planner.reset();
     economy.openSeason();
+    people.pairOthers();
     inbox.add(Message(
       today,
       tr('Board'),
@@ -1856,6 +2103,12 @@ class Career {
   /// @param team Team id.
   /// @returns The strength on the attribute scale.
   double teamStrength(int team) => _teamStrength(team);
+
+  /// A rider joined a team during the season: its strength is measured
+  /// anew.
+  ///
+  /// @param team Id of the team.
+  void teamJoined(int team) => _strength.remove(team);
 
   double _teamStrength(int team) => _strength.putIfAbsent(team, () {
         final best = [
@@ -2202,6 +2455,7 @@ class Career {
   void _credit(RaceProgress p, int index, StageResult result) {
     final race = p.race;
     people.afterStage(p, index, result);
+    _countBreak(result);
     final own = result.placings.indexWhere((x) => _isOwn(x.rider));
     final winner = result.placings.first.rider;
     final tier = _pointsTier(race);
@@ -2325,6 +2579,27 @@ class Career {
                 (t.year == year - 1 && !thisYear.contains(t.race))))
           t.race,
     ];
+  }
+
+  /// Riders who ended their careers, oldest first:
+  /// `[id, full name, country, year of birth, last team, year]`. Their
+  /// palmarès and seasons stay in [palmares] and [riderSeasons].
+  final retired = <List<dynamic>>[];
+
+  /// Notes a rider who ends his career, if he ever won or scored.
+  ///
+  /// @param r The rider.
+  void noteRetired(SimRider r) {
+    final seasons = riderSeasons[r.id];
+    if (seasons == null && palmares[r.id] == null) return;
+    retired.add([
+      r.id,
+      fullName(r.id),
+      r.country,
+      r.born ~/ 10000,
+      seasons?.last[1] ?? r.team,
+      year,
+    ]);
   }
 
   /// The player's riders in each race of the last season, by race id, for
@@ -2549,7 +2824,15 @@ class Career {
       'history': [
         for (final h in history) [h.year, h.points, h.rank],
       ],
+      'racingOver': racingOver,
       'riderPoints': ints(riderPoints),
+      'retired': retired,
+      'lineupTemplates': lineupTemplates,
+      'breakDays': ints(breakDays),
+      'combative': ints(combative),
+      'templates': [
+        for (final t in ownTemplates) [t.key, t.races],
+      ],
       'teamPoints': ints(teamPoints),
       'inbox': [
         for (final m in inbox)
@@ -2591,6 +2874,7 @@ class Career {
         'radio': delegation.radio.name,
         'training': delegation.training,
         'scouting': delegation.scouting,
+        'facilities': delegation.facilities,
       },
       'titles': [
         for (final t in titles) [t.year, t.race, t.riderId],
@@ -2604,6 +2888,7 @@ class Career {
       'staff': staff.toJson(),
       'equipment': equipment.toJson(),
       'facilities': facilities.toJson(),
+      'finances': finances.toJson(),
       'lastLineups': ints<List<int>>(lastLineups, (l) => l),
       'styles': ints<TeamStyle>(styles, (s) => s.index),
       if (ownStyle != null) 'ownStyle': ownStyle!.index,
@@ -2662,6 +2947,39 @@ class Career {
       ..addAll([
         for (final h in (j['history'] as List).cast<List<dynamic>>())
           (year: h[0] as int, points: d(h[1]), rank: h[2] as int),
+      ]);
+    racingOver = j['racingOver'] as bool? ?? false;
+    lineupTemplates
+      ..clear()
+      ..addAll({
+        for (final e
+            in (j['lineupTemplates'] as Map<String, dynamic>? ?? const {})
+                .entries)
+          e.key: (e.value as List).cast<int>(),
+      });
+    retired
+      ..clear()
+      ..addAll((j['retired'] as List? ?? const []).cast<List<dynamic>>());
+    breakDays
+      ..clear()
+      ..addAll({
+        for (final e
+            in (j['breakDays'] as Map<String, dynamic>? ?? const {}).entries)
+          int.parse(e.key): e.value as int,
+      });
+    combative
+      ..clear()
+      ..addAll({
+        for (final e
+            in (j['combative'] as Map<String, dynamic>? ?? const {}).entries)
+          int.parse(e.key): e.value as int,
+      });
+    ownTemplates
+      ..clear()
+      ..addAll([
+        for (final t
+            in (j['templates'] as List? ?? const []).cast<List<dynamic>>())
+          ProgramTemplate.own(t[0] as String, (t[1] as List).cast<int>()),
       ]);
     riderPoints
       ..clear()
@@ -2749,7 +3067,8 @@ class Career {
       ..radio = RadioMode.values.byName(dj['radio'] as String)
       ..training = dj['training'] as bool
       ..scouting = dj['scouting'] as bool
-      ..planning = dj['planning'] as bool? ?? true;
+      ..planning = dj['planning'] as bool? ?? true
+      ..facilities = dj['facilities'] as bool? ?? false;
     titles
       ..clear()
       ..addAll([
@@ -2779,6 +3098,7 @@ class Career {
     staff.restore(j['staff'] as Map<String, dynamic>);
     equipment.restore(j['equipment'] as Map<String, dynamic>?);
     facilities.restore(j['facilities'] as Map<String, dynamic>?);
+    finances.restore(j['finances'] as Map<String, dynamic>?);
     lastLineups
       ..clear()
       ..addAll({

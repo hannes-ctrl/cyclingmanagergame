@@ -1351,6 +1351,32 @@ class AppState extends ChangeNotifier {
         career.staff.fire(e['staff'] as int);
       case 'scout':
         career.staff.scout(e['rider'] as int);
+      case 'test':
+        career.staff.test(e['rider'] as int);
+      case 'assign':
+        career.staff.assign(
+          e['staff'] as int,
+          e['country'] as String?,
+          e['maxAge'] as int,
+          e['kind'] as String?,
+        );
+      case 'recall':
+        career.staff.recall(e['staff'] as int);
+      case 'keepStaff':
+        career.staff.keep(e['staff'] as int);
+      case 'mentor':
+        career.people.setMentor(e['rider'] as int, e['mentor'] as int?);
+      case 'template':
+        career.applyTemplate(e['name'] as String, e['rider'] as int);
+      case 'saveTemplate':
+        career.saveTemplate(e['name'] as String, e['rider'] as int);
+      case 'deleteTemplate':
+        career.deleteTemplate(e['name'] as String);
+      case 'lineupTemplate':
+        final ids = e['riders'] as List?;
+        ids == null
+            ? career.lineupTemplates.remove(e['name'])
+            : career.lineupTemplates[e['name'] as String] = ids.cast<int>();
       case 'autoRenew':
         career.economy.autoRenew = e['on'] as bool;
       case 'radio':
@@ -1368,6 +1394,8 @@ class AppState extends ChangeNotifier {
             d.training = e['value'] as bool;
           case 'scouting':
             d.scouting = e['value'] as bool;
+          case 'facilities':
+            d.facilities = e['value'] as bool;
           case 'planning':
             d.planning = e['value'] as bool;
             // Taking the job on means planning what is still open.
@@ -1378,7 +1406,11 @@ class AppState extends ChangeNotifier {
       case 'camp':
         career.camps.book(
           CampType.values.byName(e['camp'] as String),
-          DateTime.utc(career.year, e['month'] as int, e['dayOfMonth'] as int),
+          DateTime.utc(
+            e['year'] as int? ?? career.year,
+            e['month'] as int,
+            e['dayOfMonth'] as int,
+          ),
           e['days'] as int,
           (e['riders'] as List).cast<int>(),
         );
@@ -1572,6 +1604,113 @@ class AppState extends ChangeNotifier {
   String? scout(int riderId) =>
       _act('scout', 'rider', riderId, career.staff.scout);
 
+  /// Invites a rider for a test at the base.
+  ///
+  /// @param riderId Id of the rider.
+  /// @returns null on success, otherwise the reason.
+  String? testRider(int riderId) =>
+      _act('test', 'rider', riderId, career.staff.test);
+
+  /// Gives a scout a standing assignment.
+  ///
+  /// @param scoutId Id of the scout.
+  /// @param country Country code, or null for anywhere.
+  /// @param maxAge Oldest age of interest.
+  /// @param kind Kind of rider, or null for any.
+  /// @returns null on success, otherwise the reason.
+  String? assignScout(int scoutId, String? country, int maxAge, String? kind) =>
+      _decide({
+        'type': 'assign',
+        'staff': scoutId,
+        'country': country,
+        'maxAge': maxAge,
+        'kind': kind,
+      }, () => career.staff.assign(scoutId, country, maxAge, kind));
+
+  /// Ends a scout's assignment.
+  ///
+  /// @param scoutId Id of the scout.
+  /// @returns null on success, otherwise the reason.
+  String? recallScout(int scoutId) =>
+      _act('recall', 'staff', scoutId, career.staff.recall);
+
+  /// Matches another team's offer to a staff member.
+  ///
+  /// @param staffId Id of the staff member.
+  /// @returns null on success, otherwise the reason.
+  String? keepStaff(int staffId) =>
+      _act('keepStaff', 'staff', staffId, career.staff.keep);
+
+  /// Gives a young rider a mentor, or none.
+  ///
+  /// @param riderId Id of the young rider.
+  /// @param mentorId Id of the mentor, or null.
+  /// @returns null on success, otherwise the reason.
+  String? setMentor(int riderId, int? mentorId) => _decide({
+    'type': 'mentor',
+    'rider': riderId,
+    'mentor': mentorId,
+  }, () => career.people.setMentor(riderId, mentorId));
+
+  /// Pencils a rider in for the races of a programme template.
+  ///
+  /// @param name Key of the template.
+  /// @param riderId Id of the rider.
+  /// @returns How many races were added.
+  int applyTemplate(String name, int riderId) {
+    if (busy) return 0;
+    final added = career.applyTemplate(name, riderId);
+    _log.add({
+      'type': 'template',
+      'name': name,
+      'rider': riderId,
+      'day': _days,
+    });
+    _save();
+    notifyListeners();
+    return added;
+  }
+
+  /// Saves a rider's programme as an own template.
+  ///
+  /// @param name Name of the template.
+  /// @param riderId Id of the rider.
+  /// @returns null on success, otherwise the reason.
+  String? saveTemplate(String name, int riderId) => _decide({
+    'type': 'saveTemplate',
+    'name': name,
+    'rider': riderId,
+  }, () => career.saveTemplate(name, riderId));
+
+  /// Deletes an own template.
+  ///
+  /// @param name Its name.
+  void deleteTemplate(String name) =>
+      _record({'type': 'deleteTemplate', 'name': name});
+
+  /// Saves a line-up under a name, or deletes the one of that name.
+  ///
+  /// @param name Name of the template.
+  /// @param riders Ids of the riders, or null to delete it.
+  void saveLineupTemplate(String name, List<int>? riders) =>
+      _record({'type': 'lineupTemplate', 'name': name, 'riders': riders});
+
+  /// Runs a decision and logs it if it went through.
+  ///
+  /// @param e Log entry without the `day` field.
+  /// @param action The decision; returns null on success.
+  /// @returns null on success, otherwise the reason.
+  String? _decide(Map<String, dynamic> e, String? Function() action) {
+    if (busy) return tr('The days are running right now.');
+    final answer = action();
+    if (answer == null) {
+      _log.add({...e, 'day': _days});
+      _save();
+    }
+    notifyListeners();
+    return answer;
+  }
+
   /// Switches automatic contract renewals by the board on or off.
   ///
   /// @param on New setting.
@@ -1634,6 +1773,7 @@ class AppState extends ChangeNotifier {
       _log.add({
         'type': 'camp',
         'camp': type.name,
+        'year': start.year,
         'month': start.month,
         'dayOfMonth': start.day,
         'days': days,

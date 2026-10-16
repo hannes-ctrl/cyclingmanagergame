@@ -1,6 +1,7 @@
 // Checks what keeps the world alive over the seasons: the other teams
-// promote riders from their development teams, the intake brings a few
-// exceptional talents, and prize money follows the size of the race.
+// promote riders from their development teams, the intake is as strong as
+// a real year, prize money follows the size of the race, and the winter has
+// its own business.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:game/game.dart';
 import 'package:radmanager/app_state.dart';
@@ -10,7 +11,7 @@ void main() {
   final dataDir = AppState.findDataDir();
 
   test(
-    'Nachwuchs, Ausnahmetalente und Preisgeld',
+    'Nachwuchs und Preisgeld',
     skip: dataDir == null,
     timeout: const Timeout(Duration(minutes: 10)),
     () {
@@ -50,7 +51,8 @@ void main() {
       }
       expect(promoted, greaterThan(5));
 
-      // The intake brings three exceptional talents.
+      // The intake is as strong as a real year of young riders: the 30th
+      // best of the 19-year-olds in the WorldDB rates 68.4.
       final before = {...c.riderById.keys};
       c.today = DateTime.utc(c.year + 1, 1, 1);
       c.startNextSeason();
@@ -59,10 +61,10 @@ void main() {
           if (!before.contains(r.id)) r,
       ];
       expect(intake.length, greaterThanOrEqualTo(150));
-      final stars = intake.where((r) => r.potential >= 6).toList();
-      expect(stars.length, greaterThanOrEqualTo(3));
-      final best = intake.map(Economy.rating).reduce((a, b) => a > b ? a : b);
-      expect(best, greaterThan(70));
+      final ratings = intake.map(Economy.rating).toList()
+        ..sort((a, b) => b.compareTo(a));
+      expect(ratings.first, greaterThan(70));
+      expect(ratings[29], inInclusiveRange(65.5, 70.5));
 
       // Prize money: a Tour stage pays more than a class 2 race, and the
       // Tour itself most.
@@ -125,6 +127,210 @@ void main() {
 
       expect(roles('Paris-Roubaix'), isNot(contains(Role.climbDomestique)));
       expect(roles('Liège-Bastogne-Liège'), contains(Role.climbDomestique));
+    },
+  );
+  test(
+    'Winter: Nachwuchs im November, vereinslose Fahrer, Winterlager',
+    skip: dataDir == null,
+    timeout: const Timeout(Duration(minutes: 10)),
+    () {
+      I18n.lang = Lang.de;
+      final world = World('$dataDir/world.sqlite');
+      addTearDown(world.close);
+      final team = world.teams().firstWhere((t) => t.abbr == 'RBH').id;
+      final c = Career(world, teamId: team, seed: 4)
+        ..delegation.lineups = true
+        ..delegation.radio = RadioMode.off;
+      final eco = c.economy;
+
+      // A rider without a team signs in March and rides at once.
+      c.today = DateTime.utc(c.year, 3, 2);
+      final free =
+          c.riderById.values
+              .where(
+                (r) =>
+                    eco.isFreeAgent(r) && !eco.retiring(r) && eco.expiring(r),
+              )
+              .toList()
+            ..sort((a, b) => eco.demand(a).compareTo(eco.demand(b)));
+      expect(
+        eco.offer(free.first.id, eco.demand(free.first) - 10000, 2),
+        isNotNull,
+      );
+      // Room in the squad: one rider leaves first.
+      final freeTeam = c.teams.values.firstWhere((t) => t.division == 'Free');
+      eco.move(c.squads[team]!.last, freeTeam.id);
+      final before = c.squads[team]!.length;
+      eco.contracts[free.first.id]!.refusedUntil = null;
+      expect(eco.offer(free.first.id, eco.demand(free.first), 2), isNull);
+      expect(c.riderById[free.first.id]!.teamId, team);
+      expect(c.squads[team]!.length, before + 1);
+      expect(eco.contracts[free.first.id]!.endYear, c.year + 1);
+      for (var i = 0; i < 3; i++) {
+        c.advance();
+      }
+
+      // On 1 November the young riders arrive; the academy's talents sign
+      // for next season.
+      final known = {...c.riderById.keys};
+      c.today = DateTime.utc(c.year, 11, 1);
+      eco.daily(const []);
+      final young = [
+        for (final r in c.riderById.values)
+          if (!known.contains(r.id)) r,
+      ];
+      expect(young.length, 150);
+      expect(young.every(eco.isFreeAgent), isTrue);
+      expect(young.where(eco.expiring).length, greaterThanOrEqualTo(146));
+      final dev = c.devTeam.teamId;
+      if (dev != null) {
+        expect(
+          young.where((r) => eco.contracts[r.id]!.nextTeam == dev),
+          isNotEmpty,
+        );
+      }
+
+      // Camps can now be booked for January, not for March.
+      final squad = [for (final r in c.squads[team]!.take(4)) r.id];
+      eco.balance = 1e7;
+      expect(
+        c.camps.book(CampType.base, DateTime.utc(c.year + 1, 3, 1), 7, squad),
+        isNotNull,
+      );
+      expect(
+        c.camps.book(CampType.base, DateTime.utc(c.year, 12, 28), 14, squad),
+        isNull,
+      );
+
+      // The season turns: no second intake, the camp runs on into January.
+      c.today = DateTime.utc(c.year + 1, 1, 1);
+      final count = c.riderById.length;
+      c.startNextSeason();
+      expect(c.riderById.length, lessThan(count));
+      expect(c.camps.all.where((k) => !k.closed), hasLength(1));
+      c.today = DateTime.utc(c.year, 1, 11);
+      c.camps.daily();
+      expect(c.camps.all.single.closed, isTrue);
+    },
+  );
+  test(
+    'Scouting in Stufen, Mentoren, Vorlagen, Angebote und Sponsorwünsche',
+    skip: dataDir == null,
+    timeout: const Timeout(Duration(minutes: 10)),
+    () {
+      I18n.lang = Lang.de;
+      final world = World('$dataDir/world.sqlite');
+      addTearDown(world.close);
+      final team = world.teams().firstWhere((t) => t.abbr == 'RBH').id;
+      final c = Career(world, teamId: team, seed: 4)
+        ..delegation.lineups = true
+        ..delegation.radio = RadioMode.off;
+      final book = c.staff;
+      final eco = c.economy;
+
+      // Scouting in stages: a rider of a small team becomes known step by
+      // step, from a first impression to the test at the base.
+      final unknown = c.riderById.values.firstWhere(
+        (r) =>
+            c.teams[r.teamId]?.division.startsWith('[3]') == true &&
+            book.knowledge(r.id) < 0.5,
+      );
+      final k0 = book.knowledge(unknown.id);
+      expect(book.test(unknown.id), isNotNull); // no report yet
+      for (final stage in [1, 2]) {
+        expect(book.scout(unknown.id), isNull);
+        final job = book.jobs.single;
+        expect(job.stage, stage);
+        c.today = job.until;
+        book.daily();
+        expect(book.stageOf(unknown.id), stage);
+      }
+      expect(book.knowledge(unknown.id), greaterThan(k0 + 0.3));
+      eco.balance = 1e7;
+      expect(book.test(unknown.id), isNull);
+      c.today = book.jobs.single.until;
+      book.daily();
+      expect(book.knowledge(unknown.id), 1);
+
+      // An assignment brings first impressions of riders who fit it.
+      final scout = book.idleScouts.first;
+      expect(book.assign(scout.id, null, 23, 'mountain'), isNull);
+      expect(book.idleScouts.contains(scout), isFalse);
+      final before = book.reports.length;
+      c.today = book.assignments.single.next;
+      book.daily();
+      expect(book.reports.length, greaterThan(before));
+      expect(book.recall(scout.id), isNull);
+
+      // Mentoring: an older rider looks after a young one, who develops a
+      // little faster and takes on some of his professionalism.
+      final squad = c.squads[team]!;
+      final mentor = squad.firstWhere(
+        (r) => c.people.mentorReason(r.id) == null,
+      );
+      final young = squad.firstWhere(
+        (r) => c.year - r.born ~/ 10000 <= People.menteeAge,
+      );
+      expect(c.people.setMentor(young.id, mentor.id), isNull);
+      expect(c.people.mentorOf(young.id), mentor.id);
+      expect(c.people.mentorFactor(young.id), greaterThan(1));
+      expect(c.people.setMentor(mentor.id, young.id), isNotNull);
+      // The other teams have mentors too.
+      expect(
+        c.people.mentors.values.where((m) => c.riderById[m]?.teamId != team),
+        isNotEmpty,
+      );
+
+      // Programme templates: built-in ones follow the calendar, own ones
+      // keep the races.
+      final rider = squad.first;
+      final added = c.applyTemplate('Cobbled classics', rider.id);
+      expect(added, greaterThan(0));
+      expect(c.saveTemplate('Mine', rider.id), isNull);
+      expect(c.templates.where((t) => !t.builtIn), hasLength(1));
+      c.programWarnings();
+
+      // Sponsors wish for something the races can bring.
+      expect(eco.wishes, hasLength(eco.sponsors.length));
+
+      // Competing offers: a rider of another team answers after a week,
+      // for the player or for a rival.
+      c.today = DateTime.utc(c.year, 8, 2);
+      final limit = c.finances.wageLimit(team);
+      final target =
+          (eco
+                  .market()
+                  .where(
+                    (r) =>
+                        !eco.isFreeAgent(r) &&
+                        eco.demand(r) * 1.1 +
+                                eco.wageBill(team, nextSeason: true) <
+                            limit,
+                  )
+                  .toList()
+                ..sort((a, b) => eco.demand(b).compareTo(eco.demand(a))))
+              .first;
+      expect(
+        eco.offer(target.id, (eco.demand(target) * 1.1).round(), 2),
+        isNull,
+      );
+      expect(eco.pending.containsKey(target.id), isTrue);
+      expect(eco.offer(target.id, eco.demand(target) * 2, 2), isNotNull);
+      c.today = eco.pending[target.id]!.until;
+      eco.daily(const []);
+      expect(eco.pending, isEmpty);
+      expect(eco.contracts[target.id]!.nextTeam, isNotNull);
+
+      // Own riders can be renewed before August, with a running contract.
+      c.today = DateTime.utc(c.year, 3, 1);
+      final running = squad.firstWhere(
+        (r) =>
+            eco.contracts[r.id]!.endYear > c.year &&
+            eco.contracts[r.id]!.nextTeam == null,
+      );
+      eco.contracts[running.id]!.refusedUntil = null;
+      expect(eco.offer(running.id, eco.demand(running) + 100000, 3), isNull);
+      expect(eco.contracts[running.id]!.nextTeam, team);
     },
   );
 }

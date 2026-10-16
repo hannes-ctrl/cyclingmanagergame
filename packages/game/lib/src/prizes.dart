@@ -72,6 +72,20 @@ class Prizes {
   static double forPlace(double winner, int place) =>
       place < shares.length ? winner * shares[place] : 0;
 
+  /// Share of the prize money a team keeps. As in real cycling the riders
+  /// share most of it among themselves and the staff; the team keeps a
+  /// quarter for its books.
+  static const teamShare = 0.25;
+
+  /// What a team keeps of the prize money of a stage.
+  ///
+  /// @param p The race.
+  /// @param result The stage just ridden.
+  /// @param teamId The team.
+  /// @returns Euros.
+  static double kept(RaceProgress p, StageResult result, int teamId) =>
+      earned(p, result, teamId) * teamShare;
+
   /// What a team earns on a stage: its riders' prizes, and when the race
   /// ends, those of the final classifications.
   ///

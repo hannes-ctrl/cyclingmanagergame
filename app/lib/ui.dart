@@ -668,3 +668,19 @@ Widget withHelp(String label, Widget child) {
     child: child,
   );
 }
+
+/// The form as a step instead of a percentage: from poor to peak.
+///
+/// @param form Form factor, about 0.97 to 1.04.
+/// @returns The step in the current language.
+String formStep(double form) => form >= 1.02
+    ? tr('peak')
+    : form >= 1.005
+    ? tr('very good')
+    : form >= 0.99
+    ? tr('good')
+    : form >= 0.975
+    ? tr('average')
+    : form >= 0.96
+    ? tr('below par')
+    : tr('poor');
