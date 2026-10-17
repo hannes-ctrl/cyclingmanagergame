@@ -25,7 +25,7 @@ void main() {
         if (file.existsSync()) file.deleteSync();
       });
 
-      final a = AppState(dataDir!, saveName: saveName);
+      final a = AppState(dataDir!, saveName: saveName)..watchLive = false;
       // Make decisions of every kind so that loading has to replay them.
       a.setLoad(a.squad[0].id, TrainingLoad.high);
       a.setFocus(a.squad[1].id, TrainingFocus.timeTrial);
@@ -103,7 +103,7 @@ void main() {
 
       a.flush();
 
-      final b = AppState(dataDir, saveName: saveName);
+      final b = AppState(dataDir, saveName: saveName)..watchLive = false;
       expect(b.team.id, a.team.id);
       await b.restore();
 
@@ -206,17 +206,17 @@ void namedTest() {
     () async {
       final file = File('$dataDir/$saveName');
       if (file.existsSync()) file.deleteSync();
-      final a = AppState(dataDir!, saveName: saveName);
+      final a = AppState(dataDir!, saveName: saveName)..watchLive = false;
       addTearDown(() {
         if (file.existsSync()) file.deleteSync();
         for (final s in a.saves().where((s) => s.name == 'Test benannt')) {
           a.deleteSave(s);
         }
       });
-      // Every third of the 60 strongest riders: a ProTeam or WorldTeam.
+      // Every third of the 81 strongest riders: 27, enough for a WorldTeam.
       final best = a.world.riders()
         ..sort((x, y) => Economy.rating(y).compareTo(Economy.rating(x)));
-      final picked = [for (var i = 0; i < 60; i += 3) best[i]];
+      final picked = [for (var i = 0; i < 81; i += 3) best[i]];
       a.foundTeam(
         name: 'Auswahl Test',
         abbr: 'AWT',
@@ -280,7 +280,7 @@ void customTest() {
     addTearDown(() {
       if (file.existsSync()) file.deleteSync();
     });
-    final a = AppState(dataDir!, saveName: saveName);
+    final a = AppState(dataDir!, saveName: saveName)..watchLive = false;
     a.foundTeam(
       name: 'RSV Leipzig',
       abbr: 'RSL',
@@ -315,7 +315,7 @@ void customTest() {
 
     a.flush();
 
-    final b = AppState(dataDir, saveName: saveName);
+    final b = AppState(dataDir, saveName: saveName)..watchLive = false;
     expect(b.team.name, 'RSV Leipzig');
     await b.restore();
     expect(b.career.today, a.career.today);
@@ -365,7 +365,7 @@ void seasonTest() {
       if (file.existsSync()) file.deleteSync();
     });
 
-    final a = AppState(dataDir!, saveName: saveName);
+    final a = AppState(dataDir!, saveName: saveName)..watchLive = false;
     a.setAutoRenew(false);
     // Without radio, and from summer on the sports director picks the line-ups.
     a.delegate('radio', RadioMode.off.name);
@@ -434,7 +434,7 @@ void seasonTest() {
 
     a.flush();
 
-    final b = AppState(dataDir, saveName: saveName);
+    final b = AppState(dataDir, saveName: saveName)..watchLive = false;
     await b.restore();
     expect(b.career.year, 2027);
     expect(b.career.today, a.career.today);

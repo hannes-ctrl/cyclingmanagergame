@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:sim/sim.dart';
 import 'package:flutter/material.dart';
 import 'package:game/game.dart';
@@ -6,10 +8,12 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../app_state.dart';
 import '../widgets.dart';
 
-/// Season plan as a matrix of riders and the team's races. A click pencils
-/// a rider in for a race, a right click makes the race one of his season
-/// goals. The head with the races and the column with the riders stay in
-/// place while the matrix scrolls.
+/// The season plan as a timeline, in the manner of PCM: the head shows
+/// every race of the team as a bar over its real dates, stacked in lanes;
+/// below, each rider's row shows the races he is planned for, so that the
+/// length of a race and overlaps are seen at once. Pick a race in the head,
+/// then click riders to pencil them in or out; a right click on a race in a
+/// rider's row makes it one of his season goals.
 class PlanScreen extends StatefulWidget {
   const PlanScreen({super.key, required this.state});
   final AppState state;
@@ -18,28 +22,27 @@ class PlanScreen extends StatefulWidget {
   State<PlanScreen> createState() => _PlanScreenState();
 }
 
-/// State of the matrix: scroll positions, filters and the field under the
-/// pointer.
+/// State of the timeline: scroll positions, filters and the chosen race.
 class _PlanScreenState extends State<PlanScreen> {
   final _horizontal = ScrollController();
   final _names = ScrollController();
   final _body = ScrollController();
-
-  /// Row and column under the pointer, or null.
-  final _hover = ValueNotifier<(int, int)?>(null);
   var _onlyBig = true;
   var _onlyAhead = false;
 
-  static const _cell = 30.0;
+  /// The race riders are pencilled in for by a click in their row.
+  int? _selected;
+
+  static const _day = 9.0;
   static const _rowHeight = 26.0;
   static const _nameWidth = 300.0;
   static const _monthHeight = 20.0;
-  static const _headHeight = 170.0;
+  static const _laneHeight = 19.0;
 
   @override
   void initState() {
     super.initState();
-    // The rider column and the matrix scroll as one.
+    // The rider column and the rows scroll as one.
     void follow(ScrollController from, ScrollController to) {
       from.addListener(() {
         if (to.hasClients && to.offset != from.offset) to.jumpTo(from.offset);
@@ -55,15 +58,14 @@ class _PlanScreenState extends State<PlanScreen> {
     _horizontal.dispose();
     _names.dispose();
     _body.dispose();
-    _hover.dispose();
     super.dispose();
   }
 
-  Color _tierColor(RaceTier tier) => switch (tier) {
+  static Color _tierColor(RaceTier tier) => switch (tier) {
     RaceTier.grandTour => TeamColors.gold,
     RaceTier.monument => TeamColors.red,
     RaceTier.worldTour => const Color(0xFF6DB3FF),
-    _ => TeamColors.muted,
+    _ => const Color(0xFF8A93A6),
   };
 
   static const _months = [
@@ -81,18 +83,50 @@ class _PlanScreenState extends State<PlanScreen> {
     'December',
   ];
 
+  static String _date(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.';
+
+  /// Spreads the races over lanes so that none overlaps another in its
+  /// lane.
+  ///
+  /// @param races The races, sorted by start.
+  /// @returns The lane of every race id, and the number of lanes.
+  static (Map<int, int>, int) _lanes(List<RaceEntry> races) {
+    final ends = <DateTime>[];
+    final lane = <int, int>{};
+    for (final r in races) {
+      var at = ends.indexWhere((e) => e.isBefore(r.start));
+      if (at < 0) {
+        ends.add(r.end);
+        at = ends.length - 1;
+      } else {
+        ends[at] = r.end;
+      }
+      lane[r.info.id] = at;
+    }
+    return (lane, max(1, ends.length));
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = widget.state;
     final c = s.colors;
     final career = s.career;
     final people = career.people;
+    final year = career.year;
+    final first = DateTime.utc(year, 1, 1);
+    final days = DateTime.utc(year + 1, 1, 1).difference(first).inDays;
+    double x(DateTime d) => d.difference(first).inDays * _day;
+    double width(RaceEntry r) => (r.end.difference(r.start).inDays + 1) * _day;
     final races = [
       for (final r in career.ownRaces)
         if ((!_onlyBig || r.tier.factor >= 5) &&
             (!_onlyAhead || !career.progress.containsKey(r.info.id)))
           r,
-    ];
+    ]..sort((a, b) => a.start.compareTo(b.start));
+    final byId = {for (final r in career.ownRaces) r.info.id: r};
+    final selected = byId[_selected];
+    final (lane, lanes) = _lanes(races);
     // By standing in the team, the strongest first.
     final squad = [...s.squad]
       ..sort((a, b) {
@@ -104,264 +138,382 @@ class _PlanScreenState extends State<PlanScreen> {
             ? byRole
             : Economy.rating(b).compareTo(Economy.rating(a));
       });
-    final sizes = {
-      for (final r in races)
-        r.info.id: career.world.raceField(r.info.id).ridersPerTeam,
-    };
-    // Where a new month begins, and how many races it has.
-    final monthStart = <int, int>{};
-    for (var i = 0; i < races.length; i++) {
-      if (i == 0 || races[i].start.month != races[i - 1].start.month) {
-        monthStart[i] = 1;
-      } else {
-        final first = monthStart.keys.last;
-        monthStart[first] = monthStart[first]! + 1;
-      }
-    }
+
+    /// The races a rider is planned for or has ridden, by start.
+    List<RaceEntry> riderRaces(int riderId) => [
+      for (final r in career.ownRaces)
+        if ((career.program[r.info.id]?.contains(riderId) ?? false) ||
+            (career.progress[r.info.id]?.riders.any((x) => x.id == riderId) ??
+                false))
+          r,
+    ]..sort((a, b) => a.start.compareTo(b.start));
 
     int plannedDays(int riderId) {
-      var days = 0;
+      var n = 0;
       for (final r in career.ownRaces) {
         if (career.progress.containsKey(r.info.id)) continue;
         if (career.program[r.info.id]?.contains(riderId) ?? false) {
-          days += r.stages.length;
+          n += r.stages.length;
         }
       }
-      return days;
+      return n;
     }
 
-    BorderSide left(int column) => BorderSide(
-      color: monthStart.containsKey(column) ? TeamColors.muted : c.line,
-      width: monthStart.containsKey(column) ? 1 : 0.5,
-    );
-
-    Widget header(int column) {
-      final r = races[column];
-      final planned = career.program[r.info.id]?.length ?? 0;
-      final started = career.progress.containsKey(r.info.id);
-      final size = sizes[r.info.id]!;
-      final date =
-          '${r.start.day.toString().padLeft(2, '0')}.'
-          '${r.start.month.toString().padLeft(2, '0')}.';
+    /// A race as a bar; the label takes the room up to [room] pixels.
+    Widget bar(
+      RaceEntry r, {
+      required double room,
+      bool faded = false,
+      bool clash = false,
+      bool goal = false,
+      bool promised = false,
+      bool chosen = false,
+    }) {
+      final color = _tierColor(r.tier);
+      final w = width(r);
+      // Without room for a few letters the bar stays unlabelled.
+      final label = max(w, room) < 22
+          ? ''
+          : r.info.abbr.isNotEmpty && room < 70
+          ? r.info.abbr
+          : r.info.name;
       return Tooltip(
-        waitDuration: const Duration(milliseconds: 350),
+        waitDuration: const Duration(milliseconds: 300),
         message:
-            '${r.info.name}\n$date · '
+            '${r.info.name}\n${_date(r.start)}'
+            '${r.isStageRace ? '–${_date(r.end)}' : ''} · '
             '${tr('{0} stages', [r.stages.length])} · '
-            '${tr('{0} of {1} pencilled in', [planned, size])}',
-        child: ValueListenableBuilder(
-          valueListenable: _hover,
-          builder: (context, hover, _) => Container(
-            width: _cell,
-            height: _headHeight,
-            decoration: BoxDecoration(
-              color: hover?.$2 == column ? c.panel2 : null,
-              border: Border(left: left(column)),
-            ),
-            child: Column(
-              children: [
-                Expanded(
-                  child: RotatedBox(
-                    quarterTurns: 3,
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 4),
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: 40,
-                            child: Text(
-                              date,
-                              style: const TextStyle(
-                                fontSize: 11.5,
-                                color: TeamColors.muted,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              r.info.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: r.tier.factor >= 5
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                                color: started
-                                    ? TeamColors.muted
-                                    : TeamColors.text,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+            '${tr('{0} of {1} pencilled in', [career.program[r.info.id]?.length ?? 0, career.world.raceField(r.info.id).ridersPerTeam])}',
+        child: SizedBox(
+          width: max(w, room),
+          height: _laneHeight - 3,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: w,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: faded ? 0.3 : 0.85),
+                  borderRadius: BorderRadius.circular(3),
+                  border: chosen
+                      ? Border.all(color: TeamColors.text, width: 2)
+                      : clash
+                      ? Border.all(color: TeamColors.red, width: 2)
+                      : promised
+                      ? Border.all(color: TeamColors.text, width: 1.5)
+                      : null,
                 ),
-                Container(
-                  height: 4,
-                  width: _cell - 6,
-                  color: _tierColor(r.tier),
-                ),
-                SizedBox(
-                  height: 22,
-                  child: Center(
-                    child: Text(
-                      started ? '–' : '$planned/$size',
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                        color: started
-                            ? TeamColors.muted
-                            : planned == size
-                            ? TeamColors.green
-                            : planned > size
-                            ? TeamColors.red
-                            : planned > 0
-                            ? TeamColors.gold
-                            : TeamColors.muted,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    Widget cell(int row, int column) {
-      final r = races[column];
-      final riderId = squad[row].id;
-      final id = r.info.id;
-      final p = career.progress[id];
-      final rode = p?.riders.any((x) => x.id == riderId) ?? false;
-      final planned = career.program[id]?.contains(riderId) ?? false;
-      final goal = people.goals[riderId]?.contains(id) ?? false;
-      final promised = people.promises.any(
-        (x) => x.riderId == riderId && x.raceId == id,
-      );
-      final out = p == null && career.isInjured(riderId, r.start);
-      final tier = _tierColor(r.tier);
-      return MouseRegion(
-        onEnter: (_) => _hover.value = (row, column),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: p != null ? null : () => s.toggleProgram(id, riderId),
-          onSecondaryTap: p != null
-              ? null
-              : () {
-                  final answer = s.toggleGoal(riderId, id);
-                  if (answer != null) {
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(SnackBar(content: Text(answer)));
-                  }
-                },
-          child: Container(
-            width: _cell,
-            height: _rowHeight,
-            decoration: BoxDecoration(
-              color: out
-                  ? TeamColors.red.withValues(alpha: 0.14)
-                  : row.isOdd
-                  ? c.panel2.withValues(alpha: 0.45)
-                  : null,
-              border: Border(
-                left: left(column),
-                bottom: BorderSide(color: c.line, width: 0.5),
               ),
-            ),
-            padding: const EdgeInsets.all(3),
-            child: rode || planned
-                ? Container(
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: rode
-                          ? tier.withValues(alpha: 0.28)
-                          : tier.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(3),
-                      border: promised
-                          ? Border.all(color: TeamColors.text, width: 1.5)
-                          : null,
-                    ),
-                    child: goal
-                        ? Icon(
+              Positioned.fill(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 3),
+                  child: Row(
+                    children: [
+                      if (goal)
+                        const Padding(
+                          padding: EdgeInsets.only(right: 2),
+                          child: Icon(
                             LucideIcons.target,
-                            size: 13,
-                            color: rode ? TeamColors.text : TeamColors.ground,
-                          )
-                        : null,
-                  )
-                : null,
+                            size: 11,
+                            color: TeamColors.text,
+                          ),
+                        ),
+                      Expanded(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.clip,
+                          softWrap: false,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: w >= 30
+                                ? TeamColors.ground
+                                : TeamColors.text,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       );
     }
 
-    Widget name(int row) {
-      final r = squad[row];
-      final days = career.shapeOf(r.id).raceDays + plannedDays(r.id);
-      final injured = career.isInjured(r.id, career.today);
-      return ValueListenableBuilder(
-        valueListenable: _hover,
-        builder: (context, hover, _) => InkWell(
-          onTap: () => s.openRider(r.id, among: [for (final x in squad) x.id]),
-          child: Container(
-            height: _rowHeight,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: hover?.$1 == row
-                  ? c.panel2
-                  : row.isOdd
-                  ? c.panel2.withValues(alpha: 0.45)
-                  : null,
-              border: Border(bottom: BorderSide(color: c.line, width: 0.5)),
+    /// Room for a label after a race: up to the next race in the same row.
+    double roomAfter(RaceEntry r, List<RaceEntry> row) {
+      final next = row
+          .where((o) => o.start.isAfter(r.end))
+          .map((o) => x(o.start))
+          .fold<double>(days * _day, min);
+      return min(next - x(r.start) - 2, 160);
+    }
+
+    final todayX = x(career.today);
+    final band = selected == null
+        ? null
+        : Positioned(
+            left: x(selected.start),
+            top: 0,
+            bottom: 0,
+            width: width(selected),
+            child: IgnorePointer(
+              child: Container(color: TeamColors.text.withValues(alpha: 0.07)),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: cellText(
-                    career.fullName(r.id),
-                    color: injured ? TeamColors.red : null,
+          );
+
+    Widget head() {
+      final inLane = <int, List<RaceEntry>>{};
+      for (final r in races) {
+        inLane.putIfAbsent(lane[r.info.id]!, () => []).add(r);
+      }
+      return SizedBox(
+        width: days * _day,
+        height: _monthHeight + lanes * _laneHeight + 6,
+        child: Stack(
+          children: [
+            for (var m = 1; m <= 12; m++)
+              Positioned(
+                left: x(DateTime.utc(year, m, 1)),
+                top: 0,
+                width:
+                    DateTime.utc(
+                      year,
+                      m + 1,
+                      1,
+                    ).difference(DateTime.utc(year, m, 1)).inDays *
+                    _day,
+                height: _monthHeight,
+                child: Container(
+                  padding: const EdgeInsets.only(left: 5),
+                  alignment: Alignment.centerLeft,
+                  decoration: BoxDecoration(
+                    color: c.panel2,
+                    border: Border(
+                      left: const BorderSide(color: TeamColors.muted),
+                      bottom: BorderSide(color: c.line),
+                    ),
                   ),
-                ),
-                _TemplateMenu(state: s, rider: r),
-                SizedBox(
-                  width: 84,
                   child: Text(
-                    people.roleOf(r.id).label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    tr(_months[m - 1]),
                     style: const TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                       color: TeamColors.muted,
                     ),
                   ),
                 ),
-                SizedBox(
-                  width: 30,
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    // Race days ridden plus race days planned.
-                    child: cellText(
-                      '$days',
-                      color: days > 80
-                          ? TeamColors.red
-                          : days > 65
-                          ? TeamColors.gold
-                          : TeamColors.muted,
-                    ),
+              ),
+            ?band,
+            for (final r in races)
+              Positioned(
+                left: x(r.start),
+                top: _monthHeight + 3 + lane[r.info.id]! * _laneHeight,
+                child: GestureDetector(
+                  onTap: () => setState(
+                    () => _selected = _selected == r.info.id ? null : r.info.id,
+                  ),
+                  child: bar(
+                    r,
+                    room: roomAfter(r, inLane[lane[r.info.id]!]!),
+                    faded: career.progress.containsKey(r.info.id),
+                    chosen: r.info.id == _selected,
                   ),
                 ),
-              ],
+              ),
+            Positioned(
+              left: todayX,
+              top: 0,
+              bottom: 0,
+              width: 1.5,
+              child: Container(color: TeamColors.green),
             ),
+          ],
+        ),
+      );
+    }
+
+    Widget row(int i) {
+      final r = squad[i];
+      final mine = riderRaces(r.id);
+      final goals = people.goals[r.id] ?? const <int>{};
+      bool clashes(RaceEntry a) => mine.any(
+        (b) =>
+            b != a &&
+            !career.progress.containsKey(b.info.id) &&
+            !career.progress.containsKey(a.info.id) &&
+            !b.start.isAfter(a.end) &&
+            !a.start.isAfter(b.end),
+      );
+      final injured = career.shapeOf(r.id).injuredUntil;
+      final camps = career.camps.all.where((k) => k.riders.contains(r.id));
+      RaceEntry? at(double dx) => mine
+          .where((x0) => dx >= x(x0.start) && dx <= x(x0.start) + width(x0))
+          .firstOrNull;
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapUp: (d) {
+          final hit = at(d.localPosition.dx);
+          if (hit != null && hit.info.id != _selected) {
+            setState(() => _selected = hit.info.id);
+            return;
+          }
+          final race = selected;
+          if (race == null || career.progress.containsKey(race.info.id)) {
+            return;
+          }
+          s.toggleProgram(race.info.id, r.id);
+        },
+        onSecondaryTapUp: (d) {
+          final hit = at(d.localPosition.dx);
+          if (hit == null || career.progress.containsKey(hit.info.id)) return;
+          final answer = s.toggleGoal(r.id, hit.info.id);
+          if (answer != null) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(answer)));
+          }
+        },
+        child: Container(
+          width: days * _day,
+          height: _rowHeight,
+          decoration: BoxDecoration(
+            color: i.isOdd ? c.panel2.withValues(alpha: 0.45) : null,
+            border: Border(bottom: BorderSide(color: c.line, width: 0.5)),
+          ),
+          child: Stack(
+            children: [
+              if (injured != null && injured.isAfter(career.today))
+                Positioned(
+                  left: todayX,
+                  width: max(0, x(injured) - todayX),
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    color: TeamColors.red.withValues(alpha: 0.18),
+                  ),
+                ),
+              for (final k in camps)
+                Positioned(
+                  left: x(k.start),
+                  width: k.days * _day,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    color: TeamColors.green.withValues(alpha: 0.18),
+                  ),
+                ),
+              ?band,
+              for (final race in mine)
+                if (byId.containsKey(race.info.id))
+                  Positioned(
+                    left: x(race.start),
+                    top: 5,
+                    child: bar(
+                      race,
+                      room: roomAfter(race, mine),
+                      faded: career.progress.containsKey(race.info.id),
+                      clash: clashes(race),
+                      goal: goals.contains(race.info.id),
+                      promised: people.promises.any(
+                        (p) => p.riderId == r.id && p.raceId == race.info.id,
+                      ),
+                    ),
+                  ),
+              // Goals that are not planned yet show as an outline.
+              for (final g in goals)
+                if (byId[g] case final race?)
+                  if (!mine.contains(race))
+                    Positioned(
+                      left: x(race.start),
+                      top: 5,
+                      width: width(race),
+                      height: _laneHeight - 3,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: TeamColors.gold),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ),
+              Positioned(
+                left: todayX,
+                top: 0,
+                bottom: 0,
+                width: 1.5,
+                child: Container(
+                  color: TeamColors.green.withValues(alpha: 0.6),
+                ),
+              ),
+            ],
           ),
         ),
       );
     }
 
-    Widget swatch(Color color, String text, {Widget? child}) => Padding(
+    Widget name(int i) {
+      final r = squad[i];
+      final total = career.shapeOf(r.id).raceDays + plannedDays(r.id);
+      final injured = career.isInjured(r.id, career.today);
+      final planned =
+          selected != null &&
+          (career.program[selected.info.id]?.contains(r.id) ?? false);
+      return Container(
+        height: _rowHeight,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: planned
+              ? _tierColor(selected.tier).withValues(alpha: 0.22)
+              : i.isOdd
+              ? c.panel2.withValues(alpha: 0.45)
+              : null,
+          border: Border(bottom: BorderSide(color: c.line, width: 0.5)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: () =>
+                    s.openRider(r.id, among: [for (final x in squad) x.id]),
+                child: cellText(
+                  career.fullName(r.id),
+                  color: injured ? TeamColors.red : null,
+                ),
+              ),
+            ),
+            _TemplateMenu(state: s, rider: r),
+            SizedBox(
+              width: 84,
+              child: Text(
+                people.roleOf(r.id).label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11.5, color: TeamColors.muted),
+              ),
+            ),
+            SizedBox(
+              width: 30,
+              child: Align(
+                alignment: Alignment.centerRight,
+                // Race days ridden plus race days planned.
+                child: cellText(
+                  '$total',
+                  color: total > 80
+                      ? TeamColors.red
+                      : total > 65
+                      ? TeamColors.gold
+                      : TeamColors.muted,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget swatch(Color color, String text) => Padding(
       padding: const EdgeInsets.only(right: 16),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -369,12 +521,10 @@ class _PlanScreenState extends State<PlanScreen> {
           Container(
             width: 14,
             height: 14,
-            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: color,
               borderRadius: BorderRadius.circular(3),
             ),
-            child: child,
           ),
           const SizedBox(width: 6),
           Text(
@@ -393,6 +543,10 @@ class _PlanScreenState extends State<PlanScreen> {
       ],
     );
 
+    final headHeight = _monthHeight + lanes * _laneHeight + 6;
+    final chosenCount = selected == null
+        ? 0
+        : career.program[selected.info.id]?.length ?? 0;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -402,10 +556,29 @@ class _PlanScreenState extends State<PlanScreen> {
             children: [
               Expanded(
                 child: Text(
-                  tr(
-                    'A click pencils the rider in for the race, a right click makes it one of his season goals. Below every race: how many riders are pencilled in, of how many places.',
+                  selected == null
+                      ? tr(
+                          'Click a race at the top, then click riders to pencil them in or out. A right click on a race in a rider\'s row makes it one of his season goals.',
+                        )
+                      : tr(
+                          '{0} · {1} · {2} stages · {3} of {4} pencilled in. Click riders to pencil them in or out.',
+                          [
+                            selected.info.name,
+                            selected.isStageRace
+                                ? '${_date(selected.start)}–${_date(selected.end)}'
+                                : _date(selected.start),
+                            selected.stages.length,
+                            chosenCount,
+                            career.world
+                                .raceField(selected.info.id)
+                                .ridersPerTeam,
+                          ],
+                        ),
+                  style: TextStyle(
+                    color: selected == null
+                        ? TeamColors.muted
+                        : TeamColors.text,
                   ),
-                  style: const TextStyle(color: TeamColors.muted),
                 ),
               ),
               const SizedBox(width: 12),
@@ -427,166 +600,94 @@ class _PlanScreenState extends State<PlanScreen> {
             child: Panel(
               colors: c,
               padding: 0,
-              child: MouseRegion(
-                onExit: (_) => _hover.value = null,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // The riders: the head stays, the rows follow the matrix.
-                    Container(
-                      width: _nameWidth,
-                      decoration: BoxDecoration(
-                        border: Border(right: BorderSide(color: c.line)),
-                      ),
-                      child: Column(
-                        children: [
-                          Container(
-                            height: _monthHeight + _headHeight,
-                            alignment: Alignment.bottomLeft,
-                            padding: const EdgeInsets.fromLTRB(10, 0, 10, 5),
-                            decoration: BoxDecoration(
-                              border: Border(bottom: BorderSide(color: c.line)),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(child: Label(tr('Rider'))),
-                                SizedBox(
-                                  width: 84,
-                                  child: Label(tr('Standing')),
-                                ),
-                                SizedBox(
-                                  width: 30,
-                                  child: Align(
-                                    alignment: Alignment.centerRight,
-                                    child: Label(tr('Days')),
-                                  ),
-                                ),
-                              ],
-                            ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // The riders: the head stays, the rows follow the timeline.
+                  Container(
+                    width: _nameWidth,
+                    decoration: BoxDecoration(
+                      border: Border(right: BorderSide(color: c.line)),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          height: headHeight,
+                          alignment: Alignment.bottomLeft,
+                          padding: const EdgeInsets.fromLTRB(10, 0, 10, 5),
+                          decoration: BoxDecoration(
+                            border: Border(bottom: BorderSide(color: c.line)),
                           ),
-                          Expanded(
-                            child: ScrollConfiguration(
-                              behavior: ScrollConfiguration.of(context)
-                                  .copyWith(scrollbars: false),
-                              child: SingleChildScrollView(
-                                controller: _names,
-                                child: Column(
-                                  children: [
-                                    for (var i = 0; i < squad.length; i++)
-                                      name(i),
-                                  ],
+                          child: Row(
+                            children: [
+                              Expanded(child: Label(tr('Rider'))),
+                              SizedBox(width: 84, child: Label(tr('Standing'))),
+                              SizedBox(
+                                width: 30,
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Label(tr('Days')),
                                 ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: ScrollConfiguration(
+                            behavior: ScrollConfiguration.of(context)
+                                .copyWith(scrollbars: false),
+                            child: SingleChildScrollView(
+                              controller: _names,
+                              child: Column(
+                                children: [
+                                  for (var i = 0; i < squad.length; i++)
+                                    name(i),
+                                ],
                               ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    // The races: months, names, and below them the matrix.
-                    Expanded(
-                      child: Scrollbar(
+                  ),
+                  // The races over the year, and below them the riders.
+                  Expanded(
+                    child: Scrollbar(
+                      controller: _horizontal,
+                      child: SingleChildScrollView(
                         controller: _horizontal,
-                        child: SingleChildScrollView(
-                          controller: _horizontal,
-                          scrollDirection: Axis.horizontal,
-                          child: SizedBox(
-                            width: races.length * _cell,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  height: _monthHeight,
-                                  child: Row(
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: days * _day,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(color: c.line),
+                                  ),
+                                ),
+                                child: head(),
+                              ),
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  controller: _body,
+                                  child: Column(
                                     children: [
-                                      for (final e in monthStart.entries)
-                                        Container(
-                                          width: e.value * _cell,
-                                          alignment: Alignment.centerLeft,
-                                          padding: const EdgeInsets.only(
-                                            left: 5,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: c.panel2,
-                                            border: Border(
-                                              left: const BorderSide(
-                                                color: TeamColors.muted,
-                                              ),
-                                              bottom: BorderSide(color: c.line),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            // A month with one race has room
-                                            // for three letters only.
-                                            e.value < 3
-                                                ? tr(
-                                                    _months[races[e.key]
-                                                            .start
-                                                            .month -
-                                                        1],
-                                                  ).substring(0, 3)
-                                                : tr(
-                                                    _months[races[e.key]
-                                                            .start
-                                                            .month -
-                                                        1],
-                                                  ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.clip,
-                                            style: const TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                              color: TeamColors.muted,
-                                            ),
-                                          ),
-                                        ),
+                                      for (var i = 0; i < squad.length; i++)
+                                        row(i),
                                     ],
                                   ),
                                 ),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    border: Border(
-                                      bottom: BorderSide(color: c.line),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      for (var i = 0; i < races.length; i++)
-                                        header(i),
-                                    ],
-                                  ),
-                                ),
-                                Expanded(
-                                  child: SingleChildScrollView(
-                                    controller: _body,
-                                    child: Column(
-                                      children: [
-                                        for (
-                                          var row = 0;
-                                          row < squad.length;
-                                          row++
-                                        )
-                                          Row(
-                                            children: [
-                                              for (
-                                                var i = 0;
-                                                i < races.length;
-                                                i++
-                                              )
-                                                cell(row, i),
-                                            ],
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -597,24 +698,16 @@ class _PlanScreenState extends State<PlanScreen> {
               swatch(TeamColors.gold, 'Grand Tour'),
               swatch(TeamColors.red, 'Monument'),
               swatch(const Color(0xFF6DB3FF), 'WorldTour'),
-              swatch(TeamColors.muted, tr('Smaller races')),
-              swatch(TeamColors.muted.withValues(alpha: 0.28), tr('Ridden')),
+              swatch(const Color(0xFF8A93A6), tr('Smaller races')),
+              swatch(TeamColors.muted.withValues(alpha: 0.3), tr('Ridden')),
               swatch(
-                TeamColors.muted,
-                tr('Season goal'),
-                child: const Icon(
-                  LucideIcons.target,
-                  size: 11,
-                  color: TeamColors.ground,
-                ),
+                TeamColors.green.withValues(alpha: 0.35),
+                tr('Training camp'),
               ),
-              swatch(
-                TeamColors.red.withValues(alpha: 0.2),
-                tr('Out on race day'),
-              ),
+              swatch(TeamColors.red.withValues(alpha: 0.3), tr('Out')),
               Text(
                 tr(
-                  'White border: promise. Days above 65 yellow, above 80 red.',
+                  'Red border: overlaps another race. White border: promise. Target: season goal; a gold outline is a goal he is not planned for. Green line: today.',
                 ),
                 style: const TextStyle(fontSize: 12, color: TeamColors.muted),
               ),

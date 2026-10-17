@@ -1046,6 +1046,10 @@ class _RoadRace {
             ],
             breakaway: g.members.every((m) => m.inBreak),
             gruppetto: g.gruppetto,
+            stars: [
+              for (final m in g.members)
+                if (m.favorite) m.rider.id,
+            ],
           ),
       ]));
     }

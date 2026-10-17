@@ -596,13 +596,13 @@ class RiderPage extends StatelessWidget {
               RiderPhoto(dataDir: s.dataDir, riderId: r.id, size: 76),
               const SizedBox(width: 12),
               Jersey(dataDir: s.dataDir, abbr: s.jerseyOf(r.teamId), size: 64),
-              const SizedBox(width: 12),
-              TextButton(
-                onPressed: page
-                    ? state.closeRider
-                    : () => Navigator.pop(context),
-                child: Text(page ? tr('Back') : tr('Close')),
-              ),
+              if (!page) ...[
+                const SizedBox(width: 12),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(tr('Close')),
+                ),
+              ],
             ],
           ),
           if (page) ...[
@@ -956,6 +956,15 @@ class RiderPage extends StatelessWidget {
                         fact(tr('Ambition'), Personality.word(person.ambition)),
                         fact(tr('Loyalty'), Personality.word(person.loyalty)),
                         fact(
+                          tr('Adaptability'),
+                          people.settlingDays(r.id) > 0
+                              ? tr('{0} · settling in, {1} days to go', [
+                                  Personality.word(person.adaptability),
+                                  people.settlingDays(r.id),
+                                ])
+                              : Personality.word(person.adaptability),
+                        ),
+                        fact(
                           tr('Consistency'),
                           Personality.word(person.consistency),
                         ),
@@ -1077,6 +1086,14 @@ class RiderPage extends StatelessWidget {
                         Text(
                           tr('No race ridden yet.'),
                           style: TextStyle(color: TeamColors.muted),
+                        ),
+                      if (results.any((x) => x.good))
+                        Text(
+                          tr('Gold: won, the race, the overall or a stage.'),
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: TeamColors.muted,
+                          ),
                         ),
                       for (final x in results)
                         line(

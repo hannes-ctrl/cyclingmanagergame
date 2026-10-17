@@ -25,6 +25,17 @@ class FoundingRules {
 
   static const minRiders = 16, maxRiders = 30;
 
+  /// Fewest riders a WorldTeam and a ProTeam must have, as in the UCI rules.
+  static const minWorldTour = 27, minPro = 20;
+
+  /// @param division A WorldDB division string.
+  /// @returns The fewest riders a team of that division must have.
+  static int minFor(String division) => division.startsWith('[1]')
+      ? minWorldTour
+      : division.startsWith('[2]')
+          ? minPro
+          : minRiders;
+
   /// Strength of the weakest WorldTeam and of the weakest ProTeam.
   late final double worldTour, pro;
 
@@ -51,12 +62,14 @@ class FoundingRules {
   }
 
   /// @param squad A chosen squad.
-  /// @returns The WorldDB division a squad of that strength belongs in.
+  /// @returns The WorldDB division a squad of that strength and size
+  ///   belongs in: a WorldTeam needs 27 riders, a ProTeam 20.
   String divisionFor(Iterable<SimRider> squad) {
     final s = strength(squad);
-    return s >= worldTour
+    final n = squad.length;
+    return s >= worldTour && n >= minWorldTour
         ? '[1] World Tour'
-        : s >= pro
+        : s >= pro && n >= minPro
             ? '[2] Pro Tour'
             : '[3] Continental Tour';
   }

@@ -518,11 +518,16 @@ class _FoundScreenState extends State<FoundScreen> {
                           Divider(height: 20, color: c.line),
                           fact(
                             tr('Rider'),
-                            tr('{0} ({1} to {2})', [
-                              picked.length,
-                              FoundingRules.minRiders,
-                              FoundingRules.maxRiders,
-                            ]),
+                            tr(
+                              '{0} ({1} to {2}; a WorldTeam needs {3}, a ProTeam {4})',
+                              [
+                                picked.length,
+                                FoundingRules.minRiders,
+                                FoundingRules.maxRiders,
+                                FoundingRules.minWorldTour,
+                                FoundingRules.minPro,
+                              ],
+                            ),
                             color: enough ? TeamColors.green : TeamColors.gold,
                           ),
                           fact(

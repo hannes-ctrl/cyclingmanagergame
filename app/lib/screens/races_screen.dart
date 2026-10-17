@@ -56,6 +56,11 @@ class _RacesScreenState extends State<RacesScreen> {
   var _filter = '';
   var _onlyOwn = false;
 
+  /// Sorting of the list, each switchable on its own: grouped by
+  /// importance, and by date (otherwise by name).
+  var _byImportance = true;
+  var _byDate = false;
+
   @override
   void initState() {
     super.initState();
@@ -99,10 +104,27 @@ class _RacesScreenState extends State<RacesScreen> {
       if (_onlyOwn && !ownIds.contains(r.id)) continue;
       byGroup.putIfAbsent(_groupOf(r), () => []).add(r);
     }
+    final starts = {for (final r in s.career.calendar) r.info.id: r.start};
+    final never = DateTime.utc(9999);
+    int order(RaceInfo a, RaceInfo b) {
+      if (_byDate) {
+        final d = (starts[a.id] ?? never).compareTo(starts[b.id] ?? never);
+        if (d != 0) return d;
+      }
+      return a.name.compareTo(b.name);
+    }
+
+    for (final list in byGroup.values) {
+      list.sort(order);
+    }
     final entries = <Object>[
-      for (final (_, label) in _groups)
-        if (byGroup[label] != null) ...[label, ...byGroup[label]!],
-      if (byGroup['Other'] != null) ...['Other', ...byGroup['Other']!],
+      if (_byImportance) ...[
+        for (final (_, label) in _groups)
+          if (byGroup[label] != null) ...[label, ...byGroup[label]!],
+        if (byGroup['Other'] != null) ...['Other', ...byGroup['Other']!],
+      ] else
+        ...(<RaceInfo>[for (final list in byGroup.values) ...list]
+          ..sort(order)),
     ];
 
     return Row(
@@ -139,6 +161,35 @@ class _RacesScreenState extends State<RacesScreen> {
                       selected: _onlyOwn,
                       colors: c,
                       onTap: () => setState(() => _onlyOwn = true),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
+                child: Row(
+                  children: [
+                    Text(
+                      tr('Sort:'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: TeamColors.muted,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Pill(
+                      label: tr('Importance'),
+                      selected: _byImportance,
+                      colors: c,
+                      onTap: () =>
+                          setState(() => _byImportance = !_byImportance),
+                    ),
+                    const SizedBox(width: 6),
+                    Pill(
+                      label: tr('Date'),
+                      selected: _byDate,
+                      colors: c,
+                      onTap: () => setState(() => _byDate = !_byDate),
                     ),
                   ],
                 ),
@@ -185,6 +236,20 @@ class _RacesScreenState extends State<RacesScreen> {
                                 ),
                               ),
                             ),
+                            if (_byDate && starts[race.id] != null)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: Text(
+                                  _date(
+                                    starts[race.id]!.day,
+                                    starts[race.id]!.month,
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: TeamColors.muted,
+                                  ),
+                                ),
+                              ),
                             if (s.career.progress[race.id] case final p?)
                               Padding(
                                 padding: const EdgeInsets.only(right: 6),

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:sim/sim.dart';
 import 'career.dart';
 import 'points.dart';
@@ -27,17 +29,21 @@ class LicenceRow {
   final double total;
 }
 
-/// Team licences with promotion and relegation.
+/// Team licences with promotion and relegation, after the UCI rules.
 ///
-/// As with the UCI, the points of three years count: at the end of every
-/// cycle the best teams of the ranking receive the WorldTour licences, the
-/// others continue as ProTeams. In addition, each year the two best ProTeams
-/// of the season are invited to all WorldTour races of the following year.
-/// Two ProTeams and two Continental teams swap places per cycle; in reality
-/// that is a matter of money and application, not of points.
+/// A team's points of a season are those of its 20 best riders. The points
+/// of three years count: at the end of every cycle the best teams of the
+/// ranking receive the WorldTour licences, the others continue as
+/// ProTeams. Each year the two best ProTeams of the season are invited to
+/// all WorldTour races of the following year. ProTeam licences are given
+/// for a year, as a matter of money more than of points: a ProTeam deep in
+/// debt or without the riders it needs drops to the Continental level, and
+/// the best Continental teams that can afford it take the free places.
 class Licences {
   Licences(this.c) : firstYear = c.year {
+    var pro = 0;
     for (final t in c.teams.values) {
+      if (t.division.startsWith('[2]')) pro++;
       _level[t.id] = t.division.startsWith('[1]')
           ? Licence.worldTour
           : t.division.startsWith('[2]')
@@ -46,6 +52,7 @@ class Licences {
                   ? Licence.continental
                   : Licence.other;
     }
+    proPlaces = pro;
   }
 
   final Career c;
@@ -75,10 +82,47 @@ class Licences {
   /// Last year of the current cycle.
   int get cycleEnd => cycleStart + 2;
 
+  /// Riders whose points count for a team in a season.
+  static const countingRiders = 20;
+
+  /// A team's points of the running season: those of its 20 best riders.
+  ///
+  /// @param teamId Team id.
+  /// @returns The points.
+  double seasonPoints(int teamId) {
+    final points = [
+      for (final r in c.squads[teamId] ?? const <SimRider>[])
+        c.riderPoints[r.id] ?? 0.0,
+    ]..sort((a, b) => b.compareTo(a));
+    return points.take(countingRiders).fold(0.0, (a, b) => a + b);
+  }
+
+  /// Budget a Continental team needs to step up to a ProTeam.
+  static const proBudget = 3000000.0;
+
+  /// Number of ProTeam licences, as in the WorldDB.
+  late final int proPlaces;
+
+  /// A team's points of the running season; once the season has been
+  /// noted, the noted ones, because the transfers of the winter move riders
+  /// between teams.
+  double _current(int teamId) => seasons.containsKey(c.year)
+      ? seasons[c.year]![teamId] ?? 0
+      : seasonPoints(teamId);
+
+  /// Notes the points of the season before the transfers of the turn of the
+  /// year move riders between teams.
+  void noteSeason() {
+    seasons[c.year] = {
+      for (final id in _level.keys)
+        if (seasonPoints(id) > 0) id: seasonPoints(id),
+    };
+  }
+
   /// @param teamId Team id.
   /// @returns Its points in the current cycle including the running season.
   double _total(int teamId) {
-    var sum = c.teamPoints[teamId] ?? 0;
+    var sum = _current(teamId);
     for (var y = cycleStart; y < c.year; y++) {
       sum += seasons[y]?[teamId] ?? 0;
     }
@@ -99,7 +143,7 @@ class Licences {
             e.value,
             [
               for (var y = cycleStart; y < c.year; y++) seasons[y]?[e.key] ?? 0,
-              c.teamPoints[e.key] ?? 0,
+              _current(e.key),
             ],
             _total(e.key),
           ),
@@ -139,21 +183,29 @@ class Licences {
   /// and, at the end of a cycle, reassigns the licences. Must run before the
   /// career clears the points and advances the year.
   void closeSeason() {
-    seasons[c.year] = {...c.teamPoints};
+    if (!seasons.containsKey(c.year)) noteSeason();
     final pro = teamsWith(Licence.pro)
-      ..sort((a, b) => (c.teamPoints[b] ?? 0).compareTo(c.teamPoints[a] ?? 0));
+      ..sort((a, b) => _current(b).compareTo(_current(a)));
     wildcards = pro.take(2).toSet();
     String names(Iterable<int> ids) =>
         ids.map((id) => c.teams[id]?.name ?? '?').join(', ');
+    final (lost, gained) = _proLicences();
+    final proNews = lost.isEmpty && gained.isEmpty
+        ? ''
+        : ' ${tr('ProTeam licences: lost by {0}; new: {1}.', [
+                lost.isEmpty ? '–' : names(lost),
+                gained.isEmpty ? '–' : names(gained),
+              ])}';
+    // With a ProTeam licence won or lost, what the sponsors pay changes.
+    if (gained.contains(c.teamId)) c.economy.scaleSponsors(1.25);
+    if (lost.contains(c.teamId)) c.economy.scaleSponsors(0.75);
 
     if (c.year < cycleEnd) {
       c.inbox.add(Message(
         c.today,
         'UCI',
         tr('Invitations {0}', [c.year + 1]),
-        tr(
-            'As the best ProTeams of the season, {0} may start in every WorldTour race next year.{1}',
-            [
+        tr('As the best ProTeams of the season, {0} may start in every WorldTour race next year.{1}', [
               names(wildcards),
               () {
                 final at = ranking().indexWhere((r) => r.teamId == c.teamId);
@@ -163,7 +215,8 @@ class Licences {
                         ' In the three-year ranking {0}–{1} our team is in place {2}.',
                         [cycleStart, cycleEnd, at + 1]);
               }()
-            ]),
+            ]) +
+            proNews,
       ));
       return;
     }
@@ -178,24 +231,10 @@ class Licences {
       if (next != _level[id]) (next == Licence.worldTour ? up : down).add(id);
       _level[id] = next;
     }
-    // The two weakest ProTeams swap with the two best Continental teams;
-    // freshly relegated teams are spared.
-    final weakest = [
-      for (final r in order.reversed)
-        if (!down.contains(r.teamId) && _level[r.teamId] == Licence.pro)
-          r.teamId,
-    ].take(2).toList();
-    final best = ranking({Licence.continental}).take(2).map((r) => r.teamId);
-    for (final id in weakest) {
-      _level[id] = Licence.continental;
-    }
-    for (final id in best.toList()) {
-      _level[id] = Licence.pro;
-    }
     final own = _level[c.teamId];
-    final before = up.contains(c.teamId) || best.contains(c.teamId)
+    final before = up.contains(c.teamId)
         ? 'Promotion'
-        : down.contains(c.teamId) || weakest.contains(c.teamId)
+        : down.contains(c.teamId)
             ? 'Relegation'
             : null;
     // With the licence, what sponsors pay changes.
@@ -205,24 +244,45 @@ class Licences {
       c.today,
       'UCI',
       tr('Licences {0}–{1} awarded', [c.year + 1, c.year + 3]),
-      tr('{0} New ProTeams: {1}; Continental from now on: {2}. {3}', [
-        up.isEmpty
-            ? tr('Nothing changes in the WorldTour.')
-            : tr('New in the WorldTour: {0}. Relegated: {1}.',
-                [names(up), names(down)]),
-        names(best),
-        names(weakest),
-        before == null
-            ? tr('Our team continues as a {0}.', [own?.label])
-            : tr(
-                '{0}: Our team now rides as a {1}; the sponsor budget {2} by a quarter.',
-                [
-                    tr(before),
-                    own?.label,
-                    before == 'Promotion' ? tr('rises') : tr('falls')
-                  ])
-      ]),
+      '${up.isEmpty ? tr('Nothing changes in the WorldTour.') : tr('New in the WorldTour: {0}. Relegated: {1}.', [names(up), names(down)])} ${before == null ? tr('Our team continues as a {0}.', [
+              own?.label
+            ]) : tr('{0}: Our team now rides as a {1}; the sponsor budget {2} by a quarter.', [
+              tr(before),
+              own?.label,
+              before == 'Promotion' ? tr('rises') : tr('falls')
+            ])}$proNews',
     ));
+  }
+
+  /// The yearly ProTeam licences: a ProTeam deep in debt, or with fewer
+  /// riders than a ProTeam must have, drops to the Continental level; the
+  /// free places go to the Continental teams with the most points of the
+  /// season that have the budget for it.
+  ///
+  /// @returns The teams that lost and those that gained a ProTeam licence.
+  (List<int>, List<int>) _proLicences() {
+    final lost = [
+      for (final id in teamsWith(Licence.pro))
+        if (c.finances.balanceOf(id) < -0.25 * c.finances.budgetOf(id) ||
+            (c.squads[id]?.length ?? 0) < 20)
+          id,
+    ];
+    for (final id in lost) {
+      _level[id] = Licence.continental;
+    }
+    final free = proPlaces - teamsWith(Licence.pro).length;
+    final candidates = [
+      for (final id in teamsWith(Licence.continental))
+        if (!lost.contains(id) &&
+            c.finances.budgetOf(id) >= proBudget &&
+            _current(id) > 0)
+          id,
+    ]..sort((a, b) => _current(b).compareTo(_current(a)));
+    final gained = candidates.take(max(0, free)).toList();
+    for (final id in gained) {
+      _level[id] = Licence.pro;
+    }
+    return (lost, gained);
   }
 
   /// @returns Licences, past seasons and invitations as a JSON-encodable map.

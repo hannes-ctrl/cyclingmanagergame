@@ -19,6 +19,9 @@ class RaceReplay extends StatefulWidget {
     required this.route,
     required this.names,
     required this.colors,
+    this.others = const {},
+    this.autoplay = false,
+    this.onFinished,
   });
 
   final StageResult result;
@@ -27,6 +30,15 @@ class RaceReplay extends StatefulWidget {
   /// Names of the riders of the team, by id.
   final Map<int, String> names;
   final TeamColors colors;
+
+  /// Names of other riders to name in their group, the favourites, by id.
+  final Map<int, String> others;
+
+  /// Whether the stage starts running at once.
+  final bool autoplay;
+
+  /// Called once when the head of the race reaches the finish.
+  final VoidCallback? onFinished;
 
   @override
   State<RaceReplay> createState() => _RaceReplayState();
@@ -39,6 +51,7 @@ class _RaceReplayState extends State<RaceReplay>
   var _km = 0.0;
   var _playing = false;
   var _speed = 1.0;
+  var _finished = false;
 
   /// Seconds the whole stage takes at normal speed.
   static const _seconds = 45.0;
@@ -54,9 +67,14 @@ class _RaceReplayState extends State<RaceReplay>
         if (_km >= widget.route.raceKm) {
           _km = widget.route.raceKm;
           _stop();
+          if (!_finished) {
+            _finished = true;
+            widget.onFinished?.call();
+          }
         }
       });
     });
+    if (widget.autoplay) _play();
   }
 
   void _play() {
@@ -200,6 +218,18 @@ class _RaceReplayState extends State<RaceReplay>
                             text:
                                 ' · ${g.watched.map((id) => widget.names[id] ?? '?').join(', ')}',
                             style: TextStyle(color: c.accent),
+                          ),
+                        if ([
+                              for (final id in g.stars)
+                                if (widget.others.containsKey(id) &&
+                                    !g.watched.contains(id))
+                                  id,
+                            ].take(4).toList()
+                            case final named when named.isNotEmpty)
+                          TextSpan(
+                            text:
+                                ' · ${named.map((id) => widget.others[id]).join(', ')}',
+                            style: const TextStyle(color: TeamColors.text),
                           ),
                       ],
                     ),

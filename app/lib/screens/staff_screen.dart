@@ -209,7 +209,24 @@ class _StaffScreenState extends State<StaffScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Label(tr('Own staff · {0}', [own.length])),
+                  Row(
+                    children: [
+                      Label(tr('Own staff · {0}', [own.length])),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          [
+                            for (final role in StaffRole.values)
+                              '${role.plural} ${book.of(s.team.id, role).length}/${StaffBook.limits[role]}',
+                          ].join(' · '),
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: TeamColors.muted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 6),
                   Expanded(
                     child: DenseTable<Staff>(

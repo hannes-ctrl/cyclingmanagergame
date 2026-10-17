@@ -1150,8 +1150,8 @@ class AppState extends ChangeNotifier {
 
   /// Plays one day. The stages are simulated on other isolates, all races
   /// of the day at once, so the window stays free meanwhile.
-  Future<void> _playDay() async {
-    await career.advanceAsync(
+  Future<DayReport> _playDay() async {
+    final day = await career.advanceAsync(
       onRaces: (races) {
         working = races.isEmpty
             ? null
@@ -1162,6 +1162,54 @@ class AppState extends ChangeNotifier {
       },
     );
     working = null;
+    return day;
+  }
+
+  /// Whether a stage of the player's team is shown live, in fast motion,
+  /// before its result. Remembered beyond the career.
+  late bool watchLive = viewOf('live')?['on'] as bool? ?? true;
+
+  /// Switches the live stages on or off and remembers it.
+  ///
+  /// @param on New setting.
+  void setWatchLive(bool on) {
+    watchLive = on;
+    rememberView('live', {'on': on});
+    notifyListeners();
+  }
+
+  /// The stage of the player's team being watched live, or null.
+  ({RaceInfo race, int stageIndex})? live;
+
+  /// Finds the stage of the day to watch live: one with the player's team
+  /// and a course to show, the most important if there are several.
+  ///
+  /// @param day The day just simulated.
+  /// @returns The stage, or null.
+  ({RaceInfo race, int stageIndex})? _liveOf(DayReport day) {
+    if (!watchLive) return null;
+    final own = [
+      for (final x in day.stages)
+        if (x.result.timeline.length > 1 &&
+            x.result.placings.any((p) => p.rider.teamId == team.id))
+          x,
+    ];
+    if (own.isEmpty) return null;
+    final best = own.reduce(
+      (a, b) => b.race.race.tier.factor > a.race.race.tier.factor ? b : a,
+    );
+    return (race: best.race.race.info, stageIndex: best.stageIndex);
+  }
+
+  /// Ends the live view and shows the result of the race.
+  void closeLive() {
+    final l = live;
+    live = null;
+    if (l != null) {
+      focusRace = l.race.id;
+      jumpToRace = true;
+    }
+    notifyListeners();
   }
 
   /// What is being simulated at the moment, for the header: the name of the
@@ -1276,10 +1324,12 @@ class AppState extends ChangeNotifier {
       // The sports director asks from the race.
       radio = await career.nextRadioCallAsync();
       if (radio != null) break;
-      await _playDay();
+      final day = await _playDay();
       _days++;
       _autoSave();
+      live = _liveOf(day);
       notifyListeners();
+      if (live != null) break;
       // Give the user interface room so that the date keeps moving.
       await Future<void>.delayed(Duration.zero);
       if (career.inbox.length > before) break;
@@ -1364,6 +1414,12 @@ class AppState extends ChangeNotifier {
         career.staff.recall(e['staff'] as int);
       case 'keepStaff':
         career.staff.keep(e['staff'] as int);
+      case 'talk':
+        career.answerTalk(
+          e['kind'] as String,
+          e['rider'] as int,
+          e['choice'] as int,
+        );
       case 'mentor':
         career.people.setMentor(e['rider'] as int, e['mentor'] as int?);
       case 'template':
@@ -1641,6 +1697,18 @@ class AppState extends ChangeNotifier {
   String? keepStaff(int staffId) =>
       _act('keepStaff', 'staff', staffId, career.staff.keep);
 
+  /// Answers a talk with a rider in the inbox.
+  ///
+  /// @param talk The talk.
+  /// @param choice Index of the answer.
+  /// @returns null on success, otherwise the reason.
+  String? answerTalk(Talk talk, int choice) => _decide({
+    'type': 'talk',
+    'kind': talk.kind,
+    'rider': talk.riderId,
+    'choice': choice,
+  }, () => career.answerTalk(talk.kind, talk.riderId, choice));
+
   /// Gives a young rider a mentor, or none.
   ///
   /// @param riderId Id of the young rider.
@@ -1742,7 +1810,7 @@ class AppState extends ChangeNotifier {
     await next();
     // All questions of the day are answered and the stage is ridden: show
     // the result of the race the last question came from.
-    if (radio == null && pending == null) {
+    if (radio == null && pending == null && live == null) {
       focusRace = r.race.race.info.id;
       jumpToRace = true;
       notifyListeners();

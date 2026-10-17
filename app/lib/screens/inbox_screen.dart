@@ -291,6 +291,47 @@ class _InboxScreenState extends State<InboxScreen> {
                           selected.body,
                           style: const TextStyle(fontSize: 15, height: 1.5),
                         ),
+                        // A talk asks for a decision, here in the message.
+                        if (selected.talk case final talk?) ...[
+                          const SizedBox(height: 14),
+                          if (talk.answer != null)
+                            Text(
+                              tr('Your answer: {0}', [
+                                talk.choices[talk.answer!],
+                              ]),
+                              style: const TextStyle(color: TeamColors.green),
+                            )
+                          else
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (final (i, label) in talk.choices.indexed)
+                                  OutlinedButton(
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: TeamColors.text,
+                                      side: BorderSide(color: c.accent),
+                                    ),
+                                    onPressed: s.busy
+                                        ? null
+                                        : () {
+                                            final answer = s.answerTalk(
+                                              talk,
+                                              i,
+                                            );
+                                            if (answer != null) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(content: Text(answer)),
+                                              );
+                                            }
+                                          },
+                                    child: Text(label),
+                                  ),
+                              ],
+                            ),
+                        ],
                         const SizedBox(height: 18),
                         if (selected.raceId != null)
                           OutlinedButton(

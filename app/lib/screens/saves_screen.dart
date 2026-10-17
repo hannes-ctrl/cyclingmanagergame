@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:sim/sim.dart';
 
 import '../app_state.dart';
-import 'found_screen.dart';
 import '../widgets.dart';
 
 String _stamp(DateTime d) =>
@@ -30,7 +29,6 @@ class _SavesScreenState extends State<SavesScreen> {
   String? _message;
 
   /// Team picked for a new career.
-  int? _newTeam;
 
   @override
   void dispose() {
@@ -68,19 +66,21 @@ class _SavesScreenState extends State<SavesScreen> {
     }
   }
 
-  /// Asks for confirmation and starts a new career with a team.
+  /// Asks before a save replaces the running career.
   ///
-  /// @param team The team to take over.
-  /// @returns A future that completes when the dialog is closed.
-  Future<void> _startCareer(TeamInfo team) async {
+  /// @param name Name of the save.
+  /// @returns Whether the player wants to load it.
+  Future<bool> _confirmLoad(String name) async {
     final c = widget.state.colors;
     final yes = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: c.panel,
-        title: Text(tr('New career with {0}?', [team.name])),
+        title: Text(tr('Load "{0}"?', [name])),
         content: Text(
-          tr('The running career is replaced. Named saves are kept.'),
+          tr(
+            'The running career is replaced by the save. Progress since the last save is lost.',
+          ),
         ),
         actions: [
           TextButton(
@@ -89,17 +89,12 @@ class _SavesScreenState extends State<SavesScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(tr('Start')),
+            child: Text(tr('Load')),
           ),
         ],
       ),
     );
-    if (yes ?? false) {
-      widget.state.chooseTeam(team);
-      setState(
-        () => _message = tr('New career with {0} started.', [team.name]),
-      );
-    }
+    return yes ?? false;
   }
 
   @override
@@ -130,78 +125,6 @@ class _SavesScreenState extends State<SavesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Panel(
-            colors: c,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Label(tr('New career')),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    SizedBox(
-                      width: 320,
-                      child: DropdownButton<int>(
-                        value: _newTeam,
-                        isExpanded: true,
-                        hint: Text(tr('Select team')),
-                        dropdownColor: c.panel2,
-                        underline: Container(height: 1, color: c.line),
-                        style: const TextStyle(
-                          fontFamily: 'Barlow',
-                          fontSize: 14,
-                          color: TeamColors.text,
-                        ),
-                        items: [
-                          for (final t in s.teams.where(
-                            (t) =>
-                                t.division.startsWith('[1]') ||
-                                t.division.startsWith('[2]'),
-                          ))
-                            DropdownMenuItem(value: t.id, child: Text(t.name)),
-                        ],
-                        onChanged: (v) => setState(() => _newTeam = v),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: TeamColors.text,
-                        side: BorderSide(color: c.line),
-                      ),
-                      onPressed: _newTeam == null || s.busy
-                          ? null
-                          : () => _startCareer(
-                              s.teams.firstWhere((t) => t.id == _newTeam),
-                            ),
-                      child: Text(tr('Start career')),
-                    ),
-                    const SizedBox(width: 12),
-                    OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: TeamColors.text,
-                        side: BorderSide(color: c.line),
-                      ),
-                      onPressed: s.busy
-                          ? null
-                          : () => showFoundScreen(context, s),
-                      child: Text(tr('Found your own team …')),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Text(
-                        tr(
-                          'This replaces the running career. Save it under a name first if you want to keep it.',
-                        ),
-                        style: TextStyle(fontSize: 12, color: TeamColors.muted),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
           Panel(
             colors: c,
             child: Column(
@@ -318,6 +241,9 @@ class _SavesScreenState extends State<SavesScreen> {
                                   s.busy
                                       ? null
                                       : () async {
+                                          if (!await _confirmLoad(x.name)) {
+                                            return;
+                                          }
                                           setState(
                                             () => _message = tr(
                                               'Loading "{0}" …',

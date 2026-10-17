@@ -1,11 +1,74 @@
-// Plays a season and checks every day what must always hold. Prints each
-// broken rule once with the first day it broke, and how often.
+// Plays a season and its turn of the year and checks every day what must
+// always hold. Prints each broken rule once with the first day it broke,
+// and how often.
 //
 //   dart run bin/check.dart [--seed s] [--team ABBR]
 import 'dart:io';
 
 import 'package:game/game.dart';
 import 'package:sim/sim.dart';
+
+/// What must hold on every day beyond the races: every rider in one squad
+/// only, books that are numbers, valid mentors, programmes without riders
+/// of other teams or overlaps, and the player's staff within its limits.
+///
+/// @param c The career.
+/// @param check Records a broken rule.
+void checkWorld(Career c, void Function(bool, String, [String]) check) {
+  final seen = <int>{};
+  for (final e in c.squads.entries) {
+    for (final r in e.value) {
+      check(seen.add(r.id), 'rider in two squads', r.name);
+    }
+  }
+  for (final id in c.teams.keys) {
+    final budget = c.finances.budgetOf(id), balance = c.finances.balanceOf(id);
+    check(budget.isFinite && balance.isFinite, 'books not finite',
+        '${c.teams[id]?.abbr}');
+    check(budget >= 0, 'negative budget', '${c.teams[id]?.abbr}');
+  }
+  for (final young in c.people.mentors.keys) {
+    final m = c.people.mentorOf(young);
+    if (m == null) continue;
+    check(m != young, 'rider mentors himself');
+  }
+  for (final e in c.program.entries) {
+    for (final id in e.value) {
+      check(
+          c.riderById[id]?.teamId == c.teamId || c.devTeam.has(id),
+          'programme holds a rider of another team',
+          '${c.riderById[id]?.name}');
+    }
+  }
+  final races = {for (final r in c.calendar) r.info.id: r};
+  for (final team in c.teamPrograms.entries) {
+    final byRider = <int, List<RaceEntry>>{};
+    for (final e in team.value.entries) {
+      final race = races[e.key];
+      if (race == null || c.progress.containsKey(e.key)) continue;
+      for (final id in e.value) {
+        byRider.putIfAbsent(id, () => []).add(race);
+      }
+    }
+    for (final e in byRider.entries) {
+      final list = e.value..sort((a, b) => a.start.compareTo(b.start));
+      for (var i = 1; i < list.length; i++) {
+        check(
+            list[i].start.isAfter(list[i - 1].end),
+            'rider of another team planned for overlapping races',
+            '${c.riderById[e.key]?.name}: ${list[i - 1].info.name} / ${list[i].info.name}');
+      }
+    }
+  }
+  for (final role in StaffRole.values) {
+    check(c.staff.of(c.teamId, role).length <= StaffBook.limits[role]!,
+        'more staff than allowed', role.name);
+  }
+  for (final o in c.economy.pending.values) {
+    check(!o.until.isAfter(c.today.add(const Duration(days: 7))),
+        'offer waits too long');
+  }
+}
 
 /// Command-line entry point.
 ///
@@ -164,8 +227,33 @@ Future<void> main(List<String> argv) async {
           s.form.toStringAsFixed(3));
       check(s.fitness.isFinite && s.fatigue.isFinite, 'fitness not finite');
     }
+    checkWorld(c, check);
   }
-  stdout.writeln('Season ${c.year} with ${team.name}, seed $seed');
+  // The turn of the year: transfers, retirements, licences.
+  c.startNextSeason();
+  checkWorld(c, check);
+  for (final t in c.teams.values) {
+    final n = c.squads[t.id]?.length ?? 0;
+    final l = c.licences.of(t.id);
+    if (l == Licence.worldTour) {
+      check(n >= 27 && n <= 30, 'WorldTeam squad out of 27 to 30',
+          '${t.abbr} $n');
+    }
+    if (l == Licence.pro && t.id != c.teamId) {
+      check(
+          n >= 20 && n <= 30, 'ProTeam squad out of 20 to 30', '${t.abbr} $n');
+    }
+  }
+  check(c.licences.teamsWith(Licence.pro).length <= c.licences.proPlaces,
+      'more ProTeams than places');
+  for (final k in c.economy.contracts.entries) {
+    final r = c.riderById[k.key];
+    if (r == null || c.teams[r.teamId]?.division == 'Free') continue;
+    check(k.value.endYear >= c.year, 'contract ended but still in a team',
+        '${r.name} ${k.value.endYear}');
+  }
+  stdout.writeln(
+      'Season ${c.year - 1} and its turn of the year with ${team.name}, seed $seed');
   if (broken.isEmpty) {
     stdout.writeln('Nothing broken.');
   } else {

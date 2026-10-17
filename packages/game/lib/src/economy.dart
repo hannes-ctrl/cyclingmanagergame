@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:sim/sim.dart';
 
 import 'career.dart';
+import 'founding.dart';
+import 'licence.dart';
 import 'people.dart';
 import 'prizes.dart';
 import 'points.dart';
@@ -1092,6 +1094,8 @@ class Economy {
           if (expiring(r) &&
               !retiring(r) &&
               !pending.containsKey(r.id) &&
+              // A miserable rider wants to leave and does not renew.
+              c.people.moraleOf(r.id) > -1.2 &&
               _worthKeeping(r, median) &&
               rating(r) <= c.teamStrength(team.id) + 6)
             r,
@@ -1271,8 +1275,20 @@ class Economy {
   ///
   /// @param team The team.
   /// @returns The number of riders it aims for.
-  int _target(TeamInfo team) =>
-      team.division == 'Free' ? 0 : (_startSize[team.id] ?? 0).clamp(0, 30);
+  int _target(TeamInfo team) => team.division == 'Free'
+      ? 0
+      : (_startSize[team.id] ?? 0).clamp(_minimum(team.id), 30);
+
+  /// Fewest riders a team must have by its licence: 27 for a WorldTeam, 20
+  /// for a ProTeam.
+  ///
+  /// @param teamId Id of the team.
+  /// @returns The minimum squad size; 0 for other teams.
+  int _minimum(int teamId) => switch (c.licences.of(teamId)) {
+        Licence.worldTour => FoundingRules.minWorldTour,
+        Licence.pro => FoundingRules.minPro,
+        _ => 0,
+      };
 
   late var _startSize = {
     for (final e in c.squads.entries) e.key: e.value.length,
@@ -1323,7 +1339,11 @@ class Economy {
     final kept = <String>[], released = <String>[];
     for (final r in squad) {
       if (!expiring(r) || retiring(r)) continue;
-      if (_worthKeeping(r, median) && squadNextSeason(c.teamId) < 30) {
+      final wantsOut =
+          c.people.letGo.contains(r.id) || c.people.askedToLeave.contains(r.id);
+      if (!wantsOut &&
+          _worthKeeping(r, median) &&
+          squadNextSeason(c.teamId) < 30) {
         _sign(r, c.teamId, 2);
         kept.add(c.fullName(r.id));
       } else {
@@ -1503,6 +1523,7 @@ class Economy {
   /// @param r The rider to move.
   /// @param teamId His new team.
   void _move(SimRider r, int teamId) {
+    if (teamId != _freeTeam) c.people.noteJoined(r.id);
     c.squads[r.teamId]?.removeWhere((x) => x.id == r.id);
     final moved = r.withTeam(teamId, c.teams[teamId]?.abbr ?? '');
     c.squads.putIfAbsent(teamId, () => []).add(moved);
@@ -1698,7 +1719,8 @@ class Economy {
   /// @param free Id of the free-agent team.
   /// @returns Names of the riders signed this way.
   List<String> _fillOwnSquad(int free) {
-    const minimum = 22;
+    // At least 22, and what the licence demands: 27 for a WorldTeam.
+    final minimum = max(22, _minimum(c.teamId));
     final own = c.squads.putIfAbsent(c.teamId, () => []);
     final pool = [...?c.squads[free]]
       ..sort((a, b) => rating(b).compareTo(rating(a)));

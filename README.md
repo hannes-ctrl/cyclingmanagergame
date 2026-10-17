@@ -4,7 +4,7 @@
 
 The game runs on the community **WorldDB** for Pro Cycling Manager, so riders, teams, races and stage profiles are the real ones.
 
-> **Status:** version 0.3.1 alpha. A private hobby project, playable end to end, not balanced. English and German. Nothing in this repository is affiliated with Cyanide, Nacon, Sports Interactive or the UCI.
+> **Status:** version 0.4.0 alpha. A private hobby project, playable end to end, not balanced. English and German. Nothing in this repository is affiliated with Cyanide, Nacon, Sports Interactive or the UCI.
 
 ## Highlights
 
@@ -96,8 +96,8 @@ Texts are written in English in the sources and wrapped in `tr('…')`; German i
 ## Known limitations
 
 - Calibrated on 534 real races of 2023 to 2026, the race shape fits well on flat stages and in time trials, less well elsewhere: the middle of the field finishes too close to the winner (0:52 against 1:36 behind on average), hilly stages end in a bunch sprint too rarely (6 % against 18 %), breaks in the mountains win too rarely (21 % against 31 %), and the favourites win too often (59 % against 47 %).
-- The power figures of the strongest riders are a few per cent high: up to 565 W for Ganna in a long time trial, and 427 W on average over the whole of Paris-Roubaix for Wærenskjold (92 kg), where about 350 W would be real. The speeds fit the real races, so the losses in the model (drag, rolling resistance on rough roads) are probably somewhat high.
+- The power figures of the strongest riders are a few per cent high: up to 585 W for Ganna in a long time trial, and up to 432 W on average over the whole of Paris-Roubaix, where about 350 W would be real. The speeds fit the real races, so the losses in the model (drag, rolling resistance on rough roads) are probably somewhat high.
 - Material, staff, facilities and team styles act through small estimated factors, not calibrated yet. The suppliers follow what was known of 2026.
-- Money is only partly balanced: wages and budgets follow rider strength and the ranking, because the WorldDB contains none of them. Every team keeps books and signs within its means; over ten seasons the balances, the strength of the field (WorldTour 77.5 to 77.9) and the age of the riders (28.3 to 28.8) hold. The board never signs riders for the player; a team it runs only renews and builds facilities.
+- Wages and budgets follow rider strength, the ranking and the wage level of the world, because the WorldDB contains none of them; they are plausible, not real. Every team keeps books and signs within its means; over ten seasons the balances, the strength of the field (WorldTour 77.4 to 78.0) and the age of the riders (28.3 to 28.9) hold, while the number of riders of 33 and more grows (169 to 227). The board never signs riders for the player; a team it runs only renews and builds facilities.
 - The stage files carry no compass headings, so the wind comes from a random direction relative to the road.
 - Staff other than the team managers named in the WorldDB is generated.

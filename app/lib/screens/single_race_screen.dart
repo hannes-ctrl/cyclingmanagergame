@@ -34,6 +34,14 @@ class _SingleRacePanelState extends State<SingleRacePanel> {
   var _stage = 0;
   var _tab = 0;
 
+  /// Filters of the race list: the tiers shown and a search text.
+  final _tiers = <RaceTier>{
+    RaceTier.grandTour,
+    RaceTier.monument,
+    RaceTier.worldTour,
+  };
+  var _search = '';
+
   static const _approaches = {
     null: 'Sports director',
     Approach.wait: 'Wait',
@@ -56,16 +64,32 @@ class _SingleRacePanelState extends State<SingleRacePanel> {
       if (t.division.startsWith('[1]') || t.division.startsWith('[2]')) t,
   ]..sort((a, b) => a.name.compareTo(b.name));
 
-  /// Races of the season except championships.
-  List<RaceEntry> get _races => [
-    for (final r in _s.career.calendar)
-      if (r.tier != RaceTier.championship) r,
-  ]..sort((a, b) => a.start.compareTo(b.start));
+  /// Races of the season except championships, as far as the filters let
+  /// them through; all of them if nothing does.
+  List<RaceEntry> get _races {
+    final needle = _search.toLowerCase();
+    final all = [
+      for (final r in _s.career.calendar)
+        if (r.tier != RaceTier.championship) r,
+    ]..sort((a, b) => a.start.compareTo(b.start));
+    final shown = [
+      for (final r in all)
+        if ((_tiers.isEmpty || _tiers.contains(r.tier)) &&
+            (needle.isEmpty ||
+                r.info.name.toLowerCase().contains(needle) ||
+                r.info.country.toLowerCase() == needle))
+          r,
+    ];
+    return shown.isEmpty ? all : shown;
+  }
 
   /// Simulates the whole race, stage by stage on another isolate.
   Future<void> _start() async {
     final teamId = _teamId ?? _s.team.id;
-    final raceId = _raceId ?? _races.first.info.id;
+    final races = _races;
+    final raceId = races.any((r) => r.info.id == _raceId)
+        ? _raceId!
+        : races.first.info.id;
     setState(() {
       _running = true;
       _race = null;
@@ -105,7 +129,9 @@ class _SingleRacePanelState extends State<SingleRacePanel> {
     final teams = _teams;
     final races = _races;
     final teamId = _teamId ?? _s.team.id;
-    final raceId = _raceId ?? races.first.info.id;
+    final raceId = races.any((r) => r.info.id == _raceId)
+        ? _raceId!
+        : races.first.info.id;
     Widget dropdown<T>(
       T value,
       List<(T, String)> items,
@@ -167,6 +193,49 @@ class _SingleRacePanelState extends State<SingleRacePanel> {
           style: const TextStyle(color: TeamColors.muted),
         ),
         const SizedBox(height: 12),
+        field(
+          tr('Category'),
+          Row(
+            children: [
+              Expanded(
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final t in [
+                      RaceTier.grandTour,
+                      RaceTier.monument,
+                      RaceTier.worldTour,
+                      RaceTier.proSeries,
+                      RaceTier.class1,
+                      RaceTier.class2,
+                      RaceTier.under23,
+                    ])
+                      Pill(
+                        label: t.label,
+                        selected: _tiers.contains(t),
+                        colors: c,
+                        onTap: _running
+                            ? null
+                            : () => setState(
+                                () => _tiers.contains(t)
+                                    ? _tiers.remove(t)
+                                    : _tiers.add(t),
+                              ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              SearchBox(
+                hint: tr('Race or country'),
+                colors: c,
+                width: 200,
+                onChanged: (v) => setState(() => _search = v),
+              ),
+            ],
+          ),
+        ),
         field(
           tr('Race'),
           dropdown<int>(raceId, [

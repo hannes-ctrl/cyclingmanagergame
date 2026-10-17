@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:game/game.dart';
 import 'package:radmanager/app_state.dart';
 import 'package:radmanager/main.dart';
+import 'package:radmanager/screens/found_screen.dart';
 import 'package:radmanager/settings.dart';
 import 'package:radmanager/widgets.dart';
 import 'package:sim/sim.dart';
@@ -72,7 +73,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    final state = AppState(dataDir!, persist: false);
+    final state = AppState(dataDir!, persist: false)..watchLive = false;
     await tester.pumpWidget(
       RadmanagerApp(
         state: state,
@@ -117,7 +118,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    final state = AppState(dataDir!, persist: false);
+    final state = AppState(dataDir!, persist: false)..watchLive = false;
     await tester.pumpWidget(RadmanagerApp(state: state));
     await tester.pumpAndSettle();
     bool enabled(String tooltip) =>
@@ -254,7 +255,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    final state = AppState(dataDir!, persist: false);
+    final state = AppState(dataDir!, persist: false)..watchLive = false;
     final settings = AppSettings(dataDir, persist: false)..debug = true;
     await tester.pumpWidget(RadmanagerApp(state: state, settings: settings));
     await tester.pumpAndSettle();
@@ -291,7 +292,7 @@ void main() {
     I18n.lang = Lang.en;
     addTearDown(() => I18n.lang = Lang.de);
 
-    final state = AppState(dataDir!, persist: false);
+    final state = AppState(dataDir!, persist: false)..watchLive = false;
     await tester.pumpWidget(RadmanagerApp(state: state));
     await tester.pumpAndSettle();
     expect(find.text('Home'), findsWidgets);
@@ -325,7 +326,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    final state = AppState(dataDir!, persist: false);
+    final state = AppState(dataDir!, persist: false)..watchLive = false;
     await tester.pumpWidget(RadmanagerApp(state: state));
     await tester.pumpAndSettle();
     // Career: "continue" runs until the first message for the player's team.
@@ -634,7 +635,7 @@ void main() {
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/fahrer.png'),
     );
-    await tester.tap(find.text('Zurück'));
+    state.closeRider();
     await tester.pumpAndSettle();
     await tester.tap(find.text('Saison'));
     await tester.pumpAndSettle();
@@ -712,6 +713,18 @@ void main() {
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/zeitraffer.png'),
     );
+    // The same stage live, as after "continue" on a day of our race.
+    state
+      ..live = (race: tour, stageIndex: 19)
+      ..setWatchLive(true);
+    await tester.pump(const Duration(seconds: 3));
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/live.png'),
+    );
+    state.closeLive();
+    state.watchLive = false;
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Berg'));
     await tester.pumpAndSettle();
@@ -738,15 +751,17 @@ void main() {
     expect(state.career.today, target);
     expect(state.career.delegation.lineups, isFalse);
     expect(state.career.delegation.radio, RadioMode.all);
-    await tester.tap(find.text('Spielstände').first);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Eigenes Team gründen …'));
+    // Founding a team: from the start menu in the game, opened directly here.
+    showFoundScreen(tester.element(find.text('Spielstände').first), state);
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const ValueKey('name')), 'RSV Leipzig');
     await tester.enterText(find.byKey(const ValueKey('kuerzel')), 'rsl');
-    // The 16 strongest riders of the list: enough for the WorldTour.
-    for (var i = 0; i < 16; i++) {
-      await tester.tap(find.byIcon(Icons.check_box_outline_blank).first);
+    // The 27 strongest riders of the list: enough for the WorldTour.
+    for (var i = 0; i < 27; i++) {
+      final box = find.byIcon(Icons.check_box_outline_blank).first;
+      await tester.ensureVisible(box);
+      await tester.pump();
+      await tester.tap(box);
       await tester.pump();
     }
     await tester.pumpAndSettle();
@@ -758,7 +773,7 @@ void main() {
     await tester.tap(find.text('TEAM GRÜNDEN'));
     await tester.pumpAndSettle();
     expect(state.team.name, 'RSV Leipzig');
-    expect(state.squad.length, 16);
+    expect(state.squad.length, 27);
     expect(state.career.licences.of(state.team.id), Licence.worldTour);
     expect(
       state.career.ownRaces.map((r) => r.info.name),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:game/game.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sim/sim.dart';
 
 import '../app_state.dart';
@@ -517,50 +516,6 @@ class _SearchScreenState extends State<SearchScreen> {
                             : tr('{0} riders found', [found.length]),
                       ),
                       const SizedBox(width: 12),
-                      TextButton.icon(
-                        onPressed: () {
-                          final path = s.exportCsv(
-                            'fahrersuche',
-                            [
-                              tr('Rider'),
-                              'Team',
-                              tr('Nat'),
-                              tr('Age'),
-                              tr('Strength'),
-                              tr('Contract'),
-                            ],
-                            [
-                              for (final r in found)
-                                [
-                                  career.fullName(r.id),
-                                  r.team,
-                                  r.country,
-                                  '${year - r.born ~/ 10000}',
-                                  () {
-                                    final (low, high) = book.range(
-                                      r.id,
-                                      'Strength',
-                                      Economy.rating(r),
-                                    );
-                                    return low == high ? '$low' : '$low–$high';
-                                  }(),
-                                  '${eco.contracts[r.id]?.endYear ?? ''}',
-                                ],
-                            ],
-                          );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                path == null
-                                    ? tr('The file could not be written.')
-                                    : tr('Saved: {0}', [path]),
-                              ),
-                            ),
-                          );
-                        },
-                        icon: const Icon(LucideIcons.download, size: 16),
-                        label: Text(tr('As CSV')),
-                      ),
                       const SizedBox(width: 8),
                       FilterPresets(
                         state: s,

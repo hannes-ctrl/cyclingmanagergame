@@ -186,8 +186,36 @@ class RiderShape {
 }
 
 /// A message in the player's inbox.
+/// A talk with a rider that waits for the player's decision, carried by a
+/// message of the inbox.
+class Talk {
+  Talk(this.kind, this.riderId, this.choices, [this.answer]);
+
+  /// What it is about: `leave` (he wants to leave) or `days` (too few race
+  /// days).
+  final String kind;
+  final int riderId;
+
+  /// The answers the player can give, in the language of the time.
+  final List<String> choices;
+
+  /// Index of the answer given, or null while it is open.
+  int? answer;
+
+  /// @returns The talk as a compact list.
+  List<Object?> toJson() => [kind, riderId, choices, answer];
+
+  /// @param j A list written by [toJson], or null.
+  /// @returns The talk, or null.
+  static Talk? fromJson(Object? j) => j is List
+      ? Talk(j[0] as String, j[1] as int, (j[2] as List).cast<String>(),
+          j[3] as int?)
+      : null;
+}
+
 class Message {
-  Message(this.date, this.from, this.subject, this.body, {this.raceId});
+  Message(this.date, this.from, this.subject, this.body,
+      {this.raceId, this.talk});
   final DateTime date;
   final String from;
   final String subject;
@@ -228,6 +256,9 @@ class Message {
 
   /// Race the message belongs to, for the jump to the race report.
   final int? raceId;
+
+  /// A decision the message asks for, or null.
+  final Talk? talk;
   bool read = false;
 }
 
@@ -804,7 +835,10 @@ class Career {
     }
     final byTopic = <String, List<Message>>{};
     for (final m in fresh) {
-      byTopic.putIfAbsent(m.topicKey, () => []).add(m);
+      // A message that asks for a decision stays on its own.
+      byTopic
+          .putIfAbsent(m.talk == null ? m.topicKey : '${m.hashCode}', () => [])
+          .add(m);
     }
     for (final list in byTopic.values) {
       if (list.length < 3) {
@@ -1260,6 +1294,25 @@ class Career {
         for (final r in squads[team] ?? const <SimRider>[])
           combative[r.id] ?? 0,
       ].fold(0, (a, b) => a + b);
+
+  /// Answers the open talk of a kind with a rider.
+  ///
+  /// @param kind Kind of the talk.
+  /// @param riderId Id of the rider.
+  /// @param choice Index of the answer.
+  /// @returns null on success, otherwise the reason.
+  String? answerTalk(String kind, int riderId, int choice) {
+    final m = inbox.reversed
+        .where((m) =>
+            m.talk?.kind == kind &&
+            m.talk?.riderId == riderId &&
+            m.talk?.answer == null)
+        .firstOrNull;
+    if (m == null) return tr('The talk is over.');
+    final answer = people.answer(m.talk!, choice);
+    if (answer == null) m.talk!.answer = choice;
+    return answer;
+  }
 
   /// The shortlist: riders the player keeps an eye on. He gets a message
   /// when one of them becomes available or signs somewhere.
@@ -2040,6 +2093,7 @@ class Career {
     racingOver = false;
     people.closeSeason();
     staff.closeSeason();
+    licences.noteSeason();
     finances.closeSeason();
     economy.closeSeason();
     equipment.closeSeason();
@@ -2836,7 +2890,15 @@ class Career {
       'teamPoints': ints(teamPoints),
       'inbox': [
         for (final m in inbox)
-          [_ms(m.date), m.from, m.subject, m.body, m.raceId, m.read],
+          [
+            _ms(m.date),
+            m.from,
+            m.subject,
+            m.body,
+            m.raceId,
+            m.read,
+            m.talk?.toJson()
+          ],
       ],
       'ownPlans': ints<TeamPlan>(ownPlans, (p) => p.toJson()),
       'ownWishes': ints<PlanWish>(ownWishes, (w) => w.toJson()),
@@ -2992,7 +3054,8 @@ class Career {
       ..addAll([
         for (final m in (j['inbox'] as List).cast<List<dynamic>>())
           Message(_date(m[0])!, m[1] as String, m[2] as String, m[3] as String,
-              raceId: m[4] as int?)
+              raceId: m[4] as int?,
+              talk: Talk.fromJson(m.length > 6 ? m[6] : null))
             ..read = m[5] as bool,
       ]);
     ownPlans

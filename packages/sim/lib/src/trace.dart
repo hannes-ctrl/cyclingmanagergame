@@ -218,7 +218,7 @@ class ClimbPower {
 /// One group on the road at a moment of the stage.
 class GroupSample {
   GroupSample(this.gapS, this.size, this.favourites, this.watched,
-      {this.breakaway = false, this.gruppetto = false});
+      {this.breakaway = false, this.gruppetto = false, this.stars = const []});
 
   /// Seconds behind the head of the race.
   final double gapS;
@@ -231,6 +231,9 @@ class GroupSample {
 
   /// Ids of the riders of the watched team in it.
   final List<int> watched;
+
+  /// Ids of the favourites of the day in it, for the stage watched live.
+  final List<int> stars;
 
   /// Whether it is (part of) the break of the day.
   final bool breakaway;
@@ -245,6 +248,7 @@ class GroupSample {
         favourites,
         watched,
         (breakaway ? 1 : 0) + (gruppetto ? 2 : 0),
+        stars,
       ];
 
   /// @param j A list written by [toJson].
@@ -256,5 +260,6 @@ class GroupSample {
         (j[3] as List).cast<int>(),
         breakaway: (j[4] as int) & 1 != 0,
         gruppetto: (j[4] as int) & 2 != 0,
+        stars: j.length > 5 ? (j[5] as List).cast<int>() : const [],
       );
 }

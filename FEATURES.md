@@ -51,7 +51,11 @@ Everything the game does, in detail. The [README](README.md) has the short versi
 - Sponsors with a wish for each season that the races can meet, with a bonus when it is met.
 - Staff who develop with age, are lured away by stronger teams, and write a weekly note with what they would change.
 - Mentoring of young riders by experienced ones, in every team.
+- Our stages live in fast motion before the result, with the favourites named in their groups.
+- Talks with riders as a decision in the inbox: a rider who asks to leave, a rider who wants more races. Adaptability after a transfer.
 - Programme templates (seven built in, own ones from a rider's programme), line-up templates and undo in the race preparation, warnings in the season planner.
+- The season plan as a timeline in the manner of PCM: races over their real dates, overlaps marked, camps and lay-offs in each rider's row.
+- Squad sizes as in the UCI rules: a WorldTeam has 27 to 30 riders, a ProTeam at least 20.
 - Days in the break and combativity awards, with their own ranking.
 - A history page with trophy room, seasons, records and retired riders.
 - Saved filters and column sets in the rider search and the transfer market.

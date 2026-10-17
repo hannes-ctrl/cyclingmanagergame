@@ -433,7 +433,14 @@ class _TransfersScreenState extends State<TransfersScreen> {
                             const SizedBox(height: 6),
                             _line(
                               tr('Riders under contract'),
-                              tr('{0} of 30', [eco.squadNextSeason(s.team.id)]),
+                              career.licences.of(s.team.id) == Licence.worldTour
+                                  ? tr('{0} of 30, at least {1}', [
+                                      eco.squadNextSeason(s.team.id),
+                                      FoundingRules.minWorldTour,
+                                    ])
+                                  : tr('{0} of 30', [
+                                      eco.squadNextSeason(s.team.id),
+                                    ]),
                             ),
                             _line(tr('Wages'), euro(nextBill)),
                             _line(tr('Wage budget'), euro(frame)),

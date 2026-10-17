@@ -36,14 +36,13 @@ class FinanceScreen extends StatelessWidget {
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
-                if (note != null)
-                  Text(
-                    note,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: TeamColors.muted,
-                    ),
-                  ),
+                // Every tile keeps the line, so that all have the same height.
+                Text(
+                  note ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: TeamColors.muted),
+                ),
               ],
             ),
           ),
@@ -54,34 +53,37 @@ class FinanceScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              figure(
-                tr('Balance'),
-                '${euro(eco.balance)} €',
-                color: eco.balance < 0 ? TeamColors.red : null,
-              ),
-              const SizedBox(width: 12),
-              figure(
-                tr('Sponsor money {0}', [career.year]),
-                '${euro(eco.budget)} €',
-                note: tr('arrives in twelve monthly instalments'),
-              ),
-              const SizedBox(width: 12),
-              figure(
-                tr('Wages {0}', [career.year]),
-                '${euro(wages)} €',
-                note: tr('{0} % of the sponsor money', [
-                  (100 * wages / eco.budget).round(),
-                ]),
-              ),
-              const SizedBox(width: 12),
-              figure(
-                tr('Board confidence'),
-                tr('{0} of 100', [eco.confidence.round()]),
-                note: tr('decides what sponsors will offer in future'),
-              ),
-            ],
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                figure(
+                  tr('Balance'),
+                  '${euro(eco.balance)} €',
+                  color: eco.balance < 0 ? TeamColors.red : null,
+                ),
+                const SizedBox(width: 12),
+                figure(
+                  tr('Sponsor money {0}', [career.year]),
+                  '${euro(eco.budget)} €',
+                  note: tr('arrives in twelve monthly instalments'),
+                ),
+                const SizedBox(width: 12),
+                figure(
+                  tr('Wages {0}', [career.year]),
+                  '${euro(wages)} €',
+                  note: tr('{0} % of the sponsor money', [
+                    (100 * wages / eco.budget).round(),
+                  ]),
+                ),
+                const SizedBox(width: 12),
+                figure(
+                  tr('Board confidence'),
+                  tr('{0} of 100', [eco.confidence.round()]),
+                  note: tr('decides what sponsors will offer in future'),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           Expanded(

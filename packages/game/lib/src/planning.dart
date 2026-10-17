@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:sim/sim.dart';
 
 import 'career.dart';
+import 'economy.dart';
 import 'points.dart';
 
 /// What the planner knows about a rider while it draws up the programme.
@@ -362,7 +363,7 @@ class SeasonPlanner {
         // Above his share of the season a rider is taken less and less
         // readily; far below it he is preferred.
         final over = l.days + days - share;
-        final load = over > 0 ? (over / 6) * (over / 6) : over / 8;
+        final load = over > 0 ? (over / 5) * (over / 5) : over / 4;
         // A second Grand Tour is the exception, not the rule.
         final second =
             race.tier == RaceTier.grandTour && l.grandTours >= 1 ? 5.0 : 0.0;
@@ -398,10 +399,31 @@ class SeasonPlanner {
           ..sort((a, b) => fit(race, b.rider).compareTo(fit(race, a.rider)));
         stars.addAll(best.take(5).map((l) => l.rider.id));
       }
+      // A stage race needs a balanced team: at most one sprinter (two for
+      // a sprint team, with his lead-out), and climbers in proportion to
+      // the mountain stages, so that the leader is not alone uphill.
+      final style = c.styleOf(teamId ?? c.teamId);
+      final stageRace = race.stages.length >= 4;
+      final sprinterCap = !stageRace
+          ? size
+          : style == TeamStyle.sprint
+              ? 2
+              : 1;
+      final mountains =
+          race.stages.where((st) => _coefficients(st.id)[1] >= 0.45).length;
+      final climbersWanted =
+          !stageRace || mountains < 2 ? 0 : min(size ~/ 2, 1 + mountains ~/ 3);
       final picked = <_Load>[], spare = <_Load>[];
-      var leaders = 0;
+      var leaders = 0, sprinters = 0;
       for (final l in pool) {
         if (picked.length >= size) break;
+        if (_sprinter(l.rider)) {
+          if (sprinters >= sprinterCap) {
+            spare.add(l);
+            continue;
+          }
+          sprinters++;
+        }
         if (stars.contains(l.rider.id)) {
           if (leaders >= 2) {
             spare.add(l);
@@ -410,6 +432,31 @@ class SeasonPlanner {
           leaders++;
         }
         picked.add(l);
+      }
+      // Climbers that are missing replace the weakest of the others.
+      var climbers = picked.where((l) => _climber(l.rider)).length;
+      if (climbers < climbersWanted) {
+        final candidates = [
+          for (final l in pool)
+            if (!picked.contains(l) && _climber(l.rider)) l,
+        ];
+        for (final add in candidates) {
+          if (climbers >= climbersWanted) break;
+          if (picked.length < size) {
+            picked.add(add);
+          } else {
+            final out = picked.lastWhere(
+              (l) => !_climber(l.rider) && !stars.contains(l.rider.id),
+              orElse: () => add,
+            );
+            if (identical(out, add)) break;
+            picked
+              ..remove(out)
+              ..add(add);
+          }
+          spare.remove(add);
+          climbers++;
+        }
       }
       // Too few others: then the leaders ride together after all.
       picked.addAll(spare.take(size - picked.length));
@@ -421,6 +468,20 @@ class SeasonPlanner {
           .addAll([for (final l in picked) l.rider.id]);
     }
     return out;
+  }
+
+  /// @param r A rider.
+  /// @returns Whether he is above all a sprinter.
+  static bool _sprinter(SimRider r) => Economy.kindOf(r) == 'sprint';
+
+  /// @param r A rider.
+  /// @returns Whether he can help in the mountains: a climber, or a rider
+  ///   whose mountain value is close to his best.
+  static bool _climber(SimRider r) {
+    final a = r.attributes;
+    final best = [a.flat, a.mountain, a.hill, a.timeTrial, a.sprint, a.cobble]
+        .reduce(max);
+    return a.mountain >= best - 2;
   }
 
   /// Finds a replacement for a rider who cannot start in a planned race.

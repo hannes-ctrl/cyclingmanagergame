@@ -15,6 +15,7 @@ import 'screens/calendar_screen.dart';
 import 'screens/camps_screen.dart';
 import 'screens/delegation_screen.dart';
 import 'screens/history_screen.dart';
+import 'screens/live_screen.dart';
 import 'screens/debug_screen.dart';
 import 'screens/dev_screen.dart';
 import 'screens/finance_screen.dart';
@@ -713,7 +714,9 @@ class _ShellState extends State<Shell> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                prep != null
+                                s.live != null
+                                    ? 'Live'
+                                    : prep != null
                                     ? tr('Race preparation')
                                     : s.riderPage != null
                                     ? tr('Rider profile')
@@ -930,7 +933,16 @@ class _ShellState extends State<Shell> {
                       ),
                     ),
                     Expanded(
-                      child: s.radio != null && !s.busy
+                      child: s.live != null && !s.busy
+                          ? LiveScreen(
+                              key: ValueKey(
+                                '${s.live!.race.id}-${s.live!.stageIndex}',
+                              ),
+                              state: s,
+                              race: s.live!.race,
+                              index: s.live!.stageIndex,
+                            )
+                          : s.radio != null && !s.busy
                           ? RadioPanel(state: s)
                           : prep != null
                           ? PrepScreen(

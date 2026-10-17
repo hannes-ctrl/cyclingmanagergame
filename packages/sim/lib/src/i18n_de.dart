@@ -1848,4 +1848,53 @@ const german = <String, String>{
   'average': 'durchschnittlich',
   'below par': 'unter Normalform',
   'poor': 'schwach',
+  '{0} ({1} to {2}; a WorldTeam needs {3}, a ProTeam {4})':
+      '{0} ({1} bis {2}; ein WorldTeam braucht {3}, ein ProTeam {4})',
+  'Click a race at the top, then click riders to pencil them in or out. A right click on a race in a rider\'s row makes it one of his season goals.':
+      'Klicke oben auf ein Rennen und dann auf Fahrer, um sie ein- oder auszuplanen. Ein Rechtsklick auf ein Rennen in der Zeile eines Fahrers macht es zu einem seiner Saisonziele.',
+  '{0} · {1} · {2} stages · {3} of {4} pencilled in. Click riders to pencil them in or out.':
+      '{0} · {1} · {2} Etappen · {3} von {4} eingeplant. Klicke auf Fahrer, um sie ein- oder auszuplanen.',
+  'Training camp': 'Trainingslager',
+  'Out': 'Ausfall',
+  'Red border: overlaps another race. White border: promise. Target: season goal; a gold outline is a goal he is not planned for. Green line: today.':
+      'Roter Rand: überschneidet sich mit einem anderen Rennen. Weißer Rand: Versprechen. Zielscheibe: Saisonziel; ein goldener Rahmen ist ein Ziel, für das er nicht eingeplant ist. Grüne Linie: heute.',
+  'Sort:': 'Sortierung:',
+  'Importance': 'Wichtigkeit',
+  'Gold: won, the race, the overall or a stage.':
+      'Gold: gewonnen, das Rennen, die Gesamtwertung oder eine Etappe.',
+  'Load "{0}"?': '"{0}" laden?',
+  'The running career is replaced by the save. Progress since the last save is lost.':
+      'Die laufende Karriere wird durch den Spielstand ersetzt. Der Fortschritt seit dem letzten Speichern geht verloren.',
+  '{0} of 30, at least {1}': '{0} von 30, mindestens {1}',
+  'The talk is over.': 'Das Gespräch ist vorbei.',
+  'He no longer rides for the team.': 'Er fährt nicht mehr für das Team.',
+  'Unknown answer.': 'Unbekannte Antwort.',
+  'Promised a leading role': 'Kapitänsrolle versprochen',
+  'Allowed to leave': 'Darf gehen',
+  'Not allowed to leave': 'Darf nicht gehen',
+  'Promised more races': 'Mehr Rennen versprochen',
+  'The plan was explained to him': 'Der Plan wurde ihm erklärt',
+  '{0} wants to leave': '{0} will weg',
+  '{0} is unhappy and asks to leave the team. His contract runs until {1}.':
+      '{0} ist unzufrieden und bittet darum, das Team verlassen zu dürfen. Sein Vertrag läuft bis {1}.',
+  'Promise him a leading role next season':
+      'Ihm für die nächste Saison eine Kapitänsrolle versprechen',
+  'Let him go at the end of the season': 'Ihn zum Saisonende gehen lassen',
+  'He stays': 'Er bleibt',
+  '{0} wants to race more': '{0} will mehr Rennen fahren',
+  '{0} has {1} race days planned for the season, far fewer than the others, and asks for more.':
+      '{0} hat für die Saison {1} Renntage eingeplant, weit weniger als die anderen, und bittet um mehr.',
+  'Promise him a start in the next race':
+      'Ihm einen Start im nächsten Rennen versprechen',
+  'Explain the plan to him': 'Ihm den Plan erklären',
+  'Your answer: {0}': 'Deine Antwort: {0}',
+  '{0}, stage {1}': '{0}, Etappe {1}',
+  'Live · {0} km': 'Live · {0} km',
+  '{0} wins': '{0} gewinnt',
+  'To the result': 'Zum Ergebnis',
+  'Your riders in the team colour, the favourites by name. The result follows at the finish.':
+      'Deine Fahrer in der Teamfarbe, die Favoriten mit Namen. Das Ergebnis folgt im Ziel.',
+  'Watch our stages live': 'Unsere Etappen live verfolgen',
+  'Adaptability': 'Anpassungsfähigkeit',
+  '{0} · settling in, {1} days to go': '{0} · gewöhnt sich ein, noch {1} Tage',
 };

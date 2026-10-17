@@ -333,4 +333,52 @@ void main() {
       expect(eco.contracts[running.id]!.nextTeam, team);
     },
   );
+  test(
+    'Gespräche im Postfach, Wechselwunsch und Eingewöhnung',
+    skip: dataDir == null,
+    timeout: const Timeout(Duration(minutes: 10)),
+    () {
+      I18n.lang = Lang.de;
+      final world = World('$dataDir/world.sqlite');
+      addTearDown(world.close);
+      final team = world.teams().firstWhere((t) => t.abbr == 'RBH').id;
+      final c = Career(world, teamId: team, seed: 4);
+      final people = c.people;
+
+      // A miserable, ambitious rider with a running contract asks to leave.
+      final r = c.squads[team]!.firstWhere(
+        (x) =>
+            people.of(x.id).ambition >= 0.5 &&
+            c.economy.contracts[x.id]!.endYear > c.year,
+      );
+      people.morale[r.id] = -2;
+      people.weekly();
+      final talk = c.inbox.last.talk;
+      expect(talk?.kind, 'leave');
+      expect(talk?.riderId, r.id);
+      expect(talk!.choices, hasLength(3));
+      // Let go: his contract ends with the season.
+      expect(c.answerTalk('leave', r.id, 1), isNull);
+      expect(talk.answer, 1);
+      expect(c.economy.contracts[r.id]!.endYear, c.year);
+      expect(people.letGo, contains(r.id));
+      expect(c.answerTalk('leave', r.id, 0), isNotNull); // already answered
+      people.weekly();
+      expect(c.inbox.where((m) => m.talk?.kind == 'leave'), hasLength(1));
+
+      // A rider who joins a team needs a while to settle, the less
+      // adaptable the longer.
+      final newcomer = c.riderById.values.firstWhere(
+        (x) =>
+            x.teamId != team &&
+            people.of(x.id).adaptability < 0.6 &&
+            c.teams[x.teamId]?.division.startsWith('[1]') == true,
+      );
+      c.economy.move(newcomer, team);
+      expect(people.settlingDays(newcomer.id), greaterThan(0));
+      expect(people.settling(newcomer.id), lessThan(1));
+      c.today = c.today.add(const Duration(days: 130));
+      expect(people.settling(newcomer.id), 1);
+    },
+  );
 }

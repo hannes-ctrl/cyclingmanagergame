@@ -4,6 +4,7 @@ import 'package:sim/sim.dart';
 
 import 'career.dart';
 import 'devteam.dart';
+import 'economy.dart';
 import 'facilities.dart';
 import 'prizes.dart';
 
@@ -182,6 +183,7 @@ class Finances {
           .toDouble();
       b.budget = next;
       _build(e.key, b);
+      _wear(e.key);
       // Owners and sponsors do not leave profits in the account: what is
       // left beyond a third of the budget after building goes to them.
       b.balance = min(b.balance, savingsShare * b.budget);
@@ -219,6 +221,23 @@ class Finances {
     if (b.balance - cost < reserveShare * b.budget) return;
     b.balance -= cost;
     levels[weakest] = level + 1;
+  }
+
+  /// A facility above what fits a team's strength is not kept up to date:
+  /// each season it loses a level with a chance of three in ten. Building
+  /// up to what fits and wearing down from above keep the levels of the
+  /// world where they started.
+  void _wear(int teamId) {
+    final levels = c.facilities.levels[teamId];
+    if (levels == null) return;
+    final fits = c.facilities.fitting(teamId);
+    for (final f in Facility.values) {
+      final level = levels[f] ?? 3;
+      if (level <= fits) continue;
+      if (Economy.unit(teamId * 7 + f.index, c.year) < 0.3) {
+        levels[f] = level - 1;
+      }
+    }
   }
 
   // --- Saving ----------------------------------------------------------------

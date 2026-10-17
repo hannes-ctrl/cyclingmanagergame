@@ -12,7 +12,8 @@ import 'points.dart';
 /// scouts know well.
 class Personality {
   const Personality(
-      this.professionalism, this.ambition, this.loyalty, this.consistency);
+      this.professionalism, this.ambition, this.loyalty, this.consistency,
+      [this.adaptability = 0.5]);
 
   /// How seriously he takes training and recovery: he develops faster.
   final double professionalism;
@@ -27,30 +28,44 @@ class Personality {
   /// How little his form differs from race to race.
   final double consistency;
 
+  /// How quickly he settles in a new team: until then he rides a little
+  /// below his form.
+  final double adaptability;
+
   /// Draws the personality of a rider. The same rider in the same career
   /// always gets the same one.
   ///
   /// Most riders come out near the middle, a few at either end, so that
-  /// good, balanced and difficult characters all exist. Two things shift
-  /// the draw a little: riders past thirty have learned to live for the
-  /// job, and young riders of great potential tend to want more.
+  /// good, balanced and difficult characters all exist. Three things shift
+  /// the draw: riders past thirty have learned to live for the job, young
+  /// riders of great potential tend to want more, and the best riders got
+  /// where they are by wanting it: a rider of world class is never
+  /// unambitious or slack.
   ///
   /// @param riderId Id of the rider.
   /// @param seed Seed of the career.
   /// @param age His age, 0 if unknown.
   /// @param potential His potential, 4 if unknown.
+  /// @param rating His strength at the start of the career, 0 if unknown.
   /// @returns His personality.
   static Personality of(int riderId, int seed,
-      {int age = 0, double potential = 4}) {
+      {int age = 0, double potential = 4, double rating = 0}) {
     final r = Random(seed * 1000003 + riderId * 7919);
-    double draw([double shift = 0]) =>
-        (((r.nextDouble() + r.nextDouble() + r.nextDouble()) / 3 - 0.5) * 1.05 +
+    double draw([double shift = 0, double floor = 0]) => max(
+            floor,
+            ((r.nextDouble() + r.nextDouble() + r.nextDouble()) / 3 - 0.5) *
+                    1.05 +
                 0.5 +
                 shift)
-            .clamp(0.0, 1.0);
+        .clamp(0.0, 1.0);
+    // Strength above the average professional pushes ambition and
+    // professionalism up; world class sets a floor.
+    final top = rating <= 0 ? 0.0 : ((rating - 74) / 10).clamp(-0.1, 0.25);
+    final floor = rating >= 80 ? 0.55 : 0.0;
     return Personality(
-      draw(age >= 31 ? 0.08 : 0),
-      draw(age > 0 && age <= 24 && potential >= 5 ? 0.08 : 0),
+      draw((age >= 31 ? 0.08 : 0) + top * 0.7, floor),
+      draw((age > 0 && age <= 24 && potential >= 5 ? 0.08 : 0) + top, floor),
+      draw(),
       draw(),
       draw(),
     );
@@ -215,13 +230,19 @@ class People {
           riderId,
           c.seed,
           // Fixed at the start of the career, so that it does not change
-          // as he grows older.
+          // as he grows older or stronger.
           age: r == null || r.born == 0
               ? 0
               : c.licences.firstYear - r.born ~/ 10000,
           potential: r?.potential ?? 4,
+          rating: _startRating[riderId] ?? 0,
         );
       });
+
+  /// Strength of the riders of the WorldDB at the start of the career.
+  late final Map<int, double> _startRating = {
+    for (final r in c.world.riders()) r.id: Economy.rating(r),
+  };
 
   /// @param riderId Id of a rider.
   /// @returns His morale, −2 to +2.
@@ -262,7 +283,7 @@ class People {
   /// @param raceId Id of the race.
   /// @returns A factor close to 1.
   double formFactor(SimRider r, int raceId) {
-    var factor = 1 + 0.004 * moraleOf(r.id);
+    var factor = (1 + 0.004 * moraleOf(r.id)) * settling(r.id);
     final mine = goals[r.id];
     if (mine != null && mine.isNotEmpty) {
       // He peaks for his goals and is a little short of that elsewhere.
@@ -278,6 +299,138 @@ class People {
   /// @returns Factor on his development: 0.9 for a careless rider, 1.1 for
   ///   a very professional one.
   double growthFactor(int riderId) => 0.9 + 0.2 * professionalism(riderId);
+
+  // --- Settling in -----------------------------------------------------------
+
+  /// Day a rider joined his present team during the career, by rider id.
+  final joined = <int, DateTime>{};
+
+  /// Notes that a rider has joined a team.
+  ///
+  /// @param riderId Id of the rider.
+  void noteJoined(int riderId) => joined[riderId] = c.today;
+
+  /// Days a rider of an adaptability needs to settle in a new team: up to
+  /// four months for one who finds it hard, none for one who settles at
+  /// once.
+  ///
+  /// @param riderId Id of the rider.
+  /// @returns Days still to go, 0 if he has settled.
+  int settlingDays(int riderId) {
+    final since = joined[riderId];
+    if (since == null) return 0;
+    final needed = (120 * (1 - of(riderId).adaptability)).round();
+    return max(0, needed - c.today.difference(since).inDays);
+  }
+
+  /// Factor on a rider's form while he settles in a new team: up to 0.8 %
+  /// below at first, nothing once he has settled.
+  ///
+  /// @param riderId Id of the rider.
+  /// @returns A factor up to 1.
+  double settling(int riderId) {
+    final left = settlingDays(riderId);
+    if (left == 0) return 1;
+    final needed = 120 * (1 - of(riderId).adaptability);
+    return 1 - 0.008 * (1 - of(riderId).adaptability) * left / max(1, needed);
+  }
+
+  // --- Talks ------------------------------------------------------------------
+
+  /// Riders of the player's team who asked to leave this season, and those
+  /// he let go: they do not renew.
+  final askedToLeave = <int>{};
+  final letGo = <int>{};
+
+  /// Riders the player has talked to about their race days this season.
+  final _talkedDays = <int>{};
+
+  /// Riders who asked to leave and were promised a leading role this
+  /// season.
+  final _satisfied = <int>{};
+
+  /// Asks the player for a decision in the inbox.
+  void _talk(int riderId, String kind, String subject, String body,
+      List<String> choices) {
+    c.inbox.add(Message(c.today, tr('Agent'), subject, body,
+        talk: Talk(kind, riderId, choices)));
+  }
+
+  /// Applies the player's answer to a talk.
+  ///
+  /// @param t The talk.
+  /// @param choice Index of the answer.
+  /// @returns null on success, otherwise the reason.
+  String? answer(Talk t, int choice) {
+    final r = c.riderById[t.riderId];
+    if (r == null || r.teamId != c.teamId) {
+      return tr('He no longer rides for the team.');
+    }
+    if (choice < 0 || choice >= t.choices.length) return tr('Unknown answer.');
+    switch ((t.kind, choice)) {
+      case ('leave', 0):
+        promiseSeason(r.id, PromiseKind.leader);
+        // Content again: he renews like any other rider. He does not ask
+        // a second time this season.
+        askedToLeave.remove(r.id);
+        _satisfied.add(r.id);
+        move(r.id, 0.8, tr('Promised a leading role'));
+      case ('leave', 1):
+        // His contract ends with the season, also a renewal already signed;
+        // the other teams may sign him.
+        final k = c.economy.contracts[r.id];
+        if (k != null && k.endYear > c.year) k.endYear = c.year;
+        if (k != null && k.nextTeam == c.teamId) k.nextTeam = null;
+        letGo.add(r.id);
+        move(r.id, 0.5, tr('Allowed to leave'));
+      case ('leave', _):
+        move(r.id, -0.5, tr('Not allowed to leave'));
+      case ('days', 0):
+        // The next race he suits and is not planned for is his.
+        final next = c.ownRaces
+            .where((x) =>
+                x.start.isAfter(c.today.add(const Duration(days: 7))) &&
+                !(c.program[x.info.id]?.contains(r.id) ?? false))
+            .firstOrNull;
+        if (next != null) {
+          c.program.putIfAbsent(next.info.id, () => {}).add(r.id);
+          promise(r.id, next.info.id, PromiseKind.start);
+        }
+        move(r.id, 0.3, tr('Promised more races'));
+      case ('days', _):
+        final loyal = of(r.id).loyalty >= 0.5;
+        move(r.id, loyal ? 0.15 : -0.15, tr('The plan was explained to him'));
+    }
+    return null;
+  }
+
+  /// Weekly: an unhappy, ambitious rider of the player's team with a
+  /// contract beyond the season asks to leave, once a season.
+  void _wishesToLeave() {
+    for (final r in c.squads[c.teamId] ?? const <SimRider>[]) {
+      if (askedToLeave.contains(r.id) ||
+          letGo.contains(r.id) ||
+          _satisfied.contains(r.id)) {
+        continue;
+      }
+      final k = c.economy.contracts[r.id];
+      if (k == null || k.endYear <= c.year) continue;
+      if (moraleOf(r.id) > -1.3 || of(r.id).ambition < 0.5) continue;
+      askedToLeave.add(r.id);
+      _talk(
+        r.id,
+        'leave',
+        tr('{0} wants to leave', [r.name]),
+        tr('{0} is unhappy and asks to leave the team. His contract runs until {1}.',
+            [c.fullName(r.id), k.endYear]),
+        [
+          tr('Promise him a leading role next season'),
+          tr('Let him go at the end of the season'),
+          tr('He stays'),
+        ],
+      );
+    }
+  }
 
   // --- Mentoring --------------------------------------------------------------
 
@@ -675,6 +828,7 @@ class People {
   /// who was out for three weeks or more does not: he knows why he raced
   /// less.
   void weekly() {
+    _wishesToLeave();
     for (final id in morale.keys.toList()) {
       final value = morale[id]! * 0.93;
       value.abs() < 0.02 ? morale.remove(id) : morale[id] = value;
@@ -703,6 +857,19 @@ class People {
         if (c.isInjured(r.id, c.today) || (outDays[r.id] ?? 0) >= 21) continue;
         if (of(r.id).ambition > 0.55 && days(r) < 0.55 * mean) {
           move(r.id, -0.3, tr('Too few race days in his programme'));
+          if (e.key == c.teamId && _talkedDays.add(r.id)) {
+            _talk(
+              r.id,
+              'days',
+              tr('{0} wants to race more', [r.name]),
+              tr('{0} has {1} race days planned for the season, far fewer than the others, and asks for more.',
+                  [c.fullName(r.id), days(r)]),
+              [
+                tr('Promise him a start in the next race'),
+                tr('Explain the plan to him'),
+              ],
+            );
+          }
         }
       }
     }
@@ -736,6 +903,12 @@ class People {
     goals.clear();
     ownGoals.clear();
     outDays.clear();
+    askedToLeave.clear();
+    letGo.clear();
+    _talkedDays.clear();
+    _satisfied.clear();
+    // Whoever joined long ago has settled.
+    joined.removeWhere((_, d) => c.today.difference(d).inDays > 150);
     _startedGrandTour.clear();
     _ledBigRace.clear();
     for (final id in morale.keys.toList()) {
@@ -763,6 +936,14 @@ class People {
         'grandTour': _startedGrandTour.toList(),
         'led': _ledBigRace.toList(),
         'mentors': {for (final e in mentors.entries) '${e.key}': e.value},
+        'joined': {
+          for (final e in joined.entries)
+            '${e.key}': e.value.millisecondsSinceEpoch,
+        },
+        'askedToLeave': askedToLeave.toList(),
+        'letGo': letGo.toList(),
+        'talkedDays': _talkedDays.toList(),
+        'satisfied': _satisfied.toList(),
         'learned': {for (final e in learned.entries) '${e.key}': e.value},
       };
 
@@ -780,6 +961,11 @@ class People {
     _ledBigRace.clear();
     mentors.clear();
     learned.clear();
+    joined.clear();
+    askedToLeave.clear();
+    letGo.clear();
+    _talkedDays.clear();
+    _satisfied.clear();
     if (j == null) return;
     for (final e in (j['morale'] as Map<String, dynamic>).entries) {
       morale[int.parse(e.key)] = (e.value as num).toDouble();
@@ -813,5 +999,14 @@ class People {
         in (j['learned'] as Map<String, dynamic>? ?? const {}).entries) {
       learned[int.parse(e.key)] = (e.value as num).toDouble();
     }
+    for (final e
+        in (j['joined'] as Map<String, dynamic>? ?? const {}).entries) {
+      joined[int.parse(e.key)] =
+          DateTime.fromMillisecondsSinceEpoch(e.value as int, isUtc: true);
+    }
+    askedToLeave.addAll((j['askedToLeave'] as List? ?? const []).cast<int>());
+    letGo.addAll((j['letGo'] as List? ?? const []).cast<int>());
+    _talkedDays.addAll((j['talkedDays'] as List? ?? const []).cast<int>());
+    _satisfied.addAll((j['satisfied'] as List? ?? const []).cast<int>());
   }
 }
