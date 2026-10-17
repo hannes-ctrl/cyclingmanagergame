@@ -12,8 +12,45 @@ const currentSeason = 2026;
 
 /// First season the calibration compares against. Of the fields before it
 /// the world database, which knows the riders of [currentSeason], covers
-/// too little (58 % of the finishers of 2021, 67 % of 2022).
+/// too little (58 % of the finishers of 2021, 67 % of 2022); with
+/// `--from 2021` those seasons come back with anonymous riders in place of
+/// the missing ones (see [loadDataset]).
 const firstSeason = 2023;
+
+/// An anonymous rider in place of a finisher the world database does not
+/// know: a typical rider of his team in that race (the median of his
+/// teammates who are known), or of the whole field without them. Strength
+/// is never taken from where he finished, so the result does not leak into
+/// the start.
+///
+/// @param id A negative id, unique in the race.
+/// @param name His name from the result.
+/// @param mates Known riders of his team in the race.
+/// @param field All known riders of the race.
+/// @returns The rider.
+SimRider anonymousRider(
+    int id, String name, List<SimRider> mates, List<SimRider> field) {
+  final pool = mates.length >= 2 ? mates : field;
+  double total(SimRider r) {
+    final a = r.attributes;
+    return a.flat + a.mountain + a.hill + a.timeTrial + a.sprint + a.cobble;
+  }
+
+  final typical = ([...pool]
+    ..sort((a, b) => total(a).compareTo(total(b))))[pool.length ~/ 2];
+  final team = mates.isNotEmpty ? mates.first : typical;
+  return SimRider(
+    id: id,
+    name: name,
+    teamId: team.teamId,
+    team: team.team,
+    attributes: typical.attributes,
+    born: typical.born,
+    potential: typical.potential,
+    weightKg: typical.weightKg,
+    heightCm: typical.heightCm,
+  );
+}
 
 /// A real race with route and start list, as the simulation needs it.
 class CalibrationCase {
@@ -125,7 +162,7 @@ String normalizeName(String name) {
 /// @param exclude Labels of races to leave out, each with the reason.
 /// @returns The dataset with notes about what was skipped.
 Dataset loadDataset(World world, String resultsDir, int year,
-    {Map<String, String> exclude = const {}}) {
+    {Map<String, String> exclude = const {}, bool fill = false}) {
   final notes = <String>[];
   final variants = <int, Map<int, int>>{};
   final byName = <String, SimRider>{};
@@ -252,17 +289,32 @@ Dataset loadDataset(World world, String resultsDir, int year,
     final order = <int>[];
     final times = <double>[];
     final seen = <int>{};
+    // Finishers the database does not know, with their team, for [fill].
+    final missing = <(int, RealRow)>[];
+    final teamOf = <String, List<SimRider>>{};
     for (final row in real.rows) {
       if (row.rank == null || row.timeS == null) continue;
       rows++;
       final rider = match(row.name);
       if (rider == null || !seen.add(rider.id)) {
         unmatched++;
+        if (rider == null && fill) missing.add((order.length, row));
         continue;
       }
       riders.add(rider);
       order.add(rider.id);
       times.add(row.timeS!);
+      teamOf.putIfAbsent(row.team, () => []).add(rider);
+    }
+    if (fill && missing.isNotEmpty && riders.isNotEmpty) {
+      // Inserted from the back so that the earlier positions stay valid.
+      for (final (k, (at, row)) in missing.indexed.toList().reversed) {
+        final anon = anonymousRider(
+            -1 - k, row.name, teamOf[row.team] ?? const [], [...riders]);
+        riders.insert(at, anon);
+        order.insert(at, anon.id);
+        times.insert(at, row.timeS!);
+      }
     }
     if (riders.length < 60) {
       notes.add('$label: nur ${riders.length} Fahrer zugeordnet');

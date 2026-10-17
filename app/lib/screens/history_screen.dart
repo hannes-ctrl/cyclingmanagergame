@@ -235,6 +235,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   numeric: true,
                   sortKey: (r) => trophies[r.$1] ?? 0,
                 ),
+                // The manager's reputation at the end of the season.
+                Col(
+                  tr('Reputation'),
+                  90,
+                  (r, _) => cellText(switch (r.$5
+                      ? career.manager.reputation
+                      : career.manager.marks[r.$1]) {
+                    final v? => '${v.round()}',
+                    null => '–',
+                  }),
+                  numeric: true,
+                  sortKey: (r) =>
+                      (r.$5
+                          ? career.manager.reputation
+                          : career.manager.marks[r.$1]) ??
+                      -1,
+                ),
               ],
             ),
           ),

@@ -6,6 +6,7 @@ import 'package:game/game.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../app_state.dart';
+import '../ui.dart';
 import '../widgets.dart';
 
 /// The season plan as a timeline, in the manner of PCM: the head shows
@@ -29,6 +30,9 @@ class _PlanScreenState extends State<PlanScreen> {
   final _body = ScrollController();
   var _onlyBig = true;
   var _onlyAhead = false;
+
+  /// Whether the next season is shown, planned in the winter.
+  var _next = false;
 
   /// The race riders are pencilled in for by a click in their row.
   int? _selected;
@@ -113,22 +117,36 @@ class _PlanScreenState extends State<PlanScreen> {
     final c = s.colors;
     final career = s.career;
     final people = career.people;
-    final year = career.year;
+    // The next season can be planned once the racing is over.
+    if (!career.canPlanNext) _next = false;
+    final next = _next;
+    final year = career.year + (next ? 1 : 0);
+    final own = next ? career.nextOwnRaces : career.ownRaces;
+    final program = next ? career.nextProgram : career.program;
+    final goalsOf = next ? career.nextGoals : people.goals;
+    bool done(int raceId) => !next && career.progress.containsKey(raceId);
+    void say(String? answer) {
+      if (answer != null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(answer)));
+      }
+    }
+
     final first = DateTime.utc(year, 1, 1);
     final days = DateTime.utc(year + 1, 1, 1).difference(first).inDays;
     double x(DateTime d) => d.difference(first).inDays * _day;
     double width(RaceEntry r) => (r.end.difference(r.start).inDays + 1) * _day;
     final races = [
-      for (final r in career.ownRaces)
+      for (final r in own)
         if ((!_onlyBig || r.tier.factor >= 5) &&
-            (!_onlyAhead || !career.progress.containsKey(r.info.id)))
+            (!_onlyAhead || !done(r.info.id)))
           r,
     ]..sort((a, b) => a.start.compareTo(b.start));
-    final byId = {for (final r in career.ownRaces) r.info.id: r};
+    final byId = {for (final r in own) r.info.id: r};
     final selected = byId[_selected];
     final (lane, lanes) = _lanes(races);
     // By standing in the team, the strongest first.
-    final squad = [...s.squad]
+    final squad = [...(next ? career.nextSquad : s.squad)]
       ..sort((a, b) {
         final byRole = people
             .roleOf(a.id)
@@ -141,18 +159,21 @@ class _PlanScreenState extends State<PlanScreen> {
 
     /// The races a rider is planned for or has ridden, by start.
     List<RaceEntry> riderRaces(int riderId) => [
-      for (final r in career.ownRaces)
-        if ((career.program[r.info.id]?.contains(riderId) ?? false) ||
-            (career.progress[r.info.id]?.riders.any((x) => x.id == riderId) ??
-                false))
+      for (final r in own)
+        if ((program[r.info.id]?.contains(riderId) ?? false) ||
+            (!next &&
+                (career.progress[r.info.id]?.riders.any(
+                      (x) => x.id == riderId,
+                    ) ??
+                    false)))
           r,
     ]..sort((a, b) => a.start.compareTo(b.start));
 
     int plannedDays(int riderId) {
       var n = 0;
-      for (final r in career.ownRaces) {
-        if (career.progress.containsKey(r.info.id)) continue;
-        if (career.program[r.info.id]?.contains(riderId) ?? false) {
+      for (final r in own) {
+        if (done(r.info.id)) continue;
+        if (program[r.info.id]?.contains(riderId) ?? false) {
           n += r.stages.length;
         }
       }
@@ -183,7 +204,7 @@ class _PlanScreenState extends State<PlanScreen> {
             '${r.info.name}\n${_date(r.start)}'
             '${r.isStageRace ? '–${_date(r.end)}' : ''} · '
             '${tr('{0} stages', [r.stages.length])} · '
-            '${tr('{0} of {1} pencilled in', [career.program[r.info.id]?.length ?? 0, career.world.raceField(r.info.id).ridersPerTeam])}',
+            '${tr('{0} of {1} pencilled in', [program[r.info.id]?.length ?? 0, career.world.raceField(r.info.id).ridersPerTeam])}',
         child: SizedBox(
           width: max(w, room),
           height: _laneHeight - 3,
@@ -252,7 +273,8 @@ class _PlanScreenState extends State<PlanScreen> {
       return min(next - x(r.start) - 2, 160);
     }
 
-    final todayX = x(career.today);
+    // In the next season the line of today lies before its first day.
+    final todayX = next ? -10.0 : x(career.today);
     final band = selected == null
         ? null
         : Positioned(
@@ -319,7 +341,7 @@ class _PlanScreenState extends State<PlanScreen> {
                   child: bar(
                     r,
                     room: roomAfter(r, inLane[lane[r.info.id]!]!),
-                    faded: career.progress.containsKey(r.info.id),
+                    faded: done(r.info.id),
                     chosen: r.info.id == _selected,
                   ),
                 ),
@@ -339,17 +361,19 @@ class _PlanScreenState extends State<PlanScreen> {
     Widget row(int i) {
       final r = squad[i];
       final mine = riderRaces(r.id);
-      final goals = people.goals[r.id] ?? const <int>{};
+      final goals = goalsOf[r.id] ?? const <int>{};
       bool clashes(RaceEntry a) => mine.any(
         (b) =>
             b != a &&
-            !career.progress.containsKey(b.info.id) &&
-            !career.progress.containsKey(a.info.id) &&
+            !done(b.info.id) &&
+            !done(a.info.id) &&
             !b.start.isAfter(a.end) &&
             !a.start.isAfter(b.end),
       );
-      final injured = career.shapeOf(r.id).injuredUntil;
-      final camps = career.camps.all.where((k) => k.riders.contains(r.id));
+      final injured = next ? null : career.shapeOf(r.id).injuredUntil;
+      final camps = career.camps.all.where(
+        (k) => k.riders.contains(r.id) && k.start.year == year,
+      );
       RaceEntry? at(double dx) => mine
           .where((x0) => dx >= x(x0.start) && dx <= x(x0.start) + width(x0))
           .firstOrNull;
@@ -362,19 +386,23 @@ class _PlanScreenState extends State<PlanScreen> {
             return;
           }
           final race = selected;
-          if (race == null || career.progress.containsKey(race.info.id)) {
+          if (race == null || done(race.info.id)) {
             return;
           }
-          s.toggleProgram(race.info.id, r.id);
+          if (next) {
+            say(s.toggleNextProgram(race.info.id, r.id));
+          } else {
+            s.toggleProgram(race.info.id, r.id);
+          }
         },
         onSecondaryTapUp: (d) {
           final hit = at(d.localPosition.dx);
-          if (hit == null || career.progress.containsKey(hit.info.id)) return;
-          final answer = s.toggleGoal(r.id, hit.info.id);
-          if (answer != null) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text(answer)));
-          }
+          if (hit == null || done(hit.info.id)) return;
+          say(
+            next
+                ? s.toggleNextGoal(r.id, hit.info.id)
+                : s.toggleGoal(r.id, hit.info.id),
+          );
         },
         child: Container(
           width: days * _day,
@@ -414,12 +442,15 @@ class _PlanScreenState extends State<PlanScreen> {
                     child: bar(
                       race,
                       room: roomAfter(race, mine),
-                      faded: career.progress.containsKey(race.info.id),
+                      faded: done(race.info.id),
                       clash: clashes(race),
                       goal: goals.contains(race.info.id),
-                      promised: people.promises.any(
-                        (p) => p.riderId == r.id && p.raceId == race.info.id,
-                      ),
+                      promised:
+                          !next &&
+                          people.promises.any(
+                            (p) =>
+                                p.riderId == r.id && p.raceId == race.info.id,
+                          ),
                     ),
                   ),
               // Goals that are not planned yet show as an outline.
@@ -455,11 +486,12 @@ class _PlanScreenState extends State<PlanScreen> {
 
     Widget name(int i) {
       final r = squad[i];
-      final total = career.shapeOf(r.id).raceDays + plannedDays(r.id);
-      final injured = career.isInjured(r.id, career.today);
+      final total =
+          (next ? 0 : career.shapeOf(r.id).raceDays) + plannedDays(r.id);
+      final injured = !next && career.isInjured(r.id, career.today);
       final planned =
           selected != null &&
-          (career.program[selected.info.id]?.contains(r.id) ?? false);
+          (program[selected.info.id]?.contains(r.id) ?? false);
       return Container(
         height: _rowHeight,
         padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -483,7 +515,10 @@ class _PlanScreenState extends State<PlanScreen> {
                 ),
               ),
             ),
-            _TemplateMenu(state: s, rider: r),
+            if (next)
+              const SizedBox(width: 24)
+            else
+              _TemplateMenu(state: s, rider: r),
             SizedBox(
               width: 84,
               child: Text(
@@ -546,7 +581,7 @@ class _PlanScreenState extends State<PlanScreen> {
     final headHeight = _monthHeight + lanes * _laneHeight + 6;
     final chosenCount = selected == null
         ? 0
-        : career.program[selected.info.id]?.length ?? 0;
+        : program[selected.info.id]?.length ?? 0;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -582,6 +617,23 @@ class _PlanScreenState extends State<PlanScreen> {
                 ),
               ),
               const SizedBox(width: 12),
+              // In the winter: this season or the next.
+              if (career.canPlanNext) ...[
+                for (final n in [false, true])
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: Pill(
+                      label: tr('Season {0}', [career.year + (n ? 1 : 0)]),
+                      selected: _next == n,
+                      colors: c,
+                      onTap: () => setState(() {
+                        _next = n;
+                        _selected = null;
+                      }),
+                    ),
+                  ),
+                const SizedBox(width: 6),
+              ],
               toggle(
                 tr('Upcoming only'),
                 _onlyAhead,
@@ -711,6 +763,13 @@ class _PlanScreenState extends State<PlanScreen> {
                 ),
                 style: const TextStyle(fontSize: 12, color: TeamColors.muted),
               ),
+              if (next)
+                Text(
+                  tr(
+                    'Next season: the squad as it stands with the contracts signed, the races of this year. At the turn of the year this plan becomes the programme for the races the team is invited to; the sports director plans the rest if he is in charge.',
+                  ),
+                  style: const TextStyle(fontSize: 12, color: TeamColors.muted),
+                ),
             ],
           ),
         ],

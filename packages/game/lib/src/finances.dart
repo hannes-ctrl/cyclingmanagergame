@@ -63,7 +63,10 @@ class Finances {
     for (final (i, id) in order.indexed) {
       if (id == c.teamId) continue;
       final budget = breakEven(id);
-      books[id] = TeamBooks(budget, budget * 0.1, budget, i + 1);
+      // The anchor is what the sponsors would pay a team with an average
+      // marketing department.
+      books[id] = TeamBooks(
+          budget, budget * 0.1, budget / c.facilities.marketing(id), i + 1);
     }
     _wageLevel = wageLevel();
   }
@@ -190,7 +193,10 @@ class Finances {
     for (final e in books.entries) {
       final b = e.value;
       final rank = place[e.key] ?? place.length;
-      final target = b.anchorBudget * weight(rank) / weight(b.anchorRank);
+      final target = b.anchorBudget *
+          weight(rank) /
+          weight(b.anchorRank) *
+          c.facilities.marketing(e.key);
       // Sponsor contracts run for years: a third of the way to the target
       // each season, and never more than a quarter up or down.
       final next = (b.budget * 2 / 3 + target / 3)

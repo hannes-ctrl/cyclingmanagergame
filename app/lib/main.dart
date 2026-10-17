@@ -357,6 +357,28 @@ class Shell extends StatefulWidget {
 /// A place the player has been: page, view inside it and open rider.
 typedef _Place = ({_Page page, String? sub, int? rider, int? team});
 
+/// @param p A place.
+/// @returns The place as a bookmark.
+Map<String, dynamic> _bookmarkOf(_Place p) => {
+  'page': p.page.name,
+  'sub': ?p.sub,
+  'rider': ?p.rider,
+  'team': ?p.team,
+};
+
+/// @param b A bookmark.
+/// @returns Its place, or null for a page that no longer exists.
+_Place? _placeOf(Map<String, dynamic> b) {
+  final page = _Page.values.where((p) => p.name == b['page']).firstOrNull;
+  if (page == null) return null;
+  return (
+    page: page,
+    sub: b['sub'] as String?,
+    rider: b['rider'] as int?,
+    team: b['team'] as int?,
+  );
+}
+
 /// State of the shell: selected page and whether race preparation is shown.
 class _ShellState extends State<Shell> {
   var _page = _Page.home;
@@ -392,6 +414,29 @@ class _ShellState extends State<Shell> {
     widget.state.riderPage = p.rider;
     widget.state.teamPage = p.team;
   });
+
+  /// Opens a bookmarked place like any other page: it goes into the
+  /// history.
+  ///
+  /// @param p The place.
+  void _open(_Place p) => setState(() {
+    _page = p.page;
+    _sub = p.sub;
+    _showPrep = false;
+    widget.state.riderPage = p.rider;
+    widget.state.teamPage = p.team;
+  });
+
+  /// Bookmarks the place shown, or removes its bookmark.
+  void _toggleBookmark() {
+    final here = _here;
+    if (here == null || _showPrep || widget.state.live != null) return;
+    final answer = widget.state.toggleBookmark(_bookmarkOf(here));
+    if (answer != null) {
+      ScaffoldMessenger.maybeOf(context)
+          ?.showSnackBar(SnackBar(content: Text(answer)));
+    }
+  }
 
   void _goBack() {
     if (_back.isEmpty || _here == null) return;
@@ -435,6 +480,11 @@ class _ShellState extends State<Shell> {
     }
     if (key == LogicalKeyboardKey.f1) {
       showHelpDialog(context, s);
+      return true;
+    }
+    // Ctrl+B: bookmark the place shown.
+    if (keys.isControlPressed && key == LogicalKeyboardKey.keyB) {
+      _toggleBookmark();
       return true;
     }
     if (keys.isControlPressed && key == LogicalKeyboardKey.keyF) {
@@ -676,6 +726,7 @@ class _ShellState extends State<Shell> {
                 state: s,
                 page: prep != null ? null : _page,
                 onMenu: widget.onMenu,
+                onBookmark: _open,
                 onPage: (p) => setState(() {
                   _page = p;
                   _sub = null;
@@ -737,6 +788,27 @@ class _ShellState extends State<Shell> {
                               ),
                             ],
                           ),
+                          if (prep == null && s.live == null && _here != null)
+                            Builder(
+                              builder: (context) {
+                                final marked = s.isBookmarked(
+                                  _bookmarkOf(_here!),
+                                );
+                                return IconButton(
+                                  tooltip: marked
+                                      ? tr('Remove bookmark (Ctrl+B)')
+                                      : tr('Bookmark this page (Ctrl+B)'),
+                                  onPressed: _toggleBookmark,
+                                  icon: Icon(
+                                    LucideIcons.star,
+                                    size: 18,
+                                    color: marked
+                                        ? TeamColors.gold
+                                        : TeamColors.muted,
+                                  ),
+                                );
+                              },
+                            ),
                           const Spacer(),
                           if (s.debug)
                             Container(
@@ -995,11 +1067,15 @@ class _Sidebar extends StatelessWidget {
     required this.page,
     required this.onPage,
     required this.onMenu,
+    required this.onBookmark,
   });
   final AppState state;
   final _Page? page;
   final void Function(_Page) onPage;
   final VoidCallback onMenu;
+
+  /// Opens a bookmarked place.
+  final void Function(_Place) onBookmark;
 
   @override
   Widget build(BuildContext context) {
@@ -1060,6 +1136,47 @@ class _Sidebar extends StatelessWidget {
                       ),
                     ),
                   ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // A bookmark: a click opens it, a right click removes it.
+    Widget mark(_Place place, Map<String, dynamic> b) {
+      final career = state.career;
+      final label = place.rider != null
+          ? career.fullName(place.rider!)
+          : place.team != null
+          ? career.teams[place.team]?.name ?? '–'
+          : place.page.label;
+      final icon = place.rider != null
+          ? LucideIcons.user
+          : place.team != null
+          ? LucideIcons.shield
+          : place.page.icon;
+      return Tooltip(
+        message: tr('Right click removes the bookmark'),
+        waitDuration: const Duration(milliseconds: 800),
+        child: InkWell(
+          onTap: () => onBookmark(place),
+          onSecondaryTap: () => state.toggleBookmark(b),
+          child: Container(
+            height: 30,
+            padding: const EdgeInsets.only(left: 16, right: 12),
+            child: Row(
+              children: [
+                Icon(icon, size: 15, color: faded),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13, color: c.onSide),
+                  ),
+                ),
               ],
             ),
           ),
@@ -1157,7 +1274,17 @@ class _Sidebar extends StatelessWidget {
           item(_Page.staff),
           item(_Page.delegation),
           item(_Page.history),
-          const Spacer(),
+          // The bookmarks take the room that is left and scroll.
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                if (state.bookmarks.isNotEmpty) group(tr('Bookmarks')),
+                for (final b in state.bookmarks)
+                  if (_placeOf(b) case final place?) mark(place, b),
+              ],
+            ),
+          ),
           Divider(height: 1, color: c.onSide.withValues(alpha: 0.18)),
           if (state.debug) item(_Page.debug),
           item(_Page.saves),

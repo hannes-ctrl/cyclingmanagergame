@@ -1,6 +1,6 @@
 # Roadmap
 
-Where the game goes after 0.4.0 alpha, and what it has to be before it is called a beta.
+Where the game goes after 0.5.0 alpha, and what it has to be before it is called a beta.
 
 Nothing here is promised; priorities are set version by version. Ideas come from *Football Manager* (FM), *Pro Cycling Manager* (PCM) and the dev blogs of *Velo Victory* (VV), and from what their players ask for in the forums. Each item names its source in brackets; the links are at the end.
 
@@ -8,12 +8,13 @@ Nothing here is promised; priorities are set version by version. Ideas come from
 
 The working list, in order. It is rewritten whenever something on it is done; the sections below hold the full plan.
 
-1. **The organisation, rest:** a marketing facility.
-2. **Comfort that is left:** multi-select in lists, bookmarks, export from every list, a vacation mode with rules (the board stays out of the market).
-3. **The season plan in December** for the next year, with the goals of the riders in the planner.
-4. **The race shape, second step.** What the calibration of 0.3.1 could not reach, because five tuning values sit at the edge of their range: the middle of the field finishes too close to the winner (0:52 against 1:36 behind, 16:34 against 22:04 in the mountains), breaks in the mountains win too rarely (21 % against 31 %), hilly stages end in a bunch sprint too rarely (6 % against 18 %), sector races end solo too rarely (46 % against 74 %), and the favourites win too often (59 % against 47 %, in time trials 83 % against 58 %). The power figures are a few per cent high (427 W over Paris-Roubaix for a 92 kg rider).
+1. **The race shape, second step, continued.** The calibration of 17 October allowed the form of the day to spread up to 3 %, which the literature allows, and searched for four hours: the error stayed the same (6.85 against 6.83), the control races improved a little (7.81 against 8.00), and the spread stayed at 1.5 %. The favourites do not win too often for want of a bad day; the cause lies elsewhere in the model. What tuning cannot reach needs a change of the model: the middle of the field finishes too close to the winner, breaks in the mountains win too rarely, hilly stages end in a bunch sprint too rarely, sector races end solo too rarely. The draft values and the power per point sit at the edge of ranges the physics allows, so they stay.
+2. **The time limit, second step.** Measured with real fields: in the mountains 7.9 % of the riders finish outside the limit (7.0 % in reality), but sprinters 37 % against 21 %. The cause is the low climbing power of the weakest riders, not the pace of the gruppetto.
+3. **Speed.** Measured: two thirds of the time go into the step of each rider through each segment. A real gain needs a change of structure, such as longer segments where nothing happens.
+4. **Export from every list** as CSV.
+5. **Weather, third step:** real compass headings, once a source for the routes' directions is found; the WorldDB has none.
 
-Done since the last version of this list: the manager's career (reputation, the board's warning and dismissal, job offers, a change of teams at the turn of the year) and personalities from what the WorldDB knows of a rider. Every item of the plan now stands under the version that brought it.
+Done since the last version of this list: the marketing department, the season plan for the next year in the winter, the vacation mode, bookmarks, multi-select in squad, rider search and market, riders who cope differently with heat and cold, older seasons with anonymous riders for the calibration (`--from 2021`), dropped groups that watch the time limit. All of it ships with 0.5.0.
 
 ## Principles
 
@@ -76,7 +77,7 @@ Each phase is one version. Every item stands under the version that brought it, 
 
 *Released as 0.3.1 alpha on 15 October 2026.*
 
-- **The calibration run** on the seasons 2023 to 2026: bunch sprints on flat stages fit (78 % against 77 %); what it could not reach is "Next up", item 4.
+- **The calibration run** on the seasons 2023 to 2026: bunch sprints on flat stages fit (78 % against 77 %); what it could not reach is "Next up", item 1.
 - **Riders who sit up,** groups that roll in, a gruppetto on hilly days; pace setters who only draft behind those who take turns.
 - **Courses that change.** From the second season every race with routes of other years in the WorldDB (2021 to 2025, about 400 races) cycles through them.
 - **The stage in fast motion** in the race report. [VV]
@@ -125,7 +126,9 @@ Each phase is one version. Every item stands under the version that brought it, 
 
 ### 0.5.0 The rider, the market and race day
 
-*In progress. What used to be planned as 0.5.0 (the rider as a person), 0.6.0 (scouting and the market) and 0.7.0 (race day) and was not done by 0.4.0, and the manager's career.*
+*Released as 0.5.0 alpha on 17 October 2026. What used to be planned as 0.5.0 (the rider as a person), 0.6.0 (scouting and the market) and 0.7.0 (race day) and was not done by 0.4.0, the manager's career, and most of what was planned for 0.6.0.*
+
+**The rider, the market and race day**
 
 - **Leadership and race sense** of the road captain, which decide how well the plan is carried out; chosen in the race preparation. [2]
 - **Contracts, second step:** signing bonus, win bonus, a release clause that the other teams may pay, a guaranteed leader's role; each lowers the wage asked. [2]
@@ -135,23 +138,28 @@ Each phase is one version. Every item stands under the version that brought it, 
 - **Personalities from the WorldDB:** loyalty from a rider's contract loyalty, more professional and steadier with years as a professional, more ambitious with wins; the same personality in every career.
 - **The manager's career.** Reputation from results against what the team's strength promised. With the job market switched on (off by default, so that nobody loses his team unasked): on 1 November the board judges the season, warns after a bad one and dismisses after two; other teams offer a job as a talk in the inbox, and an accepted offer hands the player the new team at the turn of the year. [FM]
 
-### 0.6.0 The organisation and what is left
+**The organisation and comfort** (planned for 0.6.0)
 
-*Fourth, because investments that pay off over years can only be balanced once the money has been stable for many seasons.*
+- **Facilities, second step:** a marketing department; every level above three raises what sponsors pay by three per cent, measured against the level a team started with. [VV]
+- **The season plan in the winter** for the next year: from the end of the racing the planner shows next season's races on next year's courses and next year's squad; the plan and the goals made there become the programme at the turn of the year. [2, PCM]
+- **Vacation mode.** The staff take over training, scouting, the season plan, line-ups and the radio, also over the turn of the year; the assistant answers the riders or the player comes back for them; a job offer always brings him back; the board stays out of the market. [9]
+- **Bookmarks** for pages, riders and teams, in the sidebar. [5]
+- **Multi-select** in the squad, the rider search and the transfer market: pencil in for a race, training focus and load, a training camp, the shortlist, the comparison. [7]
 
-**The organisation**
+**Races** (planned for 0.6.0)
 
-- **Facilities, second step:** a marketing facility that raises what sponsors pay. [VV]
-- **The season plan in December** for the next year, which needs the next calendar and next year's squads before the turn of the year.
-- **Vacation mode.** The assistant takes over for a period, with rules for what he may decide; the board stays out of the market. [9]
+- **Weather, second step:** riders cope differently with heat and cold, by build and home country. [PCM, VV]
+- **The time limit with real fields** measured; dropped groups now watch it like the gruppetto, which rides for its weakest riders.
+- **Older seasons** come back to the calibration with `--from 2021`: anonymous riders, typical of their team in that race, take the place of the finishers the database does not know (42 % in 2021, 33 % in 2022).
+- **The race shape, second step:** a wider range for the form of the day and a calibration run of four hours; the control races improved a little (7.81 against 8.00), the shape of the races did not change.
 
-**Races**
+### 0.6.0 What is left
 
-- **The race shape, second step:** see "Next up", item 4.
-- **The time limit with real fields.** On a synthetic field too many sprinters miss it in the mountains.
-- **Weather, second step.** Real compass headings for the routes and riders who cope differently with heat and cold. [PCM, VV]
-- **Speed.** A stage takes two to three times as long as in 0.2.0, so a night of calibration holds only a few hundred attempts.
-- **Older seasons.** The database covers 58 % of the finishers of 2021 and 75 % of 2023; anonymous riders of typical strength in place of the missing ones would bring the earlier seasons back to the calibration.
+*Fourth: what 0.5.0 left open of the plan for 0.6.0.*
+
+- **The race shape, the time limit and speed:** see "Next up", items 1 to 3.
+- **Export from every list** as CSV.
+- **Real compass headings** for the routes, once there is a source for them.
 
 ### 0.7.0 Beta
 
@@ -167,12 +175,12 @@ These are spread over the versions above rather than saved for the end; each nam
 - Keyboard control: space to continue, arrow keys from rider to rider and through the rows of a list, Ctrl+F for the search, Esc to go back. [6] *0.3.0.*
 - Every name is a link: rider, team, race, country, wherever it appears. *0.3.0 for the common cases:* riders and teams in race results, teams in the ranking and on the rider page, races on the rider page, a team's flag to the riders of its country.
 - No screen waits for the simulation: the stages run on other isolates, and the header shows what is being simulated. *0.3.0.*
-- Bookmarks for pages the player uses often. [5] *Open, 0.6.0.*
+- Bookmarks for pages, riders and teams, in the sidebar; Ctrl+B or the star in the header. [5] *0.5.0.*
 
 **Lists**
 
 - Saved filters and saved column sets per list. PCM added saved search filters in a patch after its players asked. [10] *0.4.0,* for the rider search and the transfer market.
-- Multi-select with checkboxes for actions on several riders: assign a programme, a camp, a training focus, put on the shortlist. [7] *A first step in 0.3.0:* a star per row for the shortlist. *The rest is open, 0.6.0.*
+- Multi-select with checkboxes for actions on several riders: assign a programme, a camp, a training focus, put on the shortlist. [7] *A first step in 0.3.0:* a star per row for the shortlist. *0.5.0:* checkboxes in the squad, the rider search and the transfer market.
 - Sorting by any column, remembered for the session. *0.3.0.*
 - Export of any list as CSV. [7] *0.3.0* for team pages; *open, 0.6.0,* for every other list.
 
@@ -186,7 +194,7 @@ These are spread over the versions above rather than saved for the end; each nam
 **Continuing**
 
 - "Simulate until" stops for what the player has chosen, by topic of the inbox. [9] *0.3.0.*
-- **Vacation mode.** [9] *Open, 0.6.0.*
+- **Vacation mode,** with rules for the riders' talks; the board stays out of the market. [9] *0.5.0.*
 - Autosave in four weekly files that can be opened again. A PCM thread asks for a way to go back a few days. [4] *0.3.0.*
 - Undo for the last line-up or plan change before it is confirmed. *0.4.0,* in the race preparation.
 
@@ -257,8 +265,8 @@ The world database is built from the WorldDB for Pro Cycling Manager, and rider 
 | 0.3.0 | Races that hold up *(released 14 October 2026)* | The calibration run | Back and history, keyboard, lists, inbox, shortlist, team pages, autosaves, help |
 | 0.3.1 | The race shape *(released 15 October 2026)* | 0.3.0 | Facilities, dev-team signings, squad-wide training load, an even overview |
 | 0.4.0 | A world that lasts *(released 17 October 2026)* | 0.3.0 | Timeline planner, templates, saved filters and columns, history, our stages live |
-| 0.5.0 | The rider, the market and race day | 0.4.0 | Comparison table, job offers and talks in the inbox, clauses in the offer form |
-| 0.6.0 | The organisation and what is left | 0.5.0 | Vacation mode, multi-select, bookmarks, export from every list |
+| 0.5.0 | The rider, the market and race day, the organisation *(released 17 October 2026)* | 0.4.0 | Comparison table, job offers in the inbox, vacation mode, multi-select, bookmarks, the winter plan |
+| 0.6.0 | What is left | 0.5.0 | Export from every list |
 | 0.7.0 | Beta | All | Introduction, glossary, difficulty, installer |
 
 ## Sources

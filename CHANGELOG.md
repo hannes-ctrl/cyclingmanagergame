@@ -1,19 +1,37 @@
 # Changelog
 
-## Unreleased (0.5.0)
+## 0.5.0 alpha (2026-10-17)
 
-The rider, the market and race day: what was planned for 0.5.0 to 0.7.0, in one version, and the manager's career.
+The rider, the market and race day (the plans of 0.5.0 to 0.7.0), the manager's career, and most of 0.6.0. Over ten simulated seasons the field keeps its level (WorldTour strength 77.5 to 78.0, riders of 80 and more 14 to 23), the age goes from 28.3 to 29.0, the WorldTeams' median balance from 2.3 to 10.1 million euros.
 
-- Road captain: leadership and race sense, from character and experience, decide how well a team carries out its plan; chosen in the race preparation.
-- Contract clauses: signing bonus, win bonus, release clause (the other teams may pay it from August, the money goes to the player) and a guaranteed leader's role; each lowers the wage a rider asks.
-- A comparison table of up to four riders, the best value of each line in green.
-- The race preparation shows the sprint train; in a team time trial the line can wait for the leader.
-- The leaders' jerseys in the colours of the Grand Tours in report and live view; the report names who takes a jersey.
-- The manager's career: a reputation from results against what the team's strength promised. With the job market switched on under Delegation (off by default), the board warns on 1 November after a bad season and dismisses after a second, other teams offer a job in the inbox, and an accepted offer hands you the new team at the turn of the year. The history shows the team of every season.
-- Personalities from the WorldDB: loyalty from a rider's contract loyalty, more professional and steadier with years as a professional, more ambitious with wins; the same personality in every career.
-- ROADMAP and FEATURES name the version that brought each item.
-- Fix: a switched-off inbox topic also swallowed talks, so a rider who asked to leave got no answer; messages that ask for a decision now always arrive.
-- Fix: the Giro was never recognised, because the WorldDB gives it the same class as the Vuelta; its winner got 150,000 € instead of 265,000 €, and the Giro and Vuelta templates held the wrong Grand Tour.
+**The rider and the market**
+- Personalities from the WorldDB (contract loyalty, years as a professional, wins), the same in every career.
+- Contract clauses: signing bonus, win bonus, release clause, guaranteed leader's role; each lowers the wage asked.
+- A comparison table of up to four riders.
+
+**Race day**
+- A road captain whose leadership and race sense decide how well the plan is carried out.
+- The sprint train before the start; a team time trial that can wait for its leader.
+- Leaders' jerseys in the Grand Tour colours in report and live view.
+- Riders cope differently with heat and cold (build, home country); rider page and race preparation show it.
+
+**The manager and the organisation**
+- Reputation from results against the team's strength; an optional job market (Delegation): warning, dismissal, job offers, a change of teams at the turn of the year. The history shows team and reputation of every season.
+- A marketing department: three per cent more from the sponsors per level above three.
+- The next season in the winter: next year's races, courses and squad in the planner; the plan becomes the programme at the turn of the year.
+- Vacation mode in "simulate to", also over the turn of the year; the board stays out of the market.
+- Bookmarks (star in the header, Ctrl+B) and multi-select in squad, rider search and transfer market.
+
+**Calibration and tools**
+- `--from 2021` brings older seasons back with anonymous riders; the form of the day may spread up to 3 %. A four-hour run: control error 7.81 against 8.00, the spread stayed at 1.5 %.
+- `bin/check.dart --switch / --seasons / --job-market`; ROADMAP and FEATURES name the version of each item.
+
+**Fixes**
+- A crash when our best rider of a stage was no longer in the general classification.
+- AI teams renewed riders beyond a full squad (a WorldTeam with 32); promoted teams kept their old squad size; the academy overfilled a full development team.
+- The Giro was taken for the Vuelta (prize 150,000 € instead of 265,000 €, wrong templates).
+- A muted inbox topic swallowed talks; a save during "simulate without stops" kept the staff in charge after loading.
+- A rider promised more races got a full race or a championship; ticked riders stayed ticked after leaving; dropped groups ignored the time limit.
 
 ## 0.4.0 alpha (2026-10-17)
 

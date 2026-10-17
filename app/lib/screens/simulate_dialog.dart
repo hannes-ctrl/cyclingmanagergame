@@ -40,11 +40,20 @@ class _SimulateDialogState extends State<_SimulateDialog> {
   late DateTime _target;
   var _auto = false;
 
+  /// Vacation: the staff take over everything, also over the turn of the
+  /// year.
+  var _vacation = false;
+
+  /// On vacation: the assistant answers the riders' talks instead of
+  /// stopping for them.
+  var _answerTalks = true;
+
   /// Topics of the inbox the run stops for.
   final _stops = <String>{};
 
   DateTime get _first => widget.state.career.today.add(const Duration(days: 1));
-  DateTime get _last => DateTime.utc(widget.state.career.year, 12, 31);
+  DateTime get _last =>
+      DateTime.utc(widget.state.career.year + (_vacation ? 1 : 0), 12, 31);
 
   @override
   void initState() {
@@ -94,6 +103,7 @@ class _SimulateDialogState extends State<_SimulateDialog> {
                   ),
                 ),
                 child: CalendarDatePicker(
+                  key: ValueKey(_vacation),
                   initialDate: _target,
                   firstDate: _first,
                   lastDate: _last,
@@ -102,23 +112,30 @@ class _SimulateDialogState extends State<_SimulateDialog> {
                   ),
                 ),
               ),
+              // Vacation mode.
               InkWell(
-                onTap: () => setState(() => _auto = !_auto),
+                onTap: () => setState(() {
+                  _vacation = !_vacation;
+                  if (_target.isAfter(_last)) _target = _last;
+                }),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Checkbox(
-                      value: _auto,
+                      value: _vacation,
                       activeColor: c.accent,
                       checkColor: c.onAccent,
-                      onChanged: (v) => setState(() => _auto = v ?? false),
+                      onChanged: (v) => setState(() {
+                        _vacation = v ?? false;
+                        if (_target.isAfter(_last)) _target = _last;
+                      }),
                     ),
                     Expanded(
                       child: Padding(
-                        padding: EdgeInsets.only(top: 6),
+                        padding: const EdgeInsets.only(top: 6),
                         child: Text(
                           tr(
-                            'Without stops: until then the sports director picks the line-ups and decides in the race himself.',
+                            'Vacation: the staff take over training, scouting, the season plan, line-ups and the radio, also over the turn of the year. The board does not sign or renew riders for you. A job offer brings you back.',
                           ),
                         ),
                       ),
@@ -126,7 +143,62 @@ class _SimulateDialogState extends State<_SimulateDialog> {
                   ],
                 ),
               ),
-              if (!_auto)
+              if (_vacation)
+                InkWell(
+                  onTap: () => setState(() => _answerTalks = !_answerTalks),
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 32),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Checkbox(
+                          value: _answerTalks,
+                          activeColor: c.accent,
+                          checkColor: c.onAccent,
+                          onChanged: (v) =>
+                              setState(() => _answerTalks = v ?? false),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(
+                              tr(
+                                'The assistant answers the riders: more races for one who asks for them, no for one who wants to leave. Otherwise you come back for every talk.',
+                              ),
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (!_vacation)
+                InkWell(
+                  onTap: () => setState(() => _auto = !_auto),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Checkbox(
+                        value: _auto,
+                        activeColor: c.accent,
+                        checkColor: c.onAccent,
+                        onChanged: (v) => setState(() => _auto = v ?? false),
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.only(top: 6),
+                          child: Text(
+                            tr(
+                              'Without stops: until then the sports director picks the line-ups and decides in the race himself.',
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (!_auto && !_vacation)
                 Padding(
                   padding: EdgeInsets.only(left: 48, top: 2),
                   child: Text(
@@ -185,6 +257,8 @@ class _SimulateDialogState extends State<_SimulateDialog> {
                               _target,
                               auto: _auto,
                               stopTopics: {..._stops},
+                              vacation: _vacation,
+                              answerTalks: _answerTalks,
                             );
                           },
                     child: Text(

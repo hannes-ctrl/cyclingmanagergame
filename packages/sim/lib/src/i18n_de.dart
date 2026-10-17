@@ -1945,27 +1945,76 @@ const german = <String, String>{
   'Guaranteed leader': 'Garantierter Kapitän',
   'Clauses lower the wage he asks: a signing bonus is paid at once, a win bonus with every win, a low release clause lets another team buy him out, a guaranteed leader must not be demoted.':
       'Klauseln senken seine Lohnforderung: Handgeld wird sofort gezahlt, eine Siegprämie bei jedem Sieg, eine niedrige Ausstiegsklausel erlaubt einem anderen Team, ihn herauszukaufen, ein garantierter Kapitän darf nicht zurückgestuft werden.',
-  'You have taken over {0} from {1}. The riders, staff, money and sponsors of the team are yours now; the board sets its goals for the season.': 'Du hast {0} von {1} übernommen. Fahrer, Personal, Geld und Sponsoren des Teams gehören jetzt dir; der Vorstand setzt seine Ziele für die Saison.',
+  'You have taken over {0} from {1}. The riders, staff, money and sponsors of the team are yours now; the board sets its goals for the season.':
+      'Du hast {0} von {1} übernommen. Fahrer, Personal, Geld und Sponsoren des Teams gehören jetzt dir; der Vorstand setzt seine Ziele für die Saison.',
   'World class': 'Weltklasse',
   'Respected': 'Angesehen',
   'Established': 'Etabliert',
   'Promising': 'Vielversprechend',
   'Unknown': 'Unbekannt',
-  'The board has lost its confidence and ends your work at the end of the season. Other teams will offer you a job.': 'Der Vorstand hat das Vertrauen verloren und beendet deine Arbeit zum Saisonende. Andere Teams werden dir einen Job anbieten.',
-  'The board is unhappy with the season and expects a clear improvement next year; another season like this would cost you the job.': 'Der Vorstand ist mit der Saison unzufrieden und erwartet im nächsten Jahr eine deutliche Steigerung; eine weitere solche Saison würde dich den Job kosten.',
+  'The board has lost its confidence and ends your work at the end of the season. Other teams will offer you a job.':
+      'Der Vorstand hat das Vertrauen verloren und beendet deine Arbeit zum Saisonende. Andere Teams werden dir einen Job anbieten.',
+  'The board is unhappy with the season and expects a clear improvement next year; another season like this would cost you the job.':
+      'Der Vorstand ist mit der Saison unzufrieden und erwartet im nächsten Jahr eine deutliche Steigerung; eine weitere solche Saison würde dich den Job kosten.',
   'Your reputation: {0}': 'Dein Ruf: {0}',
-  'Reputation {0} of 100 ({1}{2}): place {3} in the team ranking, where the strength of the team promised place {4}; {5} of {6} goals met. {7}': 'Ruf {0} von 100 ({1}{2}): Platz {3} in der Teamwertung, wo die Stärke des Teams Platz {4} versprach; {5} von {6} Zielen erreicht. {7}',
+  'Reputation {0} of 100 ({1}{2}): place {3} in the team ranking, where the strength of the team promised place {4}; {5} of {6} goals met. {7}':
+      'Ruf {0} von 100 ({1}{2}): Platz {3} in der Teamwertung, wo die Stärke des Teams Platz {4} versprach; {5} von {6} Zielen erreicht. {7}',
   'Job offer from {0}': 'Jobangebot von {0}',
-  '{0} (place {1} by strength) would like you to take over the team from next season. If you accept, you leave {2} at the turn of the year and take over the riders, staff, money and sponsors of {0}.': '{0} (Platz {1} nach Stärke) möchte, dass du das Team ab der nächsten Saison übernimmst. Wenn du annimmst, verlässt du {2} zum Jahreswechsel und übernimmst Fahrer, Personal, Geld und Sponsoren von {0}.',
+  '{0} (place {1} by strength) would like you to take over the team from next season. If you accept, you leave {2} at the turn of the year and take over the riders, staff, money and sponsors of {0}.':
+      '{0} (Platz {1} nach Stärke) möchte, dass du das Team ab der nächsten Saison übernimmst. Wenn du annimmst, verlässt du {2} zum Jahreswechsel und übernimmst Fahrer, Personal, Geld und Sponsoren von {0}.',
   'Accept the offer': 'Angebot annehmen',
   'Decline': 'Ablehnen',
   'The offer is no longer open.': 'Das Angebot gilt nicht mehr.',
-  'You have already accepted the offer of {0}.': 'Du hast bereits das Angebot von {0} angenommen.',
+  'You have already accepted the offer of {0}.':
+      'Du hast bereits das Angebot von {0} angenommen.',
   'Your seasons as a manager': 'Deine Saisons als Manager',
   'Your reputation': 'Dein Ruf',
   '{0} of 100 · {1}': '{0} von 100 · {1}',
   'From next season': 'Ab nächster Saison',
   'Job market': 'Jobmarkt',
-  'You stay with your team whatever happens; your reputation is still kept.': 'Du bleibst bei deinem Team, was auch passiert; dein Ruf wird trotzdem geführt.',
-  'On 1 November the board judges the season: after a bad one it warns you, after a second one it dismisses you at the end of the year. Other teams offer you jobs; an accepted offer takes effect at the turn of the year.': 'Am 1. November beurteilt der Vorstand die Saison: nach einer schlechten verwarnt er dich, nach einer zweiten entlässt er dich zum Jahresende. Andere Teams bieten dir Jobs an; ein angenommenes Angebot gilt ab dem Jahreswechsel.',
+  'You stay with your team whatever happens; your reputation is still kept.':
+      'Du bleibst bei deinem Team, was auch passiert; dein Ruf wird trotzdem geführt.',
+  'On 1 November the board judges the season: after a bad one it warns you, after a second one it dismisses you at the end of the year. Other teams offer you jobs; an accepted offer takes effect at the turn of the year.':
+      'Am 1. November beurteilt der Vorstand die Saison: nach einer schlechten verwarnt er dich, nach einer zweiten entlässt er dich zum Jahresende. Andere Teams bieten dir Jobs an; ein angenommenes Angebot gilt ab dem Jahreswechsel.',
+  'The next season can be planned once the racing is over.':
+      'Die nächste Saison lässt sich planen, sobald die Rennsaison vorbei ist.',
+  '{0} riders are pencilled in already.':
+      'Es sind schon {0} Fahrer eingetragen.',
+  'At most {0} bookmarks; remove one first.':
+      'Höchstens {0} Lesezeichen; entferne zuerst eines.',
+  'Remove bookmark (Ctrl+B)': 'Lesezeichen entfernen (Strg+B)',
+  'Bookmark this page (Ctrl+B)': 'Seite als Lesezeichen (Strg+B)',
+  'Right click removes the bookmark': 'Rechtsklick entfernt das Lesezeichen',
+  'Bookmarks': 'Lesezeichen',
+  'Next season: the squad as it stands with the contracts signed, the races of this year. At the turn of the year this plan becomes the programme for the races the team is invited to; the sports director plans the rest if he is in charge.':
+      'Nächste Saison: der Kader nach den unterschriebenen Verträgen, die Rennen dieses Jahres. Zum Jahreswechsel wird dieser Plan zum Programm für die Rennen, zu denen das Team eingeladen ist; den Rest plant der Sportliche Leiter, wenn er zuständig ist.',
+  'Compare': 'Vergleichen',
+  'Tick riders for an action on all of them':
+      'Fahrer ankreuzen für eine Aktion mit allen',
+  '{0} selected': '{0} ausgewählt',
+  'Select all shown': 'Alle angezeigten wählen',
+  'Pencil in for which race?': 'Für welches Rennen eintragen?',
+  '{0} riders pencilled in for {1}.': '{0} Fahrer für {1} eingetragen.',
+  'Vacation: the staff take over training, scouting, the season plan, line-ups and the radio, also over the turn of the year. The board does not sign or renew riders for you. A job offer brings you back.':
+      'Urlaub: Der Stab übernimmt Training, Scouting, Saisonplan, Aufstellungen und Funk, auch über den Jahreswechsel. Der Vorstand verpflichtet und verlängert keine Fahrer für dich. Ein Jobangebot holt dich zurück.',
+  'The assistant answers the riders: more races for one who asks for them, no for one who wants to leave. Otherwise you come back for every talk.':
+      'Der Assistent antwortet den Fahrern: mehr Rennen für den, der danach fragt, ein Nein für den, der gehen will. Sonst kommst du für jedes Gespräch zurück.',
+  'Pencil in for a race': 'Für ein Rennen eintragen',
+  'Training focus': 'Trainingsschwerpunkt',
+  'Marketing department': 'Marketingabteilung',
+  'Sponsors pay more: three per cent per level above three, on new contracts and offers.':
+      'Sponsoren zahlen mehr: drei Prozent je Stufe über drei, bei neuen Verträgen und Angeboten.',
+  'Heat and cold': 'Hitze und Kälte',
+  'heat {0} · cold {1}': 'Hitze {0} · Kälte {1}',
+  'well': 'gut',
+  'badly': 'schlecht',
+  'normally': 'normal',
+  '{0} °C are forecast; {1} cope badly with the heat.': '{0} °C sind angesagt; {1} kommen mit der Hitze schlecht zurecht.',
+  '{0} °C are forecast; {1} cope badly with the cold.': '{0} °C sind angesagt; {1} kommen mit der Kälte schlecht zurecht.',
+  'Reputation': 'Ruf',
+  'The person in a word, from professionalism, ambition, loyalty, consistency and adaptability. Green is a good sign (such as model professional, professional, loyal), red a warning (such as mercenary, slack, temperamental); most riders are balanced. It comes from what the WorldDB knows of a rider (loyalty to his contracts, years as a professional, wins) and is the same in every career.': 'Der Mensch in einem Wort, aus Professionalität, Ehrgeiz, Loyalität, Beständigkeit und Anpassungsfähigkeit. Grün ist ein gutes Zeichen (etwa Musterprofi, Profi, loyal), Rot eine Warnung (etwa Söldner, nachlässig, launisch); die meisten Fahrer sind ausgeglichen. Sie folgt aus dem, was die WorldDB über einen Fahrer weiß (Vertragstreue, Profijahre, Siege), und ist in jeder Karriere dieselbe.',
+  'How much a rider suffers on a hot or a cold day: a heavy rider sheds heat badly and keeps warm well, a light one the other way round, and riders of hot countries are used to the heat, those of the north to the cold. From 27 °C every degree costs energy, below 6 °C the cold does; the race preparation warns of riders who cope badly.': 'Wie sehr ein Fahrer an einem heißen oder kalten Tag leidet: Ein schwerer Fahrer gibt Wärme schlecht ab und hält sich gut warm, ein leichter umgekehrt, und Fahrer aus heißen Ländern sind die Hitze gewohnt, die aus dem Norden die Kälte. Ab 27 °C kostet jedes Grad Energie, unter 6 °C die Kälte; die Rennvorbereitung warnt vor Fahrern, die schlecht damit zurechtkommen.',
+  'Your standing as a manager, 0 to 100. It rises when your team finishes above what its strength promised and meets its goals, falls otherwise, and drifts towards the level of the team you run. Other teams make offers when your reputation reaches them.': 'Dein Ansehen als Manager, 0 bis 100. Er steigt, wenn dein Team besser abschneidet, als seine Stärke versprach, und seine Ziele erreicht, fällt sonst und nähert sich dem Niveau des Teams, das du führst. Andere Teams machen Angebote, wenn dein Ruf an sie heranreicht.',
+  'Switched on under Delegation (off at the start): on 1 November the board judges the season; after a bad one it warns you, after a second one it dismisses you at the end of the year. Other teams offer you jobs in the inbox; an accepted offer hands you their riders, staff, money and sponsors at the turn of the year.': 'Unter Aufgabenverteilung einschaltbar (zu Beginn aus): Am 1. November beurteilt der Vorstand die Saison; nach einer schlechten verwarnt er dich, nach einer zweiten entlässt er dich zum Jahresende. Andere Teams bieten dir im Postfach Jobs an; ein angenommenes Angebot übergibt dir zum Jahreswechsel ihre Fahrer, ihr Personal, Geld und ihre Sponsoren.',
+  'The sixth facility: every level above three raises what the sponsors pay by three per cent, measured against the level the team started with, on new contracts and offers.': 'Die sechste Einrichtung: Jede Stufe über drei erhöht die Sponsorengelder um drei Prozent, gemessen an der Stufe beim Start, bei neuen Verträgen und Angeboten.',
 };

@@ -23,7 +23,11 @@ enum Facility {
 
   /// The team's own academy: talent for the development team.
   academy('Youth academy',
-      'More and better talents come to the development team, and they develop faster.');
+      'More and better talents come to the development team, and they develop faster.'),
+
+  /// Media, fans, hospitality: what the sponsors get for their money.
+  marketing('Marketing department',
+      'Sponsors pay more: three per cent per level above three, on new contracts and offers.');
 
   const Facility(this._label, this._effect);
   final String _label;
@@ -122,6 +126,14 @@ class Facilities {
   /// Talents the development team takes from each intake.
   int academyIntake(int teamId) =>
       (2 + _step(teamId, Facility.academy)).clamp(1, 4);
+
+  /// Factor on what sponsors pay a team. Sponsor money is measured against
+  /// a team with level 3, so the level a team starts with is already in
+  /// its budget; building up raises the next contracts.
+  ///
+  /// @param teamId Id of a team.
+  /// @returns The factor, 0.94 to 1.06.
+  double marketing(int teamId) => 1 + 0.03 * _step(teamId, Facility.marketing);
 
   /// Factor on the development of the riders of the development team.
   double academyDevelopment(int teamId) =>

@@ -6,6 +6,7 @@ import '../app_state.dart';
 import '../ui.dart';
 import '../widgets.dart';
 import 'rider_dialog.dart';
+import 'selection.dart';
 
 /// The views of the squad table.
 enum _View { attributes, shape, contracts, season }
@@ -31,6 +32,7 @@ class _SquadScreenState extends State<SquadScreen> {
       .firstWhere((_) => true, orElse: () => _View.attributes);
   String? _type;
   var _search = '';
+  final _selection = RiderSelection();
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +42,8 @@ class _SquadScreenState extends State<SquadScreen> {
     final eco = career.economy;
     final year = career.year;
     final squad = state.squad;
+    // Riders who have left the squad are no longer ticked.
+    _selection.ids.retainWhere({for (final r in squad) r.id}.contains);
     final types = {for (final r in squad) riderType(r)}.toList()..sort();
     final rows = [
       for (final r in squad)
@@ -441,13 +445,61 @@ class _SquadScreenState extends State<SquadScreen> {
                   ],
                 ),
                 const SizedBox(height: 10),
+                SelectionBar(
+                  state: state,
+                  selection: _selection,
+                  shown: rows,
+                  changed: () => setState(() {}),
+                  actions: [
+                    TextButton(
+                      onPressed: () =>
+                          programmeSelected(context, state, _selection.ids),
+                      child: Text(tr('Pencil in for a race')),
+                    ),
+                    choiceButton<TrainingFocus>(
+                      tr('Training focus'),
+                      {for (final f in TrainingFocus.values) f: f.label},
+                      (f) {
+                        for (final id in _selection.ids) {
+                          state.setFocus(id, f);
+                        }
+                      },
+                    ),
+                    choiceButton<TrainingLoad>(
+                      tr('Training load'),
+                      {for (final l in TrainingLoad.values) l: l.label},
+                      (l) {
+                        for (final id in _selection.ids) {
+                          if (career.shapeOf(id).load != l) {
+                            state.setLoad(id, l);
+                          }
+                        }
+                      },
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        state.campPreset = _selection.ids.toList();
+                        state.goTo('camps');
+                      },
+                      child: Text(tr('Training camp')),
+                    ),
+                    TextButton(
+                      onPressed: () =>
+                          compareSelected(context, state, _selection.ids),
+                      child: Text(tr('Compare')),
+                    ),
+                  ],
+                ),
                 Expanded(
                   child: DenseTable<SimRider>(
                     // A new key per team and view so that the sort order does not carry over.
                     key: ValueKey('${state.team.id}-$_view'),
                     colors: c,
                     rows: rows,
-                    columns: columns,
+                    columns: [
+                      _selection.column(() => setState(() {})),
+                      ...columns,
+                    ],
                     onTap: (r) => showRiderDialog(context, state, r.id),
                   ),
                 ),

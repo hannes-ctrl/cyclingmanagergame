@@ -54,6 +54,9 @@ class _State {
   /// Mass of rider and bike in kg.
   final double mass;
 
+  /// Factor on his energy use in the heat or cold of the day.
+  double climate = 1;
+
   /// Drag area alone in the wind.
   final double cda;
 
@@ -353,7 +356,8 @@ StageResult simulateStage(
       )
         ..plan = allPlans[r.teamId]!
         ..role = allPlans[r.teamId]!.roleOf(r.id)
-        ..gcGap = gcGaps[r.id],
+        ..gcGap = gcGaps[r.id]
+        ..climate = climateCost(weather.temperatureC, r),
   ];
   final StageResult result;
   if (route.kind != StageKind.road) {
@@ -766,11 +770,6 @@ class _RoadRace {
   /// Decided per five-kilometre block of crosswind: which team splits the
   /// field there, or -1 if nobody does.
   final _echelonBlock = <int, int>{};
-
-  /// Extra energy cost of heat or cold.
-  late final double _climate = 1 +
-      0.02 * max(0.0, weather.temperatureC - 27) +
-      (weather.temperatureC < 6 ? 0.04 : 0);
 
   bool get _wet => weather.rain;
 
@@ -1842,7 +1841,8 @@ class _RoadRace {
       // Gruppetto: nobody here has anything left to win, so the group rides
       // at a pace its weaker riders can hold and saves itself for tomorrow.
       g.gruppetto = true;
-      ref = order[min(n - 1, (n * 0.85).floor())];
+      // The bus rides for its weakest riders, the sprinters it exists for.
+      ref = order[min(n - 1, (n * 0.95).floor())];
       // The closer the bus comes to the time limit, the harder it rides; at
       // the share [SimTuning.gruppettoCutShare] of the limit it rides flat out.
       effort = t.gruppettoEffort +
@@ -1877,7 +1877,9 @@ class _RoadRace {
               (1.0 - t.aimlessEffort) * _cutDanger(g, s, gapToFront)
           : gapToFront < 180 && !inFinale
               ? 0.92
-              : t.droppedEffort;
+              // Far behind, the time limit sets the pace as for the bus.
+              : t.droppedEffort +
+                  (1.0 - t.droppedEffort) * _cutDanger(g, s, gapToFront);
       workers = order.where((m) => !m.role.sheltered).take(6).toSet();
     }
 
@@ -2247,7 +2249,7 @@ class _RoadRace {
     m.energy -= dt /
         3600 *
         t.energyPerHour *
-        _climate *
+        m.climate *
         shaking *
         pow(effort, 2.2) /
         (1 + 0.02 * (a.endurance - 70));
@@ -2798,9 +2800,6 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
         watts, dt, m.ftp, climbOf[i], s.grade > 0 ? s.grade * s.lengthM : 0);
   }
 
-  final climate = 1 +
-      0.02 * max(0.0, weather.temperatureC - 27) +
-      (weather.temperatureC < 6 ? 0.04 : 0);
   // Short time trials are ridden above threshold, long ones just below.
   final pacing = route.raceKm < 8
       ? 1.08
@@ -2845,7 +2844,7 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
     m.energy -= dt /
         3600 *
         t.energyPerHour *
-        climate *
+        m.climate *
         pow(effort, 2.2) /
         (1 + 0.02 * (m.rider.attributes.endurance - 70));
   }

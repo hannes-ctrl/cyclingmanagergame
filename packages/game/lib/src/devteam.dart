@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:sim/sim.dart';
 
 import 'career.dart';
@@ -272,8 +274,11 @@ class DevTeam {
         return p != 0 ? p : Economy.rating(b).compareTo(Economy.rating(a));
       });
     final names = <String>[];
-    // The academy decides how many of the new talents come.
-    for (final r in pool.take(c.facilities.academyIntake(c.teamId))) {
+    // The academy decides how many of the new talents come, as far as
+    // the squad has room.
+    final room = Economy.devSquadMax - c.economy.squadNextSeason(id);
+    for (final r
+        in pool.take(max(0, min(room, c.facilities.academyIntake(c.teamId))))) {
       c.economy.contracts[r.id]!
         ..nextTeam = id
         ..nextWage = 20000

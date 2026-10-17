@@ -52,6 +52,9 @@ class Manager {
   /// The team he ran per season.
   final seasons = <int, int>{};
 
+  /// His reputation at the end of each season.
+  final marks = <int, double>{};
+
   /// Below this projected confidence the board is unhappy.
   static const unhappy = 25.0;
 
@@ -220,6 +223,7 @@ class Manager {
   /// takes the first offer.
   int? closeSeason() {
     seasons[c.year] = c.teamId;
+    marks[c.year] = reputation;
     final to = nextTeam ?? (dismissed ? offers.firstOrNull : null);
     if (to == null || to == c.teamId) return null;
     // A new board, a new start.
@@ -236,6 +240,7 @@ class Manager {
         'offers': offers,
         'next': nextTeam,
         'seasons': {for (final e in seasons.entries) '${e.key}': e.value},
+        'marks': {for (final e in marks.entries) '${e.key}': e.value},
       };
 
   /// @param j A map written by [toJson], or null for a save from before
@@ -255,6 +260,13 @@ class Manager {
       ..addAll({
         for (final e in (j['seasons'] as Map<String, dynamic>).entries)
           int.parse(e.key): e.value as int,
+      });
+    marks
+      ..clear()
+      ..addAll({
+        for (final e
+            in (j['marks'] as Map<String, dynamic>? ?? const {}).entries)
+          int.parse(e.key): (e.value as num).toDouble(),
       });
   }
 }

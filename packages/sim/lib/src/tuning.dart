@@ -66,7 +66,7 @@ class SimTuning {
     TuningParam('gainPerPoint', 0.012, 0.008, 0.016,
         'Gain in power per point of rider value'),
     TuningParam(
-        'dayFormSigma', 0.008, 0.003, 0.015, 'Spread of the form of the day'),
+        'dayFormSigma', 0.008, 0.003, 0.03, 'Spread of the form of the day'),
     TuningParam('energyPerHour', 0.2, 0.08, 0.35,
         'Stamina reserve used per hour at threshold'),
     TuningParam('fatigueLoss', 0.18, 0.05, 0.35,

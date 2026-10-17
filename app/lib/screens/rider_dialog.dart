@@ -998,6 +998,15 @@ class RiderPage extends StatelessWidget {
                           tr('Consistency'),
                           Personality.word(person.consistency),
                         ),
+                        // Build and home decide how he copes with the
+                        // weather; that is known of every rider.
+                        fact(
+                          tr('Heat and cold'),
+                          tr('heat {0} · cold {1}', [
+                            _copes(heatFactor(r)),
+                            _copes(coldFactor(r)),
+                          ]),
+                        ),
                       ],
                       const SizedBox(height: 12),
                       Label(tr('Contract')),
@@ -1284,3 +1293,13 @@ List<Widget> _mentoring(
     ),
   ];
 }
+
+/// How a rider copes with heat or cold, in a word.
+///
+/// @param factor His share of the extra energy, 1 for the average.
+/// @returns The word.
+String _copes(double factor) => factor < 0.85
+    ? tr('well')
+    : factor > 1.15
+    ? tr('badly')
+    : tr('normally');

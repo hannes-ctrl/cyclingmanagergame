@@ -265,7 +265,7 @@ class Economy {
   void found(double yearly) {
     budget = yearly;
     balance = yearly * 0.15;
-    _anchorBudget = yearly;
+    _anchorBudget = yearly / c.facilities.marketing(c.teamId);
     _anchorRank = _strengthRank();
     _initSponsors();
   }
@@ -278,7 +278,7 @@ class Economy {
   void startBudget(double yearly) {
     budget = yearly;
     balance = yearly * 0.1;
-    _anchorBudget = yearly;
+    _anchorBudget = yearly / c.facilities.marketing(c.teamId);
     _initSponsors();
   }
 
@@ -313,6 +313,7 @@ class Economy {
         _anchorBudget *
         weight(ownRank) /
         weight(_anchorRank) *
+        c.facilities.marketing(c.teamId) *
         (0.9 + 0.2 * confidence / 100);
   }
 
@@ -1200,7 +1201,11 @@ class Economy {
             r,
       ];
       kept[team.id] = 0;
+      final target = _target(team);
       for (final r in keep) {
+        // A full squad renews nobody: those signed from outside in an
+        // earlier round already take the places.
+        if (squadNextSeason(team.id) >= target) break;
         if (rng.nextDouble() > 0.45) {
           kept[team.id] = kept[team.id]! + marketWage(r) * 0.8;
           continue;
@@ -1669,8 +1674,9 @@ class Economy {
   /// @param teamId His new team.
   void move(SimRider r, int teamId) => _move(r, teamId);
 
-  /// Fills the squads of the other teams back up to their starting size from
-  /// the free agents (after a newly founded team has taken riders).
+  /// Fills the squads of the other teams back up to their starting size, at
+  /// least the minimum of their licence, from the free agents: after a newly
+  /// founded team has taken riders, and after the licences of a season.
   void refill() => _fillSquads(_freeTeam);
 
   /// @param r The rider to move.

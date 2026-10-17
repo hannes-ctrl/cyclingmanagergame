@@ -243,6 +243,10 @@ class AppState extends ChangeNotifier {
   /// clears it.
   String? jumpToPage;
 
+  /// Riders ticked in the squad for a training camp; the camps page takes
+  /// them as its selection.
+  List<int>? campPreset;
+
   /// Opens a page of the sidebar from anywhere.
   ///
   /// @param target "page" or "page:view", by the names of the sidebar.
@@ -283,6 +287,42 @@ class AppState extends ChangeNotifier {
       }
     }
     return _views![key] as Map<String, dynamic>?;
+  }
+
+  /// Most bookmarks kept.
+  static const maxBookmarks = 12;
+
+  /// Places the player has bookmarked, as maps of `page`, `sub`, `rider`
+  /// and `team`. Like the filters they belong to the player, not to a
+  /// career.
+  List<Map<String, dynamic>> get bookmarks => [
+    for (final b in viewOf('bookmarks')?['list'] as List? ?? const [])
+      (b as Map).cast<String, dynamic>(),
+  ];
+
+  /// @param place A place as in [bookmarks].
+  /// @returns Whether it is bookmarked.
+  bool isBookmarked(Map<String, dynamic> place) =>
+      bookmarks.any((b) => jsonEncode(b) == jsonEncode(place));
+
+  /// Bookmarks a place, or removes its bookmark.
+  ///
+  /// @param place A place as in [bookmarks].
+  /// @returns null on success, otherwise the reason.
+  String? toggleBookmark(Map<String, dynamic> place) {
+    final list = bookmarks;
+    final key = jsonEncode(place);
+    if (list.any((b) => jsonEncode(b) == key)) {
+      list.removeWhere((b) => jsonEncode(b) == key);
+    } else {
+      if (list.length >= maxBookmarks) {
+        return tr('At most {0} bookmarks; remove one first.', [maxBookmarks]);
+      }
+      list.add(place);
+    }
+    rememberView('bookmarks', {'list': list});
+    notifyListeners();
+    return null;
   }
 
   /// Remembers the settings of a screen beyond this session.
@@ -524,14 +564,25 @@ class AppState extends ChangeNotifier {
     DateTime target, {
     bool auto = false,
     Set<String> stopTopics = const {},
+    bool vacation = false,
+    bool answerTalks = false,
   }) async {
     if (busy || career.seasonOver || !target.isAfter(career.today)) return;
     final d = career.delegation;
-    final lineups = d.lineups, radioMode = d.radio;
-    if (auto) {
+    if (auto || vacation) {
+      career.heldDelegation = d.toJson();
       d
         ..lineups = true
         ..radio = RadioMode.off;
+    }
+    if (vacation) {
+      // The staff take over everything they can; the board still stays
+      // out of the transfer market.
+      d
+        ..training = true
+        ..scouting = true
+        ..planning = true;
+      career.ensureProgram();
     }
     busy = true;
     stopRequested = false;
@@ -548,9 +599,15 @@ class AppState extends ChangeNotifier {
     };
     radio = null;
     notifyListeners();
-    while (career.today.isBefore(target) &&
-        !career.seasonOver &&
-        !stopRequested) {
+    while (career.today.isBefore(target) && !stopRequested) {
+      if (career.seasonOver) {
+        // A vacation goes on over the turn of the year.
+        if (!vacation) break;
+        _logDuringRun({'type': 'season'});
+        career.startNextSeason();
+        _syncTeam();
+        career.ensureProgram();
+      }
       if (d.lineups) {
         _applySavedDecisions();
       } else if (career.needsDecision != null) {
@@ -563,22 +620,46 @@ class AppState extends ChangeNotifier {
       _days++;
       _autoSave();
       notifyListeners();
-      // Something the player wanted to be told about has arrived.
-      if (career.inbox
+      final today = career.inbox
           .skip(
             inboxBefore < career.inbox.length
                 ? inboxBefore
                 : career.inbox.length,
           )
-          .any((m) => stopTopics.contains(m.topicKey))) {
+          .toList();
+      // On vacation the assistant answers the riders, or the player comes
+      // back for them; a job offer always waits for him.
+      if (vacation) {
+        final talks = [
+          for (final m in today)
+            if (m.talk case final t? when t.kind != 'job') t,
+        ];
+        if (talks.isNotEmpty && !answerTalks) break;
+        for (final t in talks) {
+          final choice = _assistantAnswer(t);
+          if (career.answerTalk(t.kind, t.riderId, choice) == null) {
+            _logDuringRun({
+              'type': 'talk',
+              'kind': t.kind,
+              'rider': t.riderId,
+              'choice': choice,
+            });
+          }
+        }
+      }
+      // Something the player wanted to be told about has arrived.
+      if (today.any(
+        (m) =>
+            stopTopics.contains(m.topicKey) ||
+            vacation && m.talk?.kind == 'job',
+      )) {
         break;
       }
       await Future<void>.delayed(Duration.zero);
     }
-    if (auto) {
-      d
-        ..lineups = lineups
-        ..radio = radioMode;
+    if (career.heldDelegation case final held?) {
+      d.load(held);
+      career.heldDelegation = null;
     }
     _summarize(from, wins, points, rank, inboxFrom, injured);
     simulatingTo = null;
@@ -589,6 +670,24 @@ class AppState extends ChangeNotifier {
     busy = false;
     notifyListeners();
   }
+
+  /// Notes in the decision log what the staff decided during a run, where
+  /// the player's actions are closed.
+  ///
+  /// @param e The decision.
+  void _logDuringRun(Map<String, dynamic> e) => _log.add({...e, 'day': _days});
+
+  /// What the assistant answers a rider while the player is on vacation:
+  /// a rider who wants more races gets them, one who wants to leave
+  /// stays, since the board does not deal on the market.
+  ///
+  /// @param t The talk.
+  /// @returns Index of the answer.
+  static int _assistantAnswer(Talk t) => switch (t.kind) {
+    'days' => 0,
+    'leave' => t.choices.length - 1,
+    _ => t.choices.length - 1,
+  };
 
   /// Whether the player asked the running days to stop.
   bool stopRequested = false;
@@ -746,8 +845,10 @@ class AppState extends ChangeNotifier {
     final days = career.today.difference(from).inDays;
     if (days < 7) return;
     final team = career.teamId;
-    final newWins = career.economy.wins - wins;
-    final gained = (career.teamPoints[team] ?? 0) - points;
+    // Over the turn of the year the counters started again.
+    final fresh = career.year != from.year;
+    final newWins = career.economy.wins - (fresh ? 0 : wins);
+    final gained = (career.teamPoints[team] ?? 0) - (fresh ? 0 : points);
     final nowRank = career.economy.ownRank;
     final hurt = [
       for (final r in squad)
@@ -2036,6 +2137,32 @@ class AppState extends ChangeNotifier {
     'rider': riderId,
     'on': !(career.program[raceId]?.contains(riderId) ?? false),
   });
+
+  /// Pencils a rider in for a race of the next season, or removes him.
+  ///
+  /// @param raceId Id of the race.
+  /// @param riderId Id of the rider.
+  /// @returns null on success, otherwise the reason.
+  String? toggleNextProgram(int raceId, int riderId) {
+    if (busy) return tr('The days are running right now.');
+    final answer = career.toggleNext(raceId, riderId);
+    _save();
+    notifyListeners();
+    return answer;
+  }
+
+  /// Makes a race of the next season a rider's goal, or takes it back.
+  ///
+  /// @param riderId Id of the rider.
+  /// @param raceId Id of the race.
+  /// @returns null on success, otherwise the reason.
+  String? toggleNextGoal(int riderId, int raceId) {
+    if (busy) return tr('The days are running right now.');
+    final answer = career.toggleNextGoal(riderId, raceId);
+    _save();
+    notifyListeners();
+    return answer;
+  }
 
   /// Race waiting for the player's line-up.
   PendingRace? get pending =>

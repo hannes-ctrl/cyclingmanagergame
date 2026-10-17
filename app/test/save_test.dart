@@ -274,6 +274,56 @@ void customTest() {
   final dataDir = AppState.findDataDir();
   const saveName = 'savegame_test_custom.json';
 
+  test(
+    'Urlaub, Lesezeichen und gehaltene Delegation',
+    skip: dataDir == null,
+    timeout: const Timeout(Duration(minutes: 15)),
+    () async {
+      const name = 'savegame_vacation_test.json';
+      final file = File('$dataDir/$name');
+      if (file.existsSync()) file.deleteSync();
+      addTearDown(() {
+        if (file.existsSync()) file.deleteSync();
+      });
+      final a = AppState(dataDir!, saveName: name)..watchLive = false;
+
+      // A bookmark comes and goes; the list belongs to the player.
+      const place = {'page': 'debug', 'sub': 'test-bookmark'};
+      final had = a.isBookmarked(place);
+      a.toggleBookmark(place);
+      expect(a.isBookmarked(place), !had);
+      a.toggleBookmark(place);
+      expect(a.isBookmarked(place), had);
+
+      // Two weeks of vacation: the staff decide, the player's own
+      // settings come back afterwards.
+      a.delegate('training', false);
+      a.delegate('lineups', false);
+      final start = a.career.today;
+      await a.simulateUntil(
+        start.add(const Duration(days: 14)),
+        vacation: true,
+        answerTalks: true,
+      );
+      expect(a.career.today.isAfter(start), isTrue);
+      expect(a.career.delegation.training, isFalse);
+      expect(a.career.delegation.lineups, isFalse);
+      expect(a.career.heldDelegation, isNull);
+
+      // A save made while the staff were in charge loads with the
+      // player's settings.
+      a.career.heldDelegation = a.career.delegation.toJson();
+      a.career.delegation.training = true;
+      final copy =
+          Career(a.world, teamId: a.career.startTeam, seed: a.career.seed)
+            ..restore(a.career.toJson(), [
+              for (final p in a.career.progress.values) a.career.raceJson(p),
+            ]);
+      expect(copy.delegation.training, isFalse);
+      expect(copy.heldDelegation, isNull);
+    },
+  );
+
   test('Gegründetes Team übersteht das Laden', skip: dataDir == null, () async {
     final file = File('$dataDir/$saveName');
     if (file.existsSync()) file.deleteSync();

@@ -52,6 +52,9 @@ Future<void> main(List<String> argv) async {
   final onlyTypes = ti < 0 ? null : args[ti + 1].split(',').toSet();
   if (ti >= 0) args.removeRange(ti, ti + 2);
   final margin = option('--margin', 0.1);
+  // --from 2021: earlier seasons too, with anonymous riders for the
+  // finishers the database does not know.
+  final from = option('--from', firstSeason.toDouble()).round();
   const year = 2026;
   final root = Platform.script.resolve('../../../data/').toFilePath();
   final tuningFile = File('${root}calibration/tuning.json');
@@ -62,9 +65,10 @@ Future<void> main(List<String> argv) async {
   // All seasons with stored results from [firstSeason] on.
   final exclude = loadExclusions('${root}calibration/exclude.txt');
   final parts = [
-    for (var y = firstSeason; y <= year; y++)
+    for (var y = from; y <= year; y++)
       if (Directory('${root}results/$y').existsSync())
-        loadDataset(world, '${root}results/$y', y, exclude: exclude),
+        loadDataset(world, '${root}results/$y', y,
+            exclude: exclude, fill: y < firstSeason),
   ];
   final data = Dataset(
     [for (final p in parts) ...p.cases],

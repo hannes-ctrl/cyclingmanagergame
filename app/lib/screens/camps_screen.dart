@@ -35,6 +35,13 @@ class _CampsScreenState extends State<CampsScreen> {
     final career = s.career;
     final start = career.today.add(Duration(days: _offset));
     final end = start.add(Duration(days: _days - 1));
+    // Riders ticked in the squad for a camp.
+    if (s.campPreset case final preset?) {
+      s.campPreset = null;
+      _selected
+        ..clear()
+        ..addAll(preset.take(Camps.maxRiders));
+    }
     final cost = _type.costPerDay * _days * _selected.length;
     final squad = s.squad;
 

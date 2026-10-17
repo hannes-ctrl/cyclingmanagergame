@@ -466,11 +466,15 @@ class People {
       case ('leave', _):
         move(r.id, -0.5, tr('Not allowed to leave'));
       case ('days', 0):
-        // The next race he suits and is not planned for is his.
+        // The next race with a free place that he is not planned for, no
+        // championship, is his.
         final next = c.ownRaces
             .where((x) =>
                 x.start.isAfter(c.today.add(const Duration(days: 7))) &&
-                !(c.program[x.info.id]?.contains(r.id) ?? false))
+                x.tier != RaceTier.championship &&
+                !(c.program[x.info.id]?.contains(r.id) ?? false) &&
+                (c.program[x.info.id]?.length ?? 0) <
+                    c.world.raceField(x.info.id).ridersPerTeam)
             .firstOrNull;
         if (next != null) {
           c.program.putIfAbsent(next.info.id, () => {}).add(r.id);
@@ -676,6 +680,7 @@ class People {
     final squad = [...?c.squads[r.teamId]]
       ..sort((a, b) => Economy.rating(b).compareTo(Economy.rating(a)));
     final rank = squad.indexWhere((x) => x.id == riderId);
+    if (rank < 0) return TeamRole.helper;
     final age = c.year - r.born ~/ 10000;
     if (rank < 2 && Economy.rating(r) >= 80) return TeamRole.star;
     if (rank < 6) return TeamRole.leader;

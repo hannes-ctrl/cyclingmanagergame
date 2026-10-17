@@ -509,4 +509,62 @@ void main() {
       expect(copy.toJson().toString(), saved.toString());
     },
   );
+
+  test(
+    'Winterplan für die nächste Saison und Marketing',
+    skip: dataDir == null,
+    timeout: const Timeout(Duration(minutes: 10)),
+    () {
+      I18n.lang = Lang.de;
+      final world = World('$dataDir/world.sqlite');
+      addTearDown(world.close);
+      final team = world.teams().firstWhere((t) => t.abbr == 'RBH').id;
+      final c = Career(world, teamId: team, seed: 4);
+
+      // Marketing: three per cent per level above three on what sponsors
+      // pay.
+      c.facilities.levels[team]![Facility.marketing] = 5;
+      expect(c.facilities.marketing(team), closeTo(1.06, 1e-9));
+      c.facilities.levels[team]![Facility.marketing] = 3;
+      expect(c.facilities.marketing(team), 1);
+
+      // The next season can only be planned in the winter.
+      final tourNow = c.ownRaces.firstWhere(
+        (r) => r.info.name.startsWith('Tour de France'),
+      );
+      expect(c.canPlanNext, isFalse);
+      expect(
+        c.toggleNext(tourNow.info.id, c.squads[team]!.first.id),
+        isNotNull,
+      );
+      c.racingOver = true;
+      expect(c.canPlanNext, isTrue);
+      final next = c.nextOwnRaces;
+      expect(next, isNotEmpty);
+      expect(next.every((r) => r.start.year == c.year + 1), isTrue);
+      final tour = next.firstWhere((r) => r.info.id == tourNow.info.id);
+      // The Tour of next year rides its next course already.
+      expect(
+        tour.stages.map((s) => s.id).join(','),
+        isNot(tourNow.stages.map((s) => s.id).join(',')),
+      );
+      final rider = c.nextSquad.first;
+      expect(c.toggleNextGoal(rider.id, tour.info.id), isNull);
+      expect(c.nextProgram[tour.info.id], contains(rider.id));
+
+      // At the turn of the year the winter plan becomes the programme, on
+      // the course announced in the winter.
+      c.today = DateTime.utc(c.year + 1, 1, 1);
+      c.startNextSeason();
+      final now = c.calendar.firstWhere((r) => r.info.id == tour.info.id);
+      expect(
+        now.stages.map((s) => s.id).join(','),
+        tour.stages.map((s) => s.id).join(','),
+      );
+      expect(c.program[tour.info.id], contains(rider.id));
+      expect(c.people.goals[rider.id], contains(tour.info.id));
+      expect(c.nextProgram, isEmpty);
+      expect(c.nextGoals, isEmpty);
+    },
+  );
 }

@@ -4,7 +4,7 @@
 
 The game runs on the community **WorldDB** for Pro Cycling Manager, so riders, teams, races and stage profiles are the real ones.
 
-> **Status:** version 0.4.0 alpha. A private hobby project, playable end to end, not balanced. English and German. Nothing in this repository is affiliated with Cyanide, Nacon, Sports Interactive or the UCI.
+> **Status:** version 0.5.0 alpha. A private hobby project, playable end to end, not balanced. English and German. Nothing in this repository is affiliated with Cyanide, Nacon, Sports Interactive or the UCI.
 
 ## Highlights
 
@@ -14,7 +14,7 @@ The game runs on the community **WorldDB** for Pro Cycling Manager, so riders, t
 - **Riders as people:** a personality from what the WorldDB knows of each rider, morale, standing in the team, season goals, promises, mentoring and talks.
 - **A world that moves on:** contracts with clauses and competing offers, a yearly intake, promotions from development teams, licences on a three-year ranking, books for every team, sponsors with wishes, real bike and tyre suppliers, staff and facilities.
 - **A manager's career:** a reputation, a board that can dismiss you, job offers from other teams (optional), and a history of your seasons.
-- **Comfort:** back and forward like a browser, keyboard control, filters that survive a restart, CSV export, a help with a glossary, colour vision settings, autosaves and a one-click bug report.
+- **Comfort:** back and forward like a browser, keyboard control, bookmarks, multi-select, a vacation mode, the next season planned in the winter, filters that survive a restart, CSV export, a help with a glossary, colour vision settings, autosaves and a one-click bug report.
 
 All features in detail, with how the simulation and the calibration work: **[FEATURES.md](FEATURES.md)**. Plans: [ROADMAP.md](ROADMAP.md). Changes: [CHANGELOG.md](CHANGELOG.md). Concept: [docs/concept.html](docs/concept.html).
 

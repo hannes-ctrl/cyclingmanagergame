@@ -114,6 +114,28 @@ class Delegation {
   /// The job market for the manager: the board may dismiss him and other
   /// teams offer him jobs. Off, he stays with his team whatever happens.
   bool jobMarket = false;
+
+  /// @returns The settings as a JSON-encodable map.
+  Map<String, dynamic> toJson() => {
+        'planning': planning,
+        'lineups': lineups,
+        'radio': radio.name,
+        'training': training,
+        'scouting': scouting,
+        'facilities': facilities,
+        'jobMarket': jobMarket,
+      };
+
+  /// @param j A map written by [toJson].
+  void load(Map<String, dynamic> j) {
+    lineups = j['lineups'] as bool;
+    radio = RadioMode.values.byName(j['radio'] as String);
+    training = j['training'] as bool;
+    scouting = j['scouting'] as bool;
+    planning = j['planning'] as bool? ?? true;
+    facilities = j['facilities'] as bool? ?? false;
+    jobMarket = j['jobMarket'] as bool? ?? false;
+  }
 }
 
 /// Training focus: these attributes develop faster, the others more slowly.
@@ -354,7 +376,7 @@ class Career {
   /// @returns The host with its courses, or null for every other race and
   ///   for the first season.
   ({String country, int road, String roadName, int trial, String trialName})?
-      _venueOf(RaceInfo info) {
+      _venueOf(RaceInfo info, int year) {
     final world_ = info.raceClass.startsWith('WorldChampionship');
     final europe = info.raceClass.startsWith('EuropeanChampionship');
     if (!world_ && !europe || year == _firstYear) return null;
@@ -377,8 +399,9 @@ class Career {
   ///
   /// @param info The race.
   /// @param now Its stages as the database has them.
-  /// @returns The stages with this year's routes.
-  List<StageInfo> _routesOf(RaceInfo info, List<StageInfo> now) {
+  /// @param year The season.
+  /// @returns The stages with that year's routes.
+  List<StageInfo> _routesOf(RaceInfo info, List<StageInfo> now, int year) {
     if (year == _firstYear) return now;
     final years = world.routeYears(info.id);
     final options = [
@@ -400,7 +423,20 @@ class Career {
 
   /// Builds the calendar of the current year from the world database.
   void _buildCalendar() {
-    calendar.clear();
+    calendar
+      ..clear()
+      ..addAll(_calendarOf(year));
+    _nextCalendar = null;
+  }
+
+  /// The calendar of a season, with its routes and championship venues.
+  /// It depends on the season and the seed only, so the calendar of the
+  /// next season can be known in the winter before it.
+  ///
+  /// @param year The season.
+  /// @returns Its races, by start.
+  List<RaceEntry> _calendarOf(int year) {
+    final calendar = <RaceEntry>[];
     for (var info in world.races()) {
       final tier = RaceTier.of(info.raceClass);
       var stages =
@@ -408,7 +444,7 @@ class Career {
       if (stages.isEmpty) continue;
       // World and European championships move to another country every
       // year; in the first season they are where the database has them.
-      if (_venueOf(info) case final v?) {
+      if (_venueOf(info, year) case final v?) {
         final trial = info.raceClass.endsWith('ITT');
         final s = stages.first;
         stages = [
@@ -418,13 +454,121 @@ class Career {
         info = RaceInfo(info.id, info.name, info.abbr, info.raceClass,
             v.country, info.stages, info.startMonth, info.startDay);
       } else {
-        stages = _routesOf(info, stages);
+        stages = _routesOf(info, stages, year);
       }
       final days = [for (final s in stages) DateTime.utc(year, s.month, s.day)]
         ..sort();
       calendar.add(RaceEntry(info, stages, tier, days.first, days.last));
     }
-    calendar.sort((a, b) => a.start.compareTo(b.start));
+    return calendar..sort((a, b) => a.start.compareTo(b.start));
+  }
+
+  /// The calendar of the next season.
+  List<RaceEntry> get nextCalendar => _nextCalendar ??= _calendarOf(year + 1);
+  List<RaceEntry>? _nextCalendar;
+
+  // --- The next season, planned in the winter --------------------------------
+
+  /// Whether the next season can be planned: once the racing is over.
+  bool get canPlanNext => racingOver && !seasonOver;
+
+  /// The races of the next season the team plans for: those it rides this
+  /// year, championships aside. Invitations are only certain at the turn of
+  /// the year; a race the team is not invited to then drops out of the plan.
+  List<RaceEntry> get nextOwnRaces {
+    final own = {for (final r in ownRaces) r.info.id};
+    return [
+      for (final r in nextCalendar)
+        if (own.contains(r.info.id) && r.tier != RaceTier.championship) r,
+    ];
+  }
+
+  /// The squad of the next season as things stand: riders under contract
+  /// beyond this season, and those who have signed for next season.
+  List<SimRider> get nextSquad => [
+        for (final r in riderById.values)
+          if (economy.contracts[r.id] case final k?)
+            if (k.nextTeam == teamId ||
+                k.nextTeam == null && r.teamId == teamId && k.endYear > year)
+              r,
+      ];
+
+  /// The player's plan for the next season: per race id the riders
+  /// pencilled in. It becomes the programme at the turn of the year; the
+  /// sports director, if in charge, plans the rest.
+  final nextProgram = <int, Set<int>>{};
+
+  /// Season goals for the next season, by rider id.
+  final nextGoals = <int, Set<int>>{};
+
+  /// Pencils a rider in for a race of the next season, or removes him.
+  ///
+  /// @param raceId Id of the race.
+  /// @param riderId Id of the rider.
+  /// @returns null on success, otherwise the reason.
+  String? toggleNext(int raceId, int riderId) {
+    if (!canPlanNext) {
+      return tr('The next season can be planned once the racing is over.');
+    }
+    final set = nextProgram.putIfAbsent(raceId, () => {});
+    if (!set.remove(riderId)) {
+      final race = nextCalendar.where((r) => r.info.id == raceId).firstOrNull;
+      final places = race == null ? 8 : world.raceField(raceId).ridersPerTeam;
+      if (set.length >= places + 2) {
+        return tr('{0} riders are pencilled in already.', [set.length]);
+      }
+      set.add(riderId);
+    } else {
+      nextGoals[riderId]?.remove(raceId);
+    }
+    if (set.isEmpty) nextProgram.remove(raceId);
+    return null;
+  }
+
+  /// Makes a race of the next season one of a rider's goals, or takes the
+  /// goal back; a goal pencils him in.
+  ///
+  /// @param riderId Id of the rider.
+  /// @param raceId Id of the race.
+  /// @returns null on success, otherwise the reason.
+  String? toggleNextGoal(int riderId, int raceId) {
+    if (!canPlanNext) {
+      return tr('The next season can be planned once the racing is over.');
+    }
+    final mine = nextGoals.putIfAbsent(riderId, () => {});
+    if (mine.remove(raceId)) {
+      if (mine.isEmpty) nextGoals.remove(riderId);
+      return null;
+    }
+    if (mine.length >= People.maxGoals) {
+      return tr(
+          'A rider can have at most {0} season goals.', [People.maxGoals]);
+    }
+    mine.add(raceId);
+    nextProgram.putIfAbsent(raceId, () => {}).add(riderId);
+    return null;
+  }
+
+  /// At the turn of the year: the plan made in the winter becomes the
+  /// programme, for the riders who are in the squad and the races the team
+  /// is invited to.
+  void _applyNextPlan() {
+    final squad = {for (final r in squads[teamId] ?? const <SimRider>[]) r.id};
+    final own = {for (final r in ownRaces) r.info.id};
+    for (final e in nextProgram.entries) {
+      if (!own.contains(e.key)) continue;
+      final riders = e.value.where(squad.contains).toSet();
+      if (riders.isNotEmpty) program[e.key] = riders;
+    }
+    for (final e in nextGoals.entries) {
+      if (!squad.contains(e.key)) continue;
+      final goals = e.value.where(own.contains).toSet();
+      if (goals.isEmpty) continue;
+      people.goals[e.key] = goals;
+      people.ownGoals.add(e.key);
+    }
+    nextProgram.clear();
+    nextGoals.clear();
   }
 
   /// Team founded by the player, which does not exist in the WorldDB.
@@ -1333,6 +1477,10 @@ class Career {
     return answer;
   }
 
+  /// What the player had delegated before the staff took over for a run
+  /// (vacation, or simulating without stops); null outside such a run.
+  Map<String, dynamic>? heldDelegation;
+
   /// The shortlist: riders the player keeps an eye on. He gets a message
   /// when one of them becomes available or signs somewhere.
   final watch = <int>{};
@@ -2163,6 +2311,9 @@ class Career {
     economy.closeSeason();
     equipment.closeSeason();
     licences.closeSeason();
+    // Teams that moved up now need the squad of their new licence: they
+    // fill it from the riders without a team.
+    economy.refill();
     history.add((
       year: year,
       points: teamPoints[teamId] ?? 0,
@@ -2213,6 +2364,7 @@ class Career {
     economy.openSeason();
     manager.openSeason();
     people.pairOthers();
+    _applyNextPlan();
     inbox.add(Message(
       today,
       tr('Board'),
@@ -2243,6 +2395,8 @@ class Career {
     devTeam.teamId = devTeam.links[to];
     lineupTemplates.clear();
     lastLineups.clear();
+    nextProgram.clear();
+    nextGoals.clear();
     ownStyle = null;
     inbox.add(Message(
       today,
@@ -2671,9 +2825,12 @@ class Career {
             : tr('{0} wins for us.', [best.name])
         : tr('Winner: {0} ({1}). Our best: {2} in place {3}.',
             [winner.name, winner.team, best.name, own + 1]);
-    if (race.isStageRace) {
-      final gc = p.run.standings.last.general;
-      final place = gc.indexWhere((e) => e.rider.teamId == teamId);
+    // Our rider of the stage may no longer be in the general
+    // classification, for example outside the time limit.
+    final gc =
+        race.isStageRace ? p.run.standings.last.general : const <TimeEntry>[];
+    final place = gc.indexWhere((e) => e.rider.teamId == teamId);
+    if (race.isStageRace && place >= 0) {
       body += p.finished
           ? tr(' {0} wins {1}, {2} finishes {3}.', [
               gc.first.rider.name,
@@ -2808,6 +2965,23 @@ class Career {
       out.add(tr(
           'No sprinter, although {0} stages are likely to end in a bunch sprint.',
           [sprints]));
+    }
+    // A hot or a cold day: riders who cope badly with it.
+    final forecast = forecastOf(race);
+    if (forecast != null &&
+        (forecast.temperatureC > 28 || forecast.temperatureC < 6)) {
+      final hot = forecast.temperatureC > 28;
+      final poor = [
+        for (final r in lineup)
+          if ((hot ? heatFactor(r) : coldFactor(r)) > 1.15) r.name,
+      ];
+      if (poor.isNotEmpty) {
+        out.add(tr(
+            hot
+                ? '{0} °C are forecast; {1} cope badly with the heat.'
+                : '{0} °C are forecast; {1} cope badly with the cold.',
+            [forecast.temperatureC.round(), poor.join(', ')]));
+      }
     }
     for (final r in lineup) {
       final s = shapeOf(r.id);
@@ -3021,6 +3195,8 @@ class Career {
       'ownPlans': ints<TeamPlan>(ownPlans, (p) => p.toJson()),
       'ownWishes': ints<PlanWish>(ownWishes, (w) => w.toJson()),
       'program': ints<Set<int>>(program, (s) => s.toList()),
+      'nextProgram': ints<Set<int>>(nextProgram, (s) => s.toList()),
+      'nextGoals': ints<Set<int>>(nextGoals, (s) => s.toList()),
       'teamPrograms': ints<Map<int, Set<int>>>(
           teamPrograms, (m) => ints<Set<int>>(m, (s) => s.toList())),
       'people': people.toJson(),
@@ -3048,15 +3224,8 @@ class Career {
       'strength': ints(_strength),
       'radio': ints<Map<RadioKind, int>>(
           _radio, (m) => {for (final e in m.entries) e.key.name: e.value}),
-      'delegation': {
-        'planning': delegation.planning,
-        'lineups': delegation.lineups,
-        'radio': delegation.radio.name,
-        'training': delegation.training,
-        'scouting': delegation.scouting,
-        'facilities': delegation.facilities,
-        'jobMarket': delegation.jobMarket,
-      },
+      'delegation': delegation.toJson(),
+      if (heldDelegation case final held?) 'heldDelegation': held,
       'titles': [
         for (final t in titles) [t.year, t.race, t.riderId],
       ],
@@ -3203,6 +3372,18 @@ class Career {
     program
       ..clear()
       ..addAll(ints('program', (v) => (v as List).cast<int>().toSet()));
+    // Saves from before the winter plan have none.
+    for (final (key, plan) in [
+      ('nextProgram', nextProgram),
+      ('nextGoals', nextGoals)
+    ]) {
+      plan
+        ..clear()
+        ..addAll({
+          for (final e in (j[key] as Map<String, dynamic>? ?? const {}).entries)
+            int.parse(e.key): (e.value as List).cast<int>().toSet(),
+        });
+    }
     teamPrograms.clear();
     if (j['teamPrograms'] case final Map<String, dynamic> saved) {
       for (final e in saved.entries) {
@@ -3256,15 +3437,13 @@ class Career {
                 for (final e in (v as Map<String, dynamic>).entries)
                   RadioKind.values.byName(e.key): e.value as int,
               }));
-    final dj = j['delegation'] as Map<String, dynamic>;
-    delegation
-      ..lineups = dj['lineups'] as bool
-      ..radio = RadioMode.values.byName(dj['radio'] as String)
-      ..training = dj['training'] as bool
-      ..scouting = dj['scouting'] as bool
-      ..planning = dj['planning'] as bool? ?? true
-      ..facilities = dj['facilities'] as bool? ?? false
-      ..jobMarket = dj['jobMarket'] as bool? ?? false;
+    delegation.load(j['delegation'] as Map<String, dynamic>);
+    // A save made while the staff were in charge for a while: the run
+    // ended with the load, so the player's own settings apply again.
+    if (j['heldDelegation'] case final Map<String, dynamic> held) {
+      delegation.load(held);
+    }
+    heldDelegation = null;
     titles
       ..clear()
       ..addAll([

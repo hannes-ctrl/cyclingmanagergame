@@ -7,6 +7,7 @@ import '../ui.dart';
 import '../widgets.dart';
 import 'presets.dart';
 import 'rider_dialog.dart';
+import 'selection.dart';
 
 /// Attributes a minimum can be asked for: name (the key of the
 /// translation), code (the key of the scouting ranges) and value.
@@ -65,6 +66,7 @@ class SearchScreen extends StatefulWidget {
 /// State of the search: all filters.
 class _SearchScreenState extends State<SearchScreen> {
   var _text = '';
+  final _selection = RiderSelection();
   int? _team;
   String? _country;
   final _level = <String>{};
@@ -545,13 +547,35 @@ class _SearchScreenState extends State<SearchScreen> {
                     ],
                   ),
                   const SizedBox(height: 6),
+                  SelectionBar(
+                    state: s,
+                    selection: _selection,
+                    shown: rows,
+                    changed: () => setState(() {}),
+                    actions: [
+                      TextButton(
+                        onPressed: () => setState(
+                          () => shortlistSelected(s, _selection.ids),
+                        ),
+                        child: Text(tr('Shortlist')),
+                      ),
+                      TextButton(
+                        onPressed: () =>
+                            compareSelected(context, s, _selection.ids),
+                        child: Text(tr('Compare')),
+                      ),
+                    ],
+                  ),
                   Expanded(
                     child: DenseTable<SimRider>(
                       colors: c,
                       rows: rows,
                       highlight: (r) => r.teamId == s.team.id,
                       onTap: (r) => showRiderDialog(context, s, r.id),
-                      columns: ColumnPicker.visible(s, 'search', columns),
+                      columns: [
+                        _selection.column(() => setState(() {})),
+                        ...ColumnPicker.visible(s, 'search', columns),
+                      ],
                     ),
                   ),
                 ],

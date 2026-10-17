@@ -3,6 +3,109 @@ import 'dart:math';
 import 'i18n.dart';
 import 'model.dart';
 
+/// Countries with hot summers: their riders cope better with heat and
+/// worse with cold.
+const _hot = {
+  'ESP',
+  'ITA',
+  'POR',
+  'FRA',
+  'COL',
+  'ECU',
+  'VEN',
+  'MEX',
+  'ARG',
+  'CHI',
+  'AUS',
+  'RSA',
+  'ERI',
+  'ETH',
+  'RWA',
+  'UAE',
+  'ISR',
+  'KAZ',
+  'GRE',
+  'CRO',
+  'SLO',
+  'BRA',
+  'CRC',
+  'ALG',
+  'MAR',
+  'TUR',
+  'UZB',
+};
+
+/// Countries with cool summers: their riders cope better with cold and
+/// worse with heat.
+const _cool = {
+  'NOR',
+  'DEN',
+  'SWE',
+  'FIN',
+  'NED',
+  'BEL',
+  'GBR',
+  'IRL',
+  'EST',
+  'LAT',
+  'LTU',
+  'CAN',
+  'POL',
+  'GER',
+  'LUX',
+  'CZE',
+  'AUT',
+  'SUI',
+  'NZL',
+  'ISL',
+};
+
+/// The extra energy a rider spends in heat or cold. From 27 °C every degree
+/// costs two per cent, below 6 °C four per cent in all; how much of it a
+/// rider pays depends on his build and where he comes from. A heavy rider
+/// sheds heat badly and keeps warm well, a light one the other way round,
+/// and riders of hot countries are used to the heat, those of the north to
+/// the cold.
+///
+/// @param temperatureC Air temperature.
+/// @param r The rider.
+/// @returns A factor on his energy use, 1 in mild weather.
+double climateCost(double temperatureC, SimRider r) {
+  if (temperatureC > 27) return 1 + 0.02 * (temperatureC - 27) * heatFactor(r);
+  if (temperatureC < 6) return 1 + 0.04 * coldFactor(r);
+  return 1;
+}
+
+/// How much of the extra energy in the heat a rider pays: 1 for the
+/// average, less for a light rider of a hot country.
+///
+/// @param r The rider.
+/// @returns 0.45 to 1.9.
+double heatFactor(SimRider r) {
+  final build = (1 + 0.03 * (r.massKg - 68)).clamp(0.6, 1.6);
+  final home = _hot.contains(r.country)
+      ? 0.75
+      : _cool.contains(r.country)
+          ? 1.2
+          : 1.0;
+  return build * home;
+}
+
+/// How much of the extra energy in the cold a rider pays: 1 for the
+/// average, less for a heavy rider of the north.
+///
+/// @param r The rider.
+/// @returns 0.38 to 1.95.
+double coldFactor(SimRider r) {
+  final build = (1 - 0.02 * (r.massKg - 68)).clamp(0.5, 1.5);
+  final home = _cool.contains(r.country)
+      ? 0.75
+      : _hot.contains(r.country)
+          ? 1.3
+          : 1.0;
+  return build * home;
+}
+
 /// Weather of a race day.
 ///
 /// The stage files carry no compass headings, so the wind is described

@@ -8,6 +8,7 @@ import '../widgets.dart';
 import 'presets.dart';
 import 'scout_button.dart';
 import 'rider_dialog.dart';
+import 'selection.dart';
 
 /// Contracts and transfer market. Riders move at the turn of the year; talks
 /// are possible from 1 August.
@@ -22,6 +23,7 @@ class TransfersScreen extends StatefulWidget {
 /// State of the screen: view, selected rider and the offer being drafted.
 class _TransfersScreenState extends State<TransfersScreen> {
   var _market = false;
+  final _ticked = RiderSelection();
   var _search = '';
   final _types = <String>{};
 
@@ -429,13 +431,41 @@ class _TransfersScreenState extends State<TransfersScreen> {
                   flex: 7,
                   child: Panel(
                     colors: c,
-                    child: DenseTable<SimRider>(
-                      key: ValueKey(_market),
-                      colors: c,
-                      rows: rows,
-                      highlight: (r) => r.id == _selected,
-                      onTap: _select,
-                      columns: ColumnPicker.visible(s, 'market', columns),
+                    child: Column(
+                      children: [
+                        SelectionBar(
+                          state: s,
+                          selection: _ticked,
+                          shown: rows,
+                          changed: () => setState(() {}),
+                          actions: [
+                            TextButton(
+                              onPressed: () => setState(
+                                () => shortlistSelected(s, _ticked.ids),
+                              ),
+                              child: Text(tr('Shortlist')),
+                            ),
+                            TextButton(
+                              onPressed: () =>
+                                  compareSelected(context, s, _ticked.ids),
+                              child: Text(tr('Compare')),
+                            ),
+                          ],
+                        ),
+                        Expanded(
+                          child: DenseTable<SimRider>(
+                            key: ValueKey(_market),
+                            colors: c,
+                            rows: rows,
+                            highlight: (r) => r.id == _selected,
+                            onTap: _select,
+                            columns: [
+                              _ticked.column(() => setState(() {})),
+                              ...ColumnPicker.visible(s, 'market', columns),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

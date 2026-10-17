@@ -786,4 +786,77 @@ void main() {
       matchesGoldenFile('goldens/kader_eigenes_team.png'),
     );
   });
+
+  testWidgets(
+    'Mehrfachauswahl, Lesezeichen, Urlaub und Winterplan',
+    skip: dataDir == null,
+    (tester) async {
+      tester.view.physicalSize = const Size(1600, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final state = AppState(dataDir!, persist: false)..watchLive = false;
+      await tester.pumpWidget(RadmanagerApp(state: state));
+      await tester.pumpAndSettle();
+
+      // Multi-select in the squad: tick one, then all shown, and give all of
+      // them a training focus at once.
+      await tester.tap(find.text('Kader').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(Checkbox).first);
+      await tester.pumpAndSettle();
+      expect(find.text('1 ausgewählt'), findsOneWidget);
+      await tester.tap(find.text('Alle angezeigten wählen'));
+      await tester.pumpAndSettle();
+      expect(find.text('${state.squad.length} ausgewählt'), findsOneWidget);
+      await tester.tap(find.text('Trainingsschwerpunkt'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Zeitfahren').last);
+      await tester.pumpAndSettle();
+      expect(
+        state.squad.every(
+          (r) => state.career.shapeOf(r.id).focus == TrainingFocus.timeTrial,
+        ),
+        isTrue,
+      );
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/mehrfachauswahl.png'),
+      );
+
+      // A bookmark of the squad appears in the sidebar.
+      await tester.tap(find.byTooltip('Seite als Lesezeichen (Strg+B)'));
+      await tester.pumpAndSettle();
+      expect(find.text('LESEZEICHEN'), findsOneWidget);
+      expect(state.bookmarks, hasLength(1));
+
+      // The vacation in the calendar of "simulate to".
+      await tester.tap(find.byTooltip('Bis zu einem Datum simulieren'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.textContaining('Urlaub:'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Der Assistent antwortet'), findsOneWidget);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/urlaub.png'),
+      );
+      await tester.tap(find.text('Abbrechen'));
+      await tester.pumpAndSettle();
+
+      // In the winter the rider matrix shows the next season too.
+      state.career.racingOver = true;
+      await tester.tap(find.text('Rennplaner').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Fahrer-Matrix'));
+      await tester.pumpAndSettle();
+      final next = 'Saison ${state.career.year + 1}';
+      expect(find.text(next), findsOneWidget);
+      await tester.tap(find.text(next));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/winterplan.png'),
+      );
+    },
+  );
 }
