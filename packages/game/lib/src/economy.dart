@@ -3,16 +3,61 @@ import 'dart:math';
 import 'package:sim/sim.dart';
 
 import 'career.dart';
+import 'finances.dart';
 import 'founding.dart';
 import 'licence.dart';
 import 'people.dart';
 import 'prizes.dart';
 import 'points.dart';
 
+/// What a contract of the player's team holds beyond the wage.
+class Clauses {
+  const Clauses(
+      {this.signing = 0,
+      this.winBonus = 0,
+      this.release = 0,
+      this.leader = false});
+
+  /// Signing bonus, paid once when he signs.
+  final int signing;
+
+  /// Bonus for every win, paid with the next monthly statement.
+  final int winBonus;
+
+  /// Sum for which another team may take him away; 0 for none.
+  final int release;
+
+  /// Whether he is guaranteed the standing of a leader.
+  final bool leader;
+
+  /// Whether the contract holds nothing beyond the wage.
+  bool get isEmpty => signing == 0 && winBonus == 0 && release == 0 && !leader;
+
+  static const none = Clauses();
+
+  /// @returns The clauses as a compact list, or null if there are none.
+  List<Object>? toJson() =>
+      isEmpty ? null : [signing, winBonus, release, leader ? 1 : 0];
+
+  /// @param j A list written by [toJson], or null.
+  /// @returns The clauses.
+  static Clauses fromJson(Object? j) => j is List
+      ? Clauses(
+          signing: j[0] as int,
+          winBonus: j[1] as int,
+          release: j[2] as int,
+          leader: j[3] == 1)
+      : none;
+}
+
 /// A rider's contract. Wages in euros per year.
 class Contract {
   Contract(this.wage, this.endYear);
   int wage;
+
+  /// Clauses of the running contract and of the one signed for next season.
+  Clauses clauses = Clauses.none;
+  Clauses nextClauses = Clauses.none;
 
   /// Last year in which the contract is valid.
   int endYear;
@@ -121,10 +166,12 @@ class SponsorWish {
 
 /// The player's offer to a rider of another team, waiting for his answer.
 class PendingOffer {
-  PendingOffer(this.wage, this.years, this.promise, this.until);
+  PendingOffer(this.wage, this.years, this.promise, this.until,
+      [this.clauses = Clauses.none]);
   final int wage;
   final int years;
   final PromiseKind? promise;
+  final Clauses clauses;
 
   /// Day of his answer.
   final DateTime until;
@@ -699,7 +746,8 @@ class Economy {
   /// @param promise What the player promises him for the first season of
   ///   the contract, or null. With a promise he asks a little less.
   /// @returns null if he signs, otherwise the reason for the refusal.
-  String? offer(int riderId, int wage, int years, {PromiseKind? promise}) {
+  String? offer(int riderId, int wage, int years,
+      {PromiseKind? promise, Clauses clauses = Clauses.none}) {
     final r = c.riderById[riderId];
     final k = contracts[riderId];
     if (r == null || k == null) return tr('Rider not found.');
@@ -738,9 +786,10 @@ class Economy {
       return tr(
           'The board does not approve the wage: the wage budget would be exceeded.');
     }
-    final wanted = promise == null
-        ? demand(r)
-        : (demand(r) * (1 - People.promiseDiscount) / 1000).round() * 1000;
+    if (clauses.signing > 0 && available < clauses.signing) {
+      return tr('There is not enough money in the account.');
+    }
+    final wanted = askFor(r, years, promise: promise, clauses: clauses);
     if (wage < wanted) {
       k.refusedUntil = c.today.add(const Duration(days: 14));
       // The agent only names the ballpark.
@@ -752,7 +801,8 @@ class Economy {
       // A rider of another team takes a week and hears what else is on
       // offer before he decides.
       final until = c.today.add(const Duration(days: answerDays));
-      pending[riderId] = PendingOffer(wage, years.clamp(1, 4), promise, until);
+      pending[riderId] =
+          PendingOffer(wage, years.clamp(1, 4), promise, until, clauses);
       final rivals = _rivals(r).take(3).map((x) => x.team.name).toList();
       c.inbox.add(Message(
         c.today,
@@ -776,13 +826,17 @@ class Economy {
       c.teamJoined(c.teamId);
       k
         ..wage = wage
-        ..endYear = c.year + years.clamp(1, 4) - (windowOpen ? 0 : 1);
+        ..endYear = c.year + years.clamp(1, 4) - (windowOpen ? 0 : 1)
+        ..clauses = clauses;
+      if (clauses.leader) c.people.teamRoles[riderId] = TeamRole.leader;
     } else {
       k
         ..nextTeam = c.teamId
         ..nextWage = wage
-        ..nextEnd = c.year + years.clamp(1, 4);
+        ..nextEnd = c.year + years.clamp(1, 4)
+        ..nextClauses = clauses;
     }
+    if (clauses.signing > 0) charge(clauses.signing.toDouble());
     if (promise != null) c.people.promiseSeason(riderId, promise);
     c.inbox.add(Message(
       c.today,
@@ -802,6 +856,31 @@ class Economy {
                     ])}'),
     ));
     return null;
+  }
+
+  /// What a rider asks of the player's team with the clauses on offer: a
+  /// signing bonus spread over the years, a win bonus by the wins he can
+  /// expect, a release clause he likes and a leader's role all lower the
+  /// wage, never below three fifths of what he asks without them.
+  ///
+  /// @param r The rider.
+  /// @param years Term of the contract.
+  /// @param promise A promise for the first season, or null.
+  /// @param clauses The clauses.
+  /// @returns The wage he asks, in euros per year.
+  int askFor(SimRider r, int years,
+      {PromiseKind? promise, Clauses clauses = Clauses.none}) {
+    final base = demand(r);
+    var ask =
+        promise == null ? base.toDouble() : base * (1 - People.promiseDiscount);
+    ask -= clauses.signing / max(1, years) * 0.9;
+    final wins = max(0.0, (rating(r) - 74) * 1.2);
+    ask -= clauses.winBonus * wins * 0.8;
+    if (clauses.release > 0 && clauses.release < 4 * marketWage(r)) {
+      ask *= 0.95;
+    }
+    if (clauses.leader) ask *= 1 - People.promiseDiscount;
+    return (max(ask, base * 0.6) / 1000).round() * 1000;
   }
 
   /// Days a rider of another team takes to answer an offer.
@@ -868,7 +947,10 @@ class Economy {
       final k = contracts[id];
       if (r == null || k == null || !expiring(r) || retiring(r)) continue;
       final rivals = _rivals(r);
-      final mine = appeal(r, c.teamId, o.wage) + (o.promise == null ? 0 : 0.05);
+      final mine =
+          appeal(r, c.teamId, o.wage + o.clauses.signing ~/ max(1, o.years)) +
+              (o.promise == null ? 0 : 0.05) +
+              (o.clauses.leader ? 0.05 : 0);
       final best = rivals.firstOrNull;
       if (best != null && best.appeal > mine) {
         _sign(r, best.team.id, 1 + (r.id + c.year) % 3, wage: best.wage);
@@ -894,10 +976,22 @@ class Economy {
         ));
         continue;
       }
+      if (o.clauses.signing > available) {
+        c.inbox.add(Message(
+          c.today,
+          tr('Agent'),
+          tr('{0} cannot join', [r.name]),
+          tr('{0} would have signed, but there is no longer the money for his signing bonus.',
+              [c.fullName(r.id)]),
+        ));
+        continue;
+      }
       k
         ..nextTeam = c.teamId
         ..nextWage = o.wage
-        ..nextEnd = c.year + o.years;
+        ..nextEnd = c.year + o.years
+        ..nextClauses = o.clauses;
+      if (o.clauses.signing > 0) charge(o.clauses.signing.toDouble());
       if (o.promise != null) c.people.promiseSeason(id, o.promise!);
       c.inbox.add(Message(
         c.today,
@@ -999,6 +1093,11 @@ class Economy {
       List<({RaceProgress race, int stageIndex, StageResult result})> ridden) {
     for (final day in ridden) {
       _prizeMonth += Prizes.kept(day.race, day.result, c.teamId);
+      final winner = day.result.placings.firstOrNull?.rider;
+      if (winner != null && winner.teamId == c.teamId) {
+        final bonus = contracts[winner.id]?.clauses.winBonus ?? 0;
+        if (bonus > 0) charge(bonus.toDouble());
+      }
       final tier = day.race.race.tier;
       final p = day.result.placings;
       if (p.first.rider.teamId == c.teamId) {
@@ -1140,6 +1239,7 @@ class Economy {
         _promoted[team.id] = (_promoted[team.id] ?? 0) + 1;
       }
     }
+    _releaseClauses(bills);
     // Signings: every team with a gap takes up to two riders who suit it.
     final sizes = <int, int>{};
     // Riders of each kind a team has for next season, counting only those
@@ -1241,6 +1341,58 @@ class Economy {
     'timeTrial': 1,
     'cobble': 1,
   };
+
+  /// In a market round the other teams may pay the release clause of a
+  /// rider of the player's team: a team that he suits, with room and the
+  /// money for clause and wage. He moves at the turn of the year; the
+  /// sum goes to the player's account.
+  ///
+  /// @param bills Next season's wage bills by team, updated.
+  void _releaseClauses(Map<int, double> bills) {
+    for (final r in [...?c.squads[c.teamId]]) {
+      final k = contracts[r.id];
+      if (k == null || k.clauses.release <= 0) continue;
+      if (k.endYear <= c.year || k.nextTeam != null) continue;
+      if (unit(r.id * 3 + c.today.month, c.year) >= 0.35) continue;
+      final market = marketWage(r);
+      final buyer = c.teams.values.where((t) {
+        if (t.id == c.teamId || t.division == 'Free') return false;
+        final level = c.teamStrength(t.id);
+        return rating(r) >= level - 2 &&
+            rating(r) <= level + 6 &&
+            squadNextSeason(t.id) < _target(t) &&
+            c.finances.balanceOf(t.id) >= k.clauses.release &&
+            c.finances.wageLimit(t.id) - (bills[t.id] ?? 0) >= market;
+      }).fold<TeamInfo?>(
+          null,
+          (best, t) =>
+              best == null || c.teamStrength(t.id) > c.teamStrength(best.id)
+                  ? t
+                  : best);
+      if (buyer == null) continue;
+      balance += k.clauses.release;
+      c.finances.books[buyer.id]?.balance -= k.clauses.release;
+      k
+        ..nextTeam = buyer.id
+        ..nextWage = market
+        ..nextEnd = c.year + 2
+        ..nextClauses = Clauses.none;
+      bills[buyer.id] = (bills[buyer.id] ?? 0) + market;
+      c.inbox.add(Message(
+        c.today,
+        tr('Agent'),
+        tr('{0} pays the release clause of {1}', [buyer.name, r.name]),
+        tr(
+            '{0} has paid the release clause of {1}: {2} go to our account, and he rides for them from {3}.',
+            [
+              buyer.name,
+              c.fullName(r.id),
+              _euro(k.clauses.release),
+              c.year + 1
+            ]),
+      ));
+    }
+  }
 
   /// How much a rider is worth to a team of a style beyond his rating.
   ///
@@ -1434,14 +1586,11 @@ class Economy {
   /// Assesses the goals and carries out all transfers. Runs before the career
   /// advances the year.
   void closeSeason() {
-    var change = 0.0;
-    final lines = <String>[];
-    for (final g in goals) {
-      final ok = g.achieved();
-      change += g.weight * (ok ? 7 : -9);
-      lines.add('${ok ? tr('Achieved') : tr('Missed')}: ${g.text}');
-    }
-    confidence = (confidence + change).clamp(0.0, 100.0);
+    final lines = [
+      for (final g in goals)
+        '${g.achieved() ? tr('Achieved') : tr('Missed')}: ${g.text}',
+    ];
+    confidence = projectedConfidence();
     final oldBudget = budget;
     _settleSponsors(lines);
 
@@ -1462,12 +1611,16 @@ class Economy {
         k
           ..wage = k.nextWage
           ..endYear = k.nextEnd
+          ..clauses = k.nextTeam == c.teamId ? k.nextClauses : Clauses.none
+          ..nextClauses = Clauses.none
           ..nextTeam = null
           ..refusedUntil = null;
+        if (k.clauses.leader) c.people.teamRoles[r.id] = TeamRole.leader;
       } else if (k.endYear <= c.year) {
         if (r.teamId == c.teamId) left.add(c.fullName(r.id));
         // Without a new contract: retirement for the old, and for those who
         // have already spent a season without a team; otherwise free agent.
+        k.clauses = Clauses.none;
         if (retiring(r) ||
             age >= 38 ||
             age >= 36 && rating(r) < 80 ||
@@ -1739,6 +1892,56 @@ class Economy {
     return signed;
   }
 
+  /// The board's confidence after it has assessed the goals as things
+  /// stand: each goal moves it by seven points per weight when met and by
+  /// nine when missed.
+  ///
+  /// @returns The confidence, 0 to 100.
+  double projectedConfidence() {
+    var change = 0.0;
+    for (final g in goals) {
+      change += g.weight * (g.achieved() ? 7 : -9);
+    }
+    return (confidence + change).clamp(0.0, 100.0).toDouble();
+  }
+
+  /// Takes over the money of another team when the player changes teams:
+  /// its budget, account and prize money of the month, with a new board and
+  /// sponsors named after the parts of its name. Everything the player had
+  /// open with the old team ends.
+  ///
+  /// @param b The books of the new team.
+  void takeOver(TeamBooks b) {
+    budget = b.budget;
+    balance = b.balance;
+    _anchorBudget = b.anchorBudget;
+    _anchorRank = b.anchorRank;
+    _prizeMonth = b.prizeMonth;
+    _charged = 0;
+    confidence = 60;
+    offers.clear();
+    signed.clear();
+    searches.clear();
+    _searched.clear();
+    pending.clear();
+    ledger.clear();
+    _initSponsors();
+  }
+
+  /// Budget the player's sponsor offers are measured against.
+  double get anchorBudget => _anchorBudget;
+
+  /// Place by strength the player's sponsor offers are measured against.
+  int get anchorRank => _anchorRank;
+
+  /// Prize money won since the last monthly statement.
+  double get prizeMonth => _prizeMonth;
+
+  /// Place of the player's team among all teams by strength.
+  ///
+  /// @returns The place, 1 for the strongest.
+  int strengthRank() => _strengthRank();
+
   /// Starts a season: the balance stays, counters and goals start over.
   void openSeason() {
     wins = 0;
@@ -1804,6 +2007,8 @@ class Economy {
               e.value.nextWage,
               e.value.nextEnd,
               _ms(e.value.refusedUntil),
+              e.value.clauses.toJson(),
+              e.value.nextClauses.toJson(),
             ],
         },
         'budget': budget,
@@ -1850,6 +2055,7 @@ class Economy {
               e.value.years,
               e.value.promise?.index,
               e.value.until.millisecondsSinceEpoch,
+              e.value.clauses.toJson(),
             ],
         },
         'autoRenew': autoRenew,
@@ -1872,7 +2078,11 @@ class Economy {
                 ..nextTeam = e.value[2] as int?
                 ..nextWage = e.value[3] as int
                 ..nextEnd = e.value[4] as int
-                ..refusedUntil = _date(e.value[5]),
+                ..refusedUntil = _date(e.value[5])
+                ..clauses = Clauses.fromJson(
+                    (e.value as List).length > 6 ? e.value[6] : null)
+                ..nextClauses = Clauses.fromJson(
+                    (e.value as List).length > 7 ? e.value[7] : null),
       });
     budget = d('budget');
     balance = d('balance');
@@ -1967,6 +2177,7 @@ class Economy {
             e.value[1] as int,
             e.value[2] == null ? null : PromiseKind.values[e.value[2] as int],
             DateTime.fromMillisecondsSinceEpoch(e.value[3] as int, isUtc: true),
+            Clauses.fromJson((e.value as List).length > 4 ? e.value[4] : null),
           ),
       });
     autoRenew = j['autoRenew'] as bool;

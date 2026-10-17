@@ -163,6 +163,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     for (final t in _trophyRows()) {
       trophies[t.$1] = (trophies[t.$1] ?? 0) + 1;
     }
+    // The team the player ran in each season.
+    int teamOf((int, int, double, int, bool) r) =>
+        r.$5 ? career.teamId : career.manager.seasons[r.$1] ?? career.startTeam;
     final rows = <(int, int, double, int, bool)>[
       (
         career.year,
@@ -179,7 +182,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Label(tr('Seasons of {0}', [s.team.name])),
+          Label(
+            career.manager.seasons.values.any((t) => t != career.teamId)
+                ? tr('Your seasons as a manager')
+                : tr('Seasons of {0}', [s.team.name]),
+          ),
           const SizedBox(height: 6),
           Expanded(
             child: DenseTable<(int, int, double, int, bool)>(
@@ -193,6 +200,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   (r, _) =>
                       cellText(r.$5 ? tr('{0} (running)', [r.$1]) : '${r.$1}'),
                   sortKey: (r) => r.$1,
+                ),
+                Col(
+                  tr('Team'),
+                  70,
+                  (r, _) => cellText(career.teams[teamOf(r)]?.abbr ?? ''),
+                  sortKey: (r) => career.teams[teamOf(r)]?.abbr ?? '',
                 ),
                 Col(
                   tr('Place'),

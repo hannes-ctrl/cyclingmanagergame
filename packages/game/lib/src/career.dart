@@ -11,6 +11,7 @@ import 'equipment.dart';
 import 'facilities.dart';
 import 'finances.dart';
 import 'licence.dart';
+import 'manager.dart';
 import 'people.dart';
 import 'planning.dart';
 import 'points.dart';
@@ -109,6 +110,10 @@ class Delegation {
 
   /// The board builds up the facilities when the savings allow it.
   bool facilities = false;
+
+  /// The job market for the manager: the board may dismiss him and other
+  /// teams offer him jobs. Off, he stays with his team whatever happens.
+  bool jobMarket = false;
 }
 
 /// Training focus: these attributes develop faster, the others more slowly.
@@ -302,7 +307,8 @@ class Career {
     this.custom,
     this.customRiders,
     SimTuning? tuning,
-  }) : tuning = tuning ?? SimTuning.standard {
+  })  : startTeam = teamId,
+        tuning = tuning ?? SimTuning.standard {
     // UTC so that daylight saving time does not shift a day.
     today = DateTime.utc(year, 1, 1);
     teams = {
@@ -326,6 +332,7 @@ class Career {
     if (custom == null) economy.startBudget(finances.breakEven(teamId));
     _assignStyles();
     economy.openSeason();
+    manager.openSeason(); // fix the reputation now, not on first access
     people.pairOthers();
     _buildCalendar();
   }
@@ -607,7 +614,12 @@ class Career {
   }
 
   final World world;
-  final int teamId;
+
+  /// The team the player runs; it changes when he accepts a job offer.
+  int teamId;
+
+  /// The team the career was started with, which a save is created for.
+  final int startTeam;
   int year;
   final int seed;
   late final _rng = Rng(seed * 31 + 7);
@@ -617,6 +629,9 @@ class Career {
 
   /// Contracts, finances and transfer market.
   late final economy = Economy(this);
+
+  /// The player as a manager: reputation, the board's verdict, job offers.
+  late final manager = Manager(this);
 
   /// Staff of all teams and scouting.
   late final staff = StaffBook(this);
@@ -821,14 +836,16 @@ class Career {
   var inboxDigest = true;
 
   /// Applies the player's inbox settings to the messages of the day: drops
-  /// those of muted topics and folds many of one topic into a summary.
+  /// those of muted topics and folds many of one topic into a summary. A
+  /// message that asks for a decision always arrives on its own.
   ///
   /// @param from Index of the first message written today.
   void _tidyInbox(int from) {
     if (from >= inbox.length) return;
     final fresh = inbox.sublist(from);
     inbox.removeRange(from, inbox.length);
-    fresh.removeWhere((m) => mutedTopics.contains(m.topicKey));
+    fresh
+        .removeWhere((m) => m.talk == null && mutedTopics.contains(m.topicKey));
     if (!inboxDigest) {
       inbox.addAll(fresh);
       return;
@@ -1309,7 +1326,9 @@ class Career {
             m.talk?.answer == null)
         .firstOrNull;
     if (m == null) return tr('The talk is over.');
-    final answer = people.answer(m.talk!, choice);
+    final answer = kind == 'job'
+        ? manager.answer(riderId, choice)
+        : people.answer(m.talk!, choice);
     if (answer == null) m.talk!.answer = choice;
     return answer;
   }
@@ -1420,10 +1439,16 @@ class Career {
   ///   rest for every stage. Without [plan] and [wish] he decides everything.
   /// @param directorId Sports director to send; without it the best free one.
   void confirm(PendingRace pending, List<SimRider> lineup,
-      {TeamPlan? plan, PlanWish? wish, int? directorId}) {
+      {TeamPlan? plan,
+      PlanWish? wish,
+      int? directorId,
+      int? captainId,
+      bool waitForLeader = false}) {
     final id = pending.race.info.id;
     if (plan != null) ownPlans[id] = plan;
     if (wish != null && !wish.isEmpty) ownWishes[id] = wish;
+    if (captainId != null) captains[id] = captainId;
+    if (waitForLeader) tttWait.add(id);
     _launch(pending, lineup, directorId: directorId);
   }
 
@@ -1459,6 +1484,20 @@ class Career {
   /// @returns The plan as a one-entry map, or an empty map if the sports
   ///   director decides everything.
   Map<int, TeamPlan> _plansFor(int raceId, SimRoute route) {
+    final plans = _ownPlanFor(raceId, route);
+    // In a team time trial the line may wait for the leader.
+    if (route.kind == StageKind.teamTimeTrial && tttWait.contains(raceId)) {
+      final p = progress[raceId];
+      final base = plans[teamId] ??
+          (p == null
+              ? null
+              : autoPlans(route, p.run.riders, gcGaps: p.run.gcGaps)[teamId]);
+      if (base != null) return {teamId: base.copyWith(waitForLeader: true)};
+    }
+    return plans;
+  }
+
+  Map<int, TeamPlan> _ownPlanFor(int raceId, SimRoute route) {
     final plan = ownPlans[raceId];
     if (plan != null) return {teamId: plan};
     final wish = ownWishes[raceId];
@@ -1472,6 +1511,31 @@ class Career {
           if (r.teamId == teamId) r.id,
       }),
     };
+  }
+
+  /// The road captain the player chose per race id.
+  final captains = <int, int>{};
+
+  /// Races whose team time trial waits for the leader.
+  final tttWait = <int>{};
+
+  /// The road captain of a team in a race: the player's choice for his
+  /// team, otherwise the rider best suited.
+  ///
+  /// @param p The race.
+  /// @param team Id of the team.
+  /// @returns The captain, or null for a team without riders in it.
+  SimRider? captainOf(RaceProgress p, int team) {
+    final riders = [
+      for (final r in p.riders)
+        if (r.teamId == team) r,
+    ];
+    if (team == teamId) {
+      final chosen = captains[p.race.info.id];
+      final r = riders.where((x) => x.id == chosen).firstOrNull;
+      if (r != null) return r;
+    }
+    return people.bestCaptain(riders);
   }
 
   /// Finds the next question from one of today's races that the player has
@@ -1744,6 +1808,7 @@ class Career {
     equipment.daily();
     facilities.daily();
     camps.daily();
+    manager.daily();
     entries.daily();
     if (delegation.scouting && today.month >= 6) staff.scoutOnOwn();
     _tidyInbox(day.inboxBefore);
@@ -2103,6 +2168,7 @@ class Career {
       points: teamPoints[teamId] ?? 0,
       rank: rankingPlaces()[teamId] ?? 0,
     ));
+    final newTeam = manager.closeSeason();
     year++;
     today = DateTime.utc(year, 1, 1);
     progress.clear();
@@ -2114,6 +2180,8 @@ class Career {
     combative.clear();
     ownPlans.clear();
     ownWishes.clear();
+    captains.clear();
+    tttWait.clear();
     program.clear();
     teamPrograms.clear();
     _pending.clear();
@@ -2136,12 +2204,14 @@ class Career {
       s.grandTours = 0;
       s.lastGrandTourEnd = null;
     }
+    if (newTeam != null) _switchTeam(newTeam);
     _strength.clear();
     _assignStyles();
     _buildCalendar();
     _ownRaces = null;
     planner.reset();
     economy.openSeason();
+    manager.openSeason();
     people.pairOthers();
     inbox.add(Message(
       today,
@@ -2149,6 +2219,37 @@ class Career {
       tr('Season {0} begins', [year]),
       tr('We finished the {0} season in place {1} of the team ranking with {2} points.',
           [year - 1, history.last.rank, history.last.points.round()]),
+    ));
+  }
+
+  /// Hands the player over to another team at the turn of the year. The
+  /// old team keeps its riders, staff, money, facilities and development
+  /// team and goes on as a team the player does not run; the new one brings
+  /// its own. What belonged to the player's work with the old riders ends:
+  /// promises, roles, talks, scouting jobs, booked camps, offers to riders,
+  /// material choices and the sponsors' offers.
+  ///
+  /// @param to Id of the new team.
+  void _switchTeam(int to) {
+    final from = teamId;
+    final books = finances.handOver(from, to);
+    facilities.handOver(from);
+    teamId = to;
+    economy.takeOver(books);
+    people.handOver();
+    staff.handOver();
+    equipment.handOver();
+    camps.all.removeWhere((k) => !k.closed);
+    devTeam.teamId = devTeam.links[to];
+    lineupTemplates.clear();
+    lastLineups.clear();
+    ownStyle = null;
+    inbox.add(Message(
+      today,
+      tr('Board'),
+      tr('Welcome to {0}', [teams[to]!.name]),
+      tr('You have taken over {0} from {1}. The riders, staff, money and sponsors of the team are yours now; the board sets its goals for the season.',
+          [teams[to]!.name, teams[from]!.name]),
     ));
   }
 
@@ -2462,7 +2563,20 @@ class Career {
       }
       final seat = staff.seat(team, race, sprintStart,
           wanted: team == teamId ? directorId : null);
-      skills[team] = seat.skill;
+      // The road captain carries the plan out on the road: a good one
+      // makes up for some of what the car cannot see.
+      final crew = [
+        for (final r in riders)
+          if (r.teamId == team) r,
+      ];
+      final chosen = team == teamId ? captains[id] : null;
+      final captain = crew.where((r) => r.id == chosen).firstOrNull ??
+          people.bestCaptain(crew);
+      skills[team] = (seat.skill +
+              (captain == null
+                  ? 0
+                  : 0.3 * (people.captainSkill(captain.id) - 0.5)))
+          .clamp(0.0, 1.0);
       motivation[team] = seat.motivation;
       if (team == teamId) ownDirector = seat.staff;
     }
@@ -2863,6 +2977,8 @@ class Career {
         };
     final j = <String, dynamic>{
       'version': 1,
+      'team': teamId,
+      'manager': manager.toJson(),
       'year': year,
       'today': _ms(today),
       'rng': _rng.state,
@@ -2882,6 +2998,8 @@ class Career {
       'riderPoints': ints(riderPoints),
       'retired': retired,
       'lineupTemplates': lineupTemplates,
+      'captains': ints(captains),
+      'tttWait': tttWait.toList(),
       'breakDays': ints(breakDays),
       'combative': ints(combative),
       'templates': [
@@ -2937,6 +3055,7 @@ class Career {
         'training': delegation.training,
         'scouting': delegation.scouting,
         'facilities': delegation.facilities,
+        'jobMarket': delegation.jobMarket,
       },
       'titles': [
         for (final t in titles) [t.year, t.race, t.riderId],
@@ -2957,6 +3076,7 @@ class Career {
       'licences': licences.toJson(),
       'dev': devTeam.teamId,
       'stagiaires': devTeam.stagiaires.toList(),
+      if (devTeam.founded case final t?) 'devParent': devTeam.parentOf(t.id),
       'devFounded': switch (devTeam.founded) {
         final t? => [
             t.id, t.name, t.abbr, t.division, t.country, t.color, t.color2, //
@@ -2990,6 +3110,8 @@ class Career {
     year = j['year'] as int;
     today = _date(j['today'])!;
     _rng.state = j['rng'] as int;
+    teamId = j['team'] as int? ?? teamId;
+    manager.restore(j['manager'] as Map<String, dynamic>?);
     riderById
       ..clear()
       ..addAll({
@@ -3011,6 +3133,16 @@ class Career {
           (year: h[0] as int, points: d(h[1]), rank: h[2] as int),
       ]);
     racingOver = j['racingOver'] as bool? ?? false;
+    captains
+      ..clear()
+      ..addAll({
+        for (final e
+            in (j['captains'] as Map<String, dynamic>? ?? const {}).entries)
+          int.parse(e.key): e.value as int,
+      });
+    tttWait
+      ..clear()
+      ..addAll((j['tttWait'] as List? ?? const []).cast<int>());
     lineupTemplates
       ..clear()
       ..addAll({
@@ -3131,7 +3263,8 @@ class Career {
       ..training = dj['training'] as bool
       ..scouting = dj['scouting'] as bool
       ..planning = dj['planning'] as bool? ?? true
-      ..facilities = dj['facilities'] as bool? ?? false;
+      ..facilities = dj['facilities'] as bool? ?? false
+      ..jobMarket = dj['jobMarket'] as bool? ?? false;
     titles
       ..clear()
       ..addAll([
@@ -3192,7 +3325,7 @@ class Career {
       teams[info.id] = info;
       devTeam
         ..founded = info
-        ..links[teamId] = info.id;
+        ..links[j['devParent'] as int? ?? teamId] = info.id;
     }
     camps.restore(j['camps'] as List<dynamic>);
     entries.load(j['entries'] as Map<String, dynamic>);

@@ -53,3 +53,21 @@ double finalPoints(RaceTier tier, int place) =>
 /// @returns Ranking points for a stage.
 double stagePoints(RaceTier tier, int place) =>
     place < _stageScale.length ? _stageScale[place] * tier.factor : 0;
+
+/// The three Grand Tours.
+enum GrandTour { tour, giro, vuelta }
+
+/// Which Grand Tour a race is. The WorldDB gives the Tour a class of its
+/// own (`CWTGTFrance`) and the Giro and the Vuelta a shared one
+/// (`CWTGTAutres`), so those two are told apart by name.
+///
+/// @param race A race.
+/// @returns The Grand Tour, or null for any other race.
+GrandTour? grandTourOf(RaceInfo race) {
+  if (race.raceClass == 'CWTGTFrance') return GrandTour.tour;
+  if (!race.raceClass.startsWith('CWTGT')) return null;
+  final name = race.name.toLowerCase();
+  if (name.contains('giro')) return GrandTour.giro;
+  if (name.contains('vuelta')) return GrandTour.vuelta;
+  return null;
+}

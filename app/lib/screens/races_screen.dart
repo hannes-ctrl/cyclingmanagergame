@@ -574,6 +574,7 @@ class _ReportState extends State<_Report> {
     final c = s.colors;
     final result = widget.run.result.stages[widget.index];
     final standings = widget.run.result.standings[widget.index];
+    final jerseys = jerseyColors(grandTourOf(widget.run.race));
     final single = widget.run.routes.length == 1;
     final tab = single ? _Tab.stage : _tab;
     bool own(SimRider r) => r.teamId == s.team.id;
@@ -590,6 +591,10 @@ class _ReportState extends State<_Report> {
       route: widget.run.routes[widget.index],
       result: result,
       standings: single ? null : standings,
+      before: single || widget.index == 0
+          ? null
+          : widget.run.result.standings[widget.index - 1],
+      grandTour: grandTourOf(widget.run.race),
       teamId: s.team.id,
       raceName: widget.run.race.name,
       finalStage: widget.index == widget.run.routes.length - 1,
@@ -894,7 +899,13 @@ class _ReportState extends State<_Report> {
                                       width: 10,
                                       height: 10,
                                       decoration: BoxDecoration(
-                                        color: t.jersey,
+                                        color: switch (t) {
+                                          _Tab.general => jerseys.general,
+                                          _Tab.points => jerseys.points,
+                                          _Tab.mountains => jerseys.mountains,
+                                          _Tab.youth => jerseys.youth,
+                                          _ => t.jersey,
+                                        },
                                         shape: BoxShape.circle,
                                         border: Border.all(color: c.line),
                                       ),

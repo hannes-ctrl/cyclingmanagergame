@@ -381,4 +381,132 @@ void main() {
       expect(people.settling(newcomer.id), 1);
     },
   );
+  test(
+    'Klauseln, Straßenkapitän und Grand Tours',
+    skip: dataDir == null,
+    timeout: const Timeout(Duration(minutes: 10)),
+    () {
+      I18n.lang = Lang.de;
+      final world = World('$dataDir/world.sqlite');
+      addTearDown(world.close);
+      final team = world.teams().firstWhere((t) => t.abbr == 'RBH').id;
+      final c = Career(world, teamId: team, seed: 4);
+      final eco = c.economy;
+
+      // The three Grand Tours are told apart, although the WorldDB gives
+      // the Giro and the Vuelta the same class.
+      final giro = c.calendar.firstWhere((r) => r.info.name == "Giro d'Italia");
+      final vuelta = c.calendar.firstWhere(
+        (r) => r.info.name.contains('Vuelta Ciclista a España'),
+      );
+      expect(grandTourOf(giro.info), GrandTour.giro);
+      expect(grandTourOf(vuelta.info), GrandTour.vuelta);
+      expect(Prizes.overallWinner(giro), 265000);
+      expect(jerseyNames(GrandTour.giro).general, 'pink jersey');
+
+      // Clauses lower what a rider asks.
+      final r = c.squads[team]!.firstWhere((x) => Economy.rating(x) >= 76);
+      final plain = eco.askFor(r, 2);
+      final bonus = eco.askFor(
+        r,
+        2,
+        clauses: const Clauses(signing: 200000, winBonus: 10000, leader: true),
+      );
+      expect(bonus, lessThan(plain));
+      expect(
+        eco.askFor(r, 2, clauses: const Clauses(signing: 99000000)),
+        greaterThanOrEqualTo((eco.demand(r) * 0.6).round() - 1000),
+      );
+
+      // A renewal with a signing bonus charges it and keeps the clauses for
+      // the next contract.
+      final own = c.squads[team]!.firstWhere(
+        (x) =>
+            eco.contracts[x.id]!.endYear > c.year &&
+            eco.contracts[x.id]!.nextTeam == null,
+      );
+      eco.balance = 1e8;
+      const clauses = Clauses(signing: 50000, release: 9000000);
+      expect(
+        eco.offer(
+          own.id,
+          eco.askFor(own, 2, clauses: clauses) + 1000,
+          2,
+          clauses: clauses,
+        ),
+        isNull,
+      );
+      expect(eco.contracts[own.id]!.nextClauses.release, 9000000);
+      expect(eco.available, lessThan(1e8));
+
+      // A road captain for every team in a race.
+      final squad = c.squads[team]!;
+      final best = c.people.bestCaptain(squad)!;
+      expect(c.people.captainSkill(best.id), greaterThan(0));
+      for (final x in squad) {
+        expect(
+          c.people.captainSkill(x.id),
+          lessThanOrEqualTo(c.people.captainSkill(best.id)),
+        );
+      }
+    },
+  );
+
+  test(
+    'Managerkarriere: Ruf, Entlassung, Teamwechsel',
+    skip: dataDir == null,
+    timeout: const Timeout(Duration(minutes: 10)),
+    () {
+      I18n.lang = Lang.de;
+      final world = World('$dataDir/world.sqlite');
+      addTearDown(world.close);
+      final team = world.teams().firstWhere((t) => t.abbr == 'RBH').id;
+      final c = Career(world, teamId: team, seed: 4)
+        ..delegation.jobMarket = true;
+      final m = c.manager;
+      final start = m.reputation;
+      expect(start, greaterThan(60)); // a top team's manager is known
+
+      // A season without a point: the board warns, a second one costs the
+      // job, and weaker teams make offers.
+      c.today = DateTime.utc(c.year, 11, 1);
+      m.daily();
+      expect(m.warned, isTrue);
+      expect(m.dismissed, isFalse);
+      expect(m.reputation, lessThan(start));
+      m.daily();
+      expect(m.dismissed, isTrue);
+      expect(m.offers, isNotEmpty);
+      final strength = c.teamStrength(team);
+      for (final id in m.offers) {
+        expect(c.teamStrength(id), lessThanOrEqualTo(strength));
+      }
+      final talks = c.inbox.where((x) => x.talk?.kind == 'job').toList();
+      expect(talks, isNotEmpty);
+      final to = talks.first.talk!.riderId;
+      expect(c.answerTalk('job', to, 0), isNull);
+      expect(m.nextTeam, to);
+
+      // At the turn of the year the player takes over the new team; the
+      // old one keeps books of its own.
+      c.today = DateTime.utc(c.year + 1, 1, 1);
+      c.startNextSeason();
+      expect(c.teamId, to);
+      expect(c.startTeam, team);
+      expect(c.finances.books.containsKey(team), isTrue);
+      expect(c.finances.books.containsKey(to), isFalse);
+      expect(c.economy.sponsors, hasLength(3));
+      expect(c.devTeam.teamId, c.devTeam.links[to]);
+      expect(m.seasons[c.year - 1], team);
+      expect(m.dismissed, isFalse);
+
+      // A save loads into the same state, created for the first team.
+      final saved = c.toJson();
+      final copy = Career(world, teamId: c.startTeam, seed: 4)
+        ..restore(saved, const []);
+      expect(copy.delegation.jobMarket, isTrue);
+      expect(copy.teamId, to);
+      expect(copy.toJson().toString(), saved.toString());
+    },
+  );
 }

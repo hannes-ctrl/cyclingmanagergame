@@ -1,5 +1,7 @@
 import 'package:sim/sim.dart';
 
+import 'points.dart';
+
 /// Race report in the tone of a cycling news site: headline and paragraphs.
 class RaceArticle {
   RaceArticle(this.headline, this.paragraphs);
@@ -27,10 +29,37 @@ String _gap(double seconds) {
 /// @param raceName Name of the race, for the sentence about its winner.
 /// @param finalStage Whether this was the last stage of a stage race.
 /// @returns The article.
+/// The leader's jerseys of a race as the organisers name them: the three
+/// Grand Tours have their own, every other race the yellow one.
+///
+/// @param tour Which Grand Tour the race is, or null.
+/// @returns Translation keys of the general, points and mountains jerseys.
+({String general, String points, String mountains}) jerseyNames(
+        GrandTour? tour) =>
+    switch (tour) {
+      GrandTour.giro => (
+          general: 'pink jersey',
+          points: 'cyclamen jersey',
+          mountains: 'blue jersey',
+        ),
+      GrandTour.vuelta => (
+          general: 'red jersey',
+          points: 'green jersey',
+          mountains: 'polka-dot jersey',
+        ),
+      _ => (
+          general: 'yellow jersey',
+          points: 'green jersey',
+          mountains: 'polka-dot jersey',
+        ),
+    };
+
 RaceArticle writeArticle({
   required SimRoute route,
   required StageResult result,
   Standings? standings,
+  Standings? before,
+  GrandTour? grandTour,
   int? teamId,
   String? raceName,
   bool finalStage = false,
@@ -186,6 +215,21 @@ RaceArticle writeArticle({
             gc[1].rider.name,
             _gap(gc[1].timeS - gc.first.timeS)
           ]));
+    // A jersey that changes hands is the news of the day.
+    final names = jerseyNames(grandTour);
+    void changed(List<dynamic> now, List<dynamic>? then, String jersey) {
+      if (now.isEmpty || then == null || then.isEmpty) return;
+      final a = now.first.rider, b = then.first.rider;
+      if (a.id == b.id) return;
+      close.write(
+          tr('{0} takes the {1} from {2}. ', [a.name, tr(jersey), b.name]));
+    }
+
+    if (!finalStage) {
+      changed(gc, before?.general, names.general);
+      changed(standings.points, before?.points, names.points);
+      changed(standings.mountains, before?.mountains, names.mountains);
+    }
   }
   if (teamId != null) {
     final own = p.indexWhere((x) => x.rider.teamId == teamId);

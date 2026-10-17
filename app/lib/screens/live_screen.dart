@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:game/game.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sim/sim.dart';
 
 import '../app_state.dart';
@@ -58,6 +60,35 @@ class _LiveScreenState extends State<LiveScreen> {
         if (stars.contains(r.id) && !own.containsKey(r.id)) r.id: r.name,
     };
     final winner = result.placings.first.rider;
+    // Who wears the jerseys at the start of the day.
+    final before =
+        stageRace && index > 0 && run.result.standings.length >= index
+        ? run.result.standings[index - 1]
+        : null;
+    final colours = jerseyColors(grandTourOf(widget.race));
+    final names = jerseyNames(grandTourOf(widget.race));
+    final holders = before == null
+        ? const <(Color, String, String)>[]
+        : [
+            if (before.general.isNotEmpty)
+              (
+                colours.general,
+                tr(names.general),
+                before.general.first.rider.name,
+              ),
+            if (before.points.isNotEmpty)
+              (
+                colours.points,
+                tr(names.points),
+                before.points.first.rider.name,
+              ),
+            if (before.mountains.isNotEmpty)
+              (
+                colours.mountains,
+                tr(names.mountains),
+                before.mountains.first.rider.name,
+              ),
+          ];
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Panel(
@@ -111,6 +142,27 @@ class _LiveScreenState extends State<LiveScreen> {
                 ),
               ],
             ),
+            if (holders.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Wrap(
+                  spacing: 16,
+                  children: [
+                    for (final (colour, jersey, name) in holders)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(LucideIcons.shirt, size: 16, color: colour),
+                          const SizedBox(width: 5),
+                          Text(
+                            '$name · $jersey',
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
             const SizedBox(height: 14),
             Expanded(
               child: ListView(

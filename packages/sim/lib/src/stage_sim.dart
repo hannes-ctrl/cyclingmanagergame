@@ -2931,6 +2931,7 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
       final pace = pacing * (1 + 0.01 * _gauss(rng));
       var line = [...members];
       final alone = <_State, double>{};
+      bool waitedFor(_State m) => m.plan.waitForLeader && m.role == Role.leader;
       var clock = 0.0;
       for (var i = 0; i < segments.length; i++) {
         final s = segments[i];
@@ -2951,13 +2952,16 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
           for (var it = 0; it < 30; it++) {
             final v = (lo + hi) / 2;
             var need = 0.0, have = 0.0;
-            var holds = true;
+            var holds = true, waits = false;
             for (final m in line) {
               need += front(m, v) / k + behind(m, v) * (k - 1) / k;
               have += powers[m]!;
-              if (behind(m, v) > powers[m]! * 1.05) holds = false;
+              if (behind(m, v) > powers[m]! * 1.05) {
+                holds = false;
+                if (waitedFor(m)) waits = true;
+              }
             }
-            if (need <= have && (holds || k > needed)) {
+            if (need <= have && !waits && (holds || k > needed)) {
               lo = v;
             } else {
               hi = v;
@@ -2967,9 +2971,11 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
         }
 
         var v = teamSpeed();
-        // Riders who cannot hold the wheel are let go while enough remain.
+        // Riders who cannot hold the wheel are let go while enough remain;
+        // a leader the team waits for stays.
         while (line.length > needed) {
-          final weak = line.where((m) => behind(m, v) > powers[m]! * 1.05);
+          final weak = line
+              .where((m) => !waitedFor(m) && behind(m, v) > powers[m]! * 1.05);
           if (weak.isEmpty) break;
           final m = weak.reduce((a, b) => powers[a]! <= powers[b]! ? a : b);
           line.remove(m);

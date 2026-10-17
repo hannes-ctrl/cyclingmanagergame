@@ -154,6 +154,7 @@ class AppState extends ChangeNotifier {
     );
     if (saved?.state case final state?) {
       career.restore(state, saved!.races);
+      _syncTeam();
       _refreshRadio();
     } else {
       _replayDays = saved?.days ?? 0;
@@ -377,6 +378,22 @@ class AppState extends ChangeNotifier {
 
   /// Rider the open rider page is compared with, or null.
   int? compareWith;
+
+  /// Riders in the comparison table, at most four.
+  final compareList = <int>[];
+
+  /// Puts a rider into the comparison table or takes him out.
+  ///
+  /// @param id Id of the rider.
+  /// @returns false if the table is full.
+  bool toggleCompare(int id) {
+    if (!compareList.remove(id)) {
+      if (compareList.length >= 4) return false;
+      compareList.add(id);
+    }
+    notifyListeners();
+    return true;
+  }
 
   /// Remembers a rider for comparison, or forgets him.
   ///
@@ -861,6 +878,16 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
+  /// After a change of teams: the team and its colours follow the career.
+  void _syncTeam() {
+    if (team.id == career.teamId) return;
+    team = career.teams[career.teamId]!;
+    colors = TeamColors(
+      TeamColors.parse(team.color),
+      TeamColors.parse(team.color2),
+    );
+  }
+
   /// Starts a career on 1 January.
   ///
   /// @param t The player's team.
@@ -1052,9 +1079,11 @@ class AppState extends ChangeNotifier {
           'savedAt': DateTime.now().toIso8601String(),
           'teamName': team.name,
           'gameDate': career.today.toIso8601String(),
-          'teamId': team.id,
+          // The career is created for the team it started with; a change
+          // of teams is part of the snapshot.
+          'teamId': career.startTeam,
           'seed': career.seed,
-          'custom': ?(team.id == _custom?.id
+          'custom': ?(career.startTeam == _custom?.id
               ? {..._teamToJson(_custom!), 'riders': ?_customRiders}
               : null),
         }),
@@ -1392,6 +1421,7 @@ class AppState extends ChangeNotifier {
           promise: e['promise'] == null
               ? null
               : PromiseKind.values[e['promise'] as int],
+          clauses: Clauses.fromJson(e['clauses']),
         );
       case 'offerDev':
         career.economy.offerDev(e['rider'] as int, e['years'] as int);
@@ -1452,6 +1482,8 @@ class AppState extends ChangeNotifier {
             d.scouting = e['value'] as bool;
           case 'facilities':
             d.facilities = e['value'] as bool;
+          case 'jobMarket':
+            d.jobMarket = e['value'] as bool;
           case 'planning':
             d.planning = e['value'] as bool;
             // Taking the job on means planning what is still open.
@@ -1490,6 +1522,7 @@ class AppState extends ChangeNotifier {
         career.devTeam.choose(e['team'] as int?);
       case 'season':
         if (career.seasonOver) career.startNextSeason();
+        _syncTeam();
     }
   }
 
@@ -1610,9 +1643,21 @@ class AppState extends ChangeNotifier {
   /// @param years Contract term.
   /// @param promise What he is promised for the first season, or null.
   /// @returns null if he signs, otherwise the reason for the refusal.
-  String? offer(int riderId, int wage, int years, {PromiseKind? promise}) {
+  String? offer(
+    int riderId,
+    int wage,
+    int years, {
+    PromiseKind? promise,
+    Clauses clauses = Clauses.none,
+  }) {
     if (busy) return tr('The days are running right now.');
-    final answer = career.economy.offer(riderId, wage, years, promise: promise);
+    final answer = career.economy.offer(
+      riderId,
+      wage,
+      years,
+      promise: promise,
+      clauses: clauses,
+    );
     // Log refusals too: they block the rider for two weeks.
     _log.add({
       'type': 'offer',
@@ -1620,6 +1665,7 @@ class AppState extends ChangeNotifier {
       'wage': wage,
       'years': years,
       if (promise != null) 'promise': promise.index,
+      'clauses': ?clauses.toJson(),
       'day': _days,
     });
     _save();
@@ -2015,12 +2061,16 @@ class AppState extends ChangeNotifier {
     TeamPlan? plan,
     PlanWish? wish,
     int? directorId,
+    int? captainId,
+    bool waitForLeader = false,
   }) async {
     _decisions[_raceKey(race.race.info.id)] = {
       'riders': [for (final r in lineup) r.id],
       'plan': ?(plan == null ? null : planToJson(plan)),
       'wish': ?wish?.toJson(),
       'director': ?directorId,
+      'captain': ?captainId,
+      if (waitForLeader) 'wait': true,
     };
     career.confirm(
       race,
@@ -2028,6 +2078,8 @@ class AppState extends ChangeNotifier {
       plan: plan,
       wish: wish,
       directorId: directorId,
+      captainId: captainId,
+      waitForLeader: waitForLeader,
     );
     radio = null;
     _save();
@@ -2061,6 +2113,8 @@ class AppState extends ChangeNotifier {
         plan: plan == null ? null : planFromJson(plan),
         wish: wish == null ? null : PlanWish.fromJson(wish),
         directorId: saved['director'] as int?,
+        captainId: saved['captain'] as int?,
+        waitForLeader: saved['wait'] as bool? ?? false,
       );
     }
   }

@@ -188,6 +188,34 @@ class World {
           _rider(r),
       ];
 
+  /// What the WorldDB tells about the character and career of its riders,
+  /// by rider id: loyalty to his contracts (1 to 5, 0 where the database
+  /// has none), whether his present contract continues one with the same
+  /// team, the year he turned professional (0 unknown) and his wins.
+  ///
+  /// @returns The traits; empty for a database without the raw tables.
+  Map<int, ({int fidelity, bool stayed, int neoPro, int wins})> riderTraits() {
+    final out = <int, ({int fidelity, bool stayed, int neoPro, int wins})>{};
+    try {
+      for (final r in _db.select('''
+          SELECT c.IDcyclist id, c.iContract_fidelity f,
+                 c.value_i_yearneopro neo, c.gene_i_nb_total_victory w,
+                 c.fkIDteam team, k.fkIDprevteam prev
+          FROM raw_DYN_cyclist c
+          LEFT JOIN raw_DYN_contract_cyclist k ON k.fkIDcyclist = c.IDcyclist''')) {
+        out[r['id'] as int] = (
+          fidelity: (r['f'] as int?) ?? 0,
+          stayed: r['prev'] != null && r['prev'] == r['team'],
+          neoPro: (r['neo'] as int?) ?? 0,
+          wins: (r['w'] as int?) ?? 0,
+        );
+      }
+    } on SqliteException {
+      // A database built without the raw tables: no traits.
+    }
+    return out;
+  }
+
   /// @returns All races that have a date, in calendar order.
   List<RaceInfo> races() => [
         for (final r in _db.select(

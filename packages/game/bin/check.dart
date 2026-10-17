@@ -2,7 +2,10 @@
 // always hold. Prints each broken rule once with the first day it broke,
 // and how often.
 //
-//   dart run bin/check.dart [--seed s] [--team ABBR]
+//   dart run bin/check.dart [--seed s] [--team ABBR] [--switch ABBR]
+//
+// With --switch the player takes over that team at the turn of the year;
+// the check then plays on into January and compares a save and its load.
 import 'dart:io';
 
 import 'package:game/game.dart';
@@ -86,6 +89,7 @@ Future<void> main(List<String> argv) async {
 
   final seed = int.parse(option('--seed') ?? '5');
   final abbr = option('--team') ?? 'TVL';
+  final switchTo = option('--switch');
   I18n.lang = Lang.de;
   final root = Platform.script.resolve('../../../data/').toFilePath();
   final world = World('${root}world.sqlite');
@@ -229,8 +233,40 @@ Future<void> main(List<String> argv) async {
     }
     checkWorld(c, check);
   }
+  stdout.writeln('Reputation ${c.manager.reputation.round()} '
+      '(${c.manager.standing}), offers: '
+      '${c.manager.offers.map((id) => c.teams[id]?.abbr).join(', ')}, '
+      'warned ${c.manager.warned}, dismissed ${c.manager.dismissed}');
+  if (switchTo != null) {
+    final to = world.teams().firstWhere((t) => t.abbr == switchTo).id;
+    c.manager.offers.add(to);
+    check(c.manager.answer(to, 0) == null, 'job offer not accepted');
+  }
   // The turn of the year: transfers, retirements, licences.
   c.startNextSeason();
+  if (switchTo != null) {
+    check(c.teams[c.teamId]?.abbr == switchTo, 'team not switched');
+    check(c.finances.books[team.id] != null, 'old team without books');
+    check(!c.finances.books.containsKey(c.teamId), 'new team keeps books');
+    for (var i = 0; i < 45; i++) {
+      await c.advanceAsync();
+      checkWorld(c, check);
+    }
+    final saved = c.toJson();
+    final copy = Career(world,
+        teamId: c.startTeam,
+        seed: seed,
+        tuning: SimTuning.load('${root}calibration/tuning.json'))
+      ..restore(saved, [for (final p in c.progress.values) c.raceJson(p)]);
+    check(copy.teamId == c.teamId, 'load lost the team');
+    final a = saved.toString(), b = copy.toJson().toString();
+    check(a == b, 'save and load differ',
+        'first difference at ${Iterable.generate(a.length).firstWhere((i) => i >= b.length || a[i] != b[i], orElse: () => -1)}');
+    stdout.writeln('Now with ${c.teams[c.teamId]?.name}: budget '
+        '${c.economy.budget.round()}, balance ${c.economy.balance.round()}, '
+        'squad ${c.squads[c.teamId]?.length}, staff ${c.staff.of(c.teamId).length}, '
+        'sponsors ${c.economy.sponsors.map((x) => x.name).join(' / ')}');
+  }
   checkWorld(c, check);
   for (final t in c.teams.values) {
     final n = c.squads[t.id]?.length ?? 0;

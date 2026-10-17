@@ -8,14 +8,12 @@ Nothing here is promised; priorities are set version by version. Ideas come from
 
 The working list, in order. It is rewritten whenever something on it is done; the sections below hold the full plan.
 
-1. **Race day.** The race plan with roles on one page, sprint train and team time trial order, jerseys of the WorldDB in report and live view, and the road captain's leadership and race sense, which decide how well the plan is carried out without radio (needs a calibration run).
-2. **Contracts, second step.** Clauses (role, bonus, release clause) and a signing bonus.
-3. **The organisation.** The manager's career (reputation, offers, dismissal), a marketing facility.
-4. **Comfort that is left:** multi-select in lists, bookmarks, export from every list, a vacation mode with rules (the board stays out of the market).
-5. **The season plan in December** for the next year, with the goals of the riders in the planner.
-6. **The race shape, second step.** What the calibration of 0.3.1 could not reach, because five tuning values sit at the edge of their range: the middle of the field finishes too close to the winner (0:52 against 1:36 behind, 16:34 against 22:04 in the mountains), breaks in the mountains win too rarely (21 % against 31 %), hilly stages end in a bunch sprint too rarely (6 % against 18 %), sector races end solo too rarely (46 % against 74 %), and the favourites win too often (59 % against 47 %, in time trials 83 % against 58 %). The power figures are a few per cent high (427 W over Paris-Roubaix for a 92 kg rider).
+1. **The organisation, rest:** a marketing facility.
+2. **Comfort that is left:** multi-select in lists, bookmarks, export from every list, a vacation mode with rules (the board stays out of the market).
+3. **The season plan in December** for the next year, with the goals of the riders in the planner.
+4. **The race shape, second step.** What the calibration of 0.3.1 could not reach, because five tuning values sit at the edge of their range: the middle of the field finishes too close to the winner (0:52 against 1:36 behind, 16:34 against 22:04 in the mountains), breaks in the mountains win too rarely (21 % against 31 %), hilly stages end in a bunch sprint too rarely (6 % against 18 %), sector races end solo too rarely (46 % against 74 %), and the favourites win too often (59 % against 47 %, in time trials 83 % against 58 %). The power figures are a few per cent high (427 W over Paris-Roubaix for a 92 kg rider).
 
-Done since the last version of this list: release 0.4.0 alpha on 17 October 2026 — a world that lasts ten seasons (books for every team, licences after the UCI rules, an intake as strong as a real year, retirements) and the manager's year (winter, scouting in stages, competing offers, staff, mentoring, talks, sponsor wishes, our stages live, the planner as a timeline, the history page).
+Done since the last version of this list: the manager's career (reputation, the board's warning and dismissal, job offers, a change of teams at the turn of the year) and personalities from what the WorldDB knows of a rider. Every item of the plan now stands under the version that brought it.
 
 ## Principles
 
@@ -37,149 +35,174 @@ Two conclusions. Radmanager has no race to play, so **the simulated result is th
 
 ## The order
 
-Each phase is one version. The reason for its place is given first.
+Each phase is one version. Every item stands under the version that brought it, whatever it was first planned for; what is still open stands under the version that is meant to bring it.
 
 ### 0.3.0 Races that hold up
 
-*Released as 0.3.0 alpha on 14 October 2026; the race shape followed in 0.3.1 alpha on 15 October. What tuning could not reach is "Next up", item 6.*
+*Released as 0.3.0 alpha on 14 October 2026. First, because every later system is judged by race results.*
 
-*First, because every later system is judged by race results.*
-
-Done:
+**Races**
 
 - **Finer physics.** Segments of 200 m, each rider's own weight and height, altitude, head-, tail- and crosswind; the physical tuning values are held within values from the literature.
 - **Sector races.** Cobbled classics and gravel races have their own model: fight for position, the group as a line, splits behind a rider who lets go, wear from rough roads.
 - **Incidents in the race.** Crashes, punctures and echelons happen on the road, with the surface, the rain and the size of the group as causes, and cost time or end the race. Illness and the time cut take riders out of stage races. [PCM]
-- **Weather.** Each stage has weather by month and country; the race preparation shows it. [PCM, VV]
+- **Weather.** Each stage has weather by month and country, and a forecast that blurs the weather of the day and warns of echelons. [PCM, VV]
 - **The fight for the break,** helpers who run empty, attacks inside the break, late on the flat, downhill and from far out.
 - **Teams race for themselves.** One sports director logic for every team including the player's, whose decisions can be overruled. [1]
-- **Time trials and stage races.** Fatigue, start order and changing wind in time trials; fatigue that levels off by recovery, and rest days.
+- **Time trials and stage races.** Fatigue, start order and changing wind in time trials; team time trials in a line; fatigue that levels off by recovery, and rest days.
 - **One simulation.** A test guards that watching, skipping and "simulate until" give the same race. [3]
 - **Partial plans.** Pin only a leader or an approach for a race; the sports director plans the rest stage by stage.
-- **The search.** About three parameters per attempt instead of ten, and race types weighted so that the few sector races are not sacrificed.
-- **Race report in paragraphs:** how the day began, mishaps, the finale.
-- **A day in steps,** race by race, so that the window answers the system while many days are simulated.
+- **Race plan with roles** on one page: leader, helpers, sprinter, lead-out, tactics, director, tyres and time trial bike. [VV]
+- **Race report in paragraphs:** how the day began, mishaps, the finale; power figures after every stage. [7]
+- **The search** of the calibration: about three parameters per attempt instead of ten, race types weighted so that the few sector races are not sacrificed.
 
-Open:
+**The rider as a person**
 
-- **The calibration run** for all of this, on the seasons 2023 to 2026. *Done in 0.3.1:* bunch sprints on flat stages fit (78 % against 77 %), the middle of the field is still too close (0:52 against 1:36).
-- **The time limit with real fields.** On a synthetic field too many sprinters miss it in the mountains.
-- **Speed.** A stage takes two to three times as long as in 0.2.0, so a night of calibration holds only a few hundred attempts. In the game the stages now run in the background.
-- **Older seasons.** Checked: the database covers 58 % of the finishers of 2021, 67 % of 2022, 75 % of 2023, 85 % of 2024 and 92 % of 2025. The calibration now uses 2023 to 2026 only. Filling the missing riders with anonymous ones of typical strength would bring the earlier seasons back.
-- **Weather, second step.** Real compass headings for the routes, a forecast that can be wrong, riders who cope differently with heat and cold. [PCM, VV] *Started:* the forecast blurs the weather of the day and warns of echelons; headings and heat tolerance are missing.
+- **Season plan by the sports director** for every team: importance of the races, suitability, an even load, replacements.
+- **Season goals per rider:** up to three goal races, a sure start and a form peak there. [2, PCM]
+- **Personal attributes:** professionalism, ambition, loyalty and consistency, with a summary term, shown through scouting. [VV]
+- **Morale** for every rider, moved by programme, results and promises, acting on form. [2, FM]
+- **Promises** for a race or, in contract talks, for a season. [FM]
+- **Standing in the team,** from star to prospect, changeable for the player's riders.
+
+**Team and market**
+
+- **Shortlist** with messages only for what matters: available, renewed, signed elsewhere. [FM]
+- **Comparison** of two riders: a second column on every rider page. [FM]
+- **Equipment.** Bikes and tyres of the real suppliers with a small effect, contracts with offers, tyre and bike choice per race. [2]
+- **Staff** with mechanics and physiotherapists for every team; team styles.
+
+### 0.3.1 The race shape
+
+*Released as 0.3.1 alpha on 15 October 2026.*
+
+- **The calibration run** on the seasons 2023 to 2026: bunch sprints on flat stages fit (78 % against 77 %); what it could not reach is "Next up", item 4.
+- **Riders who sit up,** groups that roll in, a gruppetto on hilly days; pace setters who only draft behind those who take turns.
+- **Courses that change.** From the second season every race with routes of other years in the WorldDB (2021 to 2025, about 400 races) cycles through them.
+- **The stage in fast motion** in the race report. [VV]
+- **Facilities** for every team: training, medical, scouting, sports science and youth academy, five levels each, starting from the team's strength. [VV]
+- **Prize money** after the real orders of magnitude; sponsor offers tied to the ranking.
+- **The development team** on the market: young riders up to 22 can be signed for it; the other teams promote from theirs.
+- **Hard training** that makes tired riders prone to illness, the load of the whole squad with one click.
+- **Multi-season test.** `packages/game/bin/world.dart` plays seasons without a player; `bin/check.dart` checks every day of a season for broken rules.
 
 ### 0.4.0 A world that lasts ten seasons
 
-*Released as 0.4.0 alpha on 17 October 2026. Over ten seasons the field keeps its level (WorldTour strength 77.4 to 78.0), the age stays at 28 to 29, licences and money hold.*
+*Released as 0.4.0 alpha on 17 October 2026. Over ten seasons the field keeps its level (WorldTour strength 77.4 to 78.0), the age stays at 28 to 29, licences and money hold. Second, because money and squad balance are the ground under transfers, staff, facilities and sponsors.*
 
-*Second, because money and squad balance are the ground under transfers, staff, facilities and sponsors.*
+**The world**
 
-- **Multi-season test.** A tool plays ten seasons without a player and reports finances, squad strength per tier, licence moves, age structure and the number of top riders. It runs before each release. *Done:* `packages/game/bin/world.dart`, about two minutes a season.
-- **Money.** Salaries, sponsor income, prize money from the WorldDB, camp and staff costs are set against real orders of magnitude. The budget is planned once per season; a surplus carries over and can be spent (signing bonuses, facilities later). No yearly renewal chores. [2] *Done:* every team keeps books by the player's rules, with a wage limit that includes savings, budgets from the ranking and the world's wage level, facilities bought from surpluses and worn down above what fits; signing bonuses come with the contracts of 0.6.0.
-- **The top of the field.** The yearly intake is as strong as a real year, so that riders with a best value of 84 or more neither die out nor multiply. *Done:* each new rider is made after a real one of 19 to 21; over ten seasons riders of 80 and more go from 14 to 21.
-- **The other teams act like teams.** They promote from their development teams, sign for their needs (a sprinter when theirs leaves, riders from the sponsor's country) and let riders go. [VV] *Done:* each of them plans its season like the player's sports director and signs for what it lacks, riders of its own country a little preferred.
-- **Licences on the three-year ranking,** as in reality. [VV] *Done:* the 20 best riders of a team count, three seasons decide the WorldTour licences, the two best ProTeams are invited, ProTeam licences go yearly to those who can afford them, squads of 27 and 20 riders at least.
-- **Courses that change.** Races ride other routes from year to year. *Done* with the routes of 2021 to 2025 in the WorldDB, about 400 races; a generator from real climbs would give races without other years new courses.
-- **The winter has content:** training camps, contract talks, the season plan and the intake fall into the weeks without races. [2] *Done:* the racing season ends with the last race (25 October) and its review; the young riders arrive on 1 November, free agents sign at any time, camps for January and February are booked from November and run over the turn of the year. Moved to "Next up": the season plan of the next year in December, which needs the next calendar and next year's squad before the turn of the year.
+- **Money.** Every team keeps books by the player's rules, with a wage limit that includes savings, budgets from the ranking and the world's wage level, facilities bought from surpluses and worn down above what fits; owners take savings beyond a third of the budget. No yearly renewal chores. [2]
+- **The top of the field.** Each new rider is made after a real one of 19 to 21, so a year is as strong as a real one; over ten seasons riders of 80 and more go from 14 to 21. Riders end their careers from 31.
+- **The other teams act like teams.** Each plans its season like the player's sports director, signs for what it lacks (riders of its own country a little preferred) and lets riders go. [VV]
+- **Licences on the three-year ranking,** as in reality: the 20 best riders of a team count, three seasons decide the WorldTour licences, the two best ProTeams are invited, ProTeam licences go yearly to those who can afford them, squads of 27 and 20 riders at least. [VV]
+- **The winter has content.** The racing season ends with the last race (25 October) and its review; the young riders arrive on 1 November, free agents sign at any time, camps for January and February are booked from November and run over the turn of the year. [2]
 
-### 0.5.0 The rider as a person
+**Scouting and the market**
 
-*Third, because it is the largest gap to the models, and it needs believable results to react to.*
+- **Scouting in stages** with assignments by country, age and kind, up to a test at the base; riders of small teams are known far less well. [VV, FM]
+- **Competition:** a rider answers after a week and weighs the player's offer against the best rival bid by wage, role, level and home; the rivals are named. [VV]
+- **Contracts, first step:** renewal of the player's riders at any time. [2]
 
-- **Season plan by the sports director.** *Done* for the player's team and every other team: importance of the races, suitability, an even load, replacements. The importance of a race follows its tier, the team's home country, the goals of sponsor and board and each rider's own goals.
-- **Season goals per rider.** Each rider has up to three goal races; he is sure to start there and his form peaks for them. [2, PCM] *Done,* for every team; set on the rider page or by right click in the matrix, which shows them.
-- **Personal attributes.** A small set, visible only through scouting: professionalism (development), ambition (reacts more strongly, wants race days), loyalty (contract talks), consistency (spread of the form from race to race). [VV] *Done,* with a summary term per rider. Adaptability after a transfer is missing.
-- **Morale.** One value per rider, moved by programme, results and promises, acting on form within a narrow band. [2, FM] *Done* for every team. For the player's riders the role in the race against the standing in the team moves it too; injured and ill riders take no offence.
-- **Promises.** "Leader at the Tour", "a start at the Giro", checked when the race starts. [FM] *Done,* for one race or, in contract talks, for the first season of the contract.
-- **Mentoring.** An experienced rider takes one or two young riders, including from the development team; they develop a little faster and take on some of his professionalism. [VV] *Done,* for every team.
-- **Leadership and race sense** as attributes of the road captain, which decide how well the plan is carried out without radio. [2]
-- **Programme templates.** "Classics", "Grand Tour helper", "sprinter's spring" assigned with one click. [PCM] *Done:* seven built in, own ones from a rider's programme.
+**The rider as a person**
 
-Talks are kept small on purpose: a choice in the inbox with a visible effect, no press conferences with repeated questions. [7] *Done:* a rider who asks to leave and a rider who wants more races; adaptability after a transfer.
+- **Mentoring:** an experienced rider takes one or two young riders, in every team. [VV]
+- **Talks** as a choice in the inbox with a visible effect, no press conferences: a rider who asks to leave, a rider who wants more races. [7]
+- **Adaptability** as a fifth attribute: how fast a rider settles after a transfer.
+- **Programme templates:** seven built in, own ones from a rider's programme. [PCM]
 
-### 0.6.0 Scouting and the transfer market
+**The organisation**
 
-*Fourth, because it needs balanced money (0.4.0) and riders with a will of their own (0.5.0).*
+- **Sponsors** with staggered contracts, offers from the ranking and a wish per sponsor and season that the races can meet (a break at home, a win in the sponsor's country), with a bonus. [2]
+- **Staff** who develop with age, have ambitions and are lured away by stronger teams, with a weekly note: "this is what I would change". [VV, FM]
+- **The board builds** the facilities when the player delegates it.
+- **History:** the season review after the last race and a history page with trophy room, seasons, records and retired riders. [7, VV]
 
-- **Scouting in stages.** A scout gets an assignment (region, age, profile) and delivers reports; each report narrows the range of a rider's values and potential, up to a test at the team's base. Scouts have skills and a limited number of riders they can follow. [VV, FM] *Done.*
-- **Shortlist.** A watch list with messages only for what matters: contract running out, rider available, another team bidding. [FM] *Done in a first form:* available at the start of the signing period, renewed, signed elsewhere.
-- **Comparison** of two or more riders side by side. [FM] *Done for two riders,* as a second column on the rider page.
-- **Competition.** Other teams bid at the same time, offers have deadlines, a rider chooses by wage, role, team level and distance from home. [VV] *Done* for riders of other teams; free agents sign at once.
-- **Contracts.** Renewal at any time, clauses (role, bonus, release clause), a signing bonus. [2] *Started:* renewal at any time.
-- **Lower tiers.** Riders outside the scouted area are shown with wide ranges, so that looking there pays. [VV] *Done.*
+**Race day**
 
-### 0.7.0 Race day
+- **Our stages live** in fast motion after each day of our races, with the favourites named; the radio still comes before the stage. [VV]
+- **Combativity and days in the break** as counted results, with a ranking. [2]
 
-*Fifth, because the result is the game, and watching it is what brings the player back. It comes after the systems so that it has something to show.*
+### 0.5.0 The rider, the market and race day
 
-- **The stage in fast motion.** The stage runs across the profile as a bar with groups, gaps and incidents; speed is adjustable, key moments stop the clock when the player wants them to. The radio decisions sit in this view. [VV] *Done:* in the report and live after each day of our races, with the favourites named; the radio still comes before.
-- **Race plan with roles.** Leader, second leader, attackers, sprinter, lead-out, road captain, set before the start and changed by radio. Most exists; it becomes one page. [VV]
-- **Sprint train and team time trial order.** [PCM]
-- **Jerseys** of the WorldDB for the leaders in report and race view. [PCM]
-- **Combativity and days in the break** as counted results, so that small teams have goals they can meet. [2] *Done,* with a ranking and as sponsor wishes.
-- **A written report as a news item,** with the decisive moments named. Exists; it gains incidents and weather. [7]
+*In progress. What used to be planned as 0.5.0 (the rider as a person), 0.6.0 (scouting and the market) and 0.7.0 (race day) and was not done by 0.4.0, and the manager's career.*
 
-### 0.8.0 The organisation
+- **Leadership and race sense** of the road captain, which decide how well the plan is carried out; chosen in the race preparation. [2]
+- **Contracts, second step:** signing bonus, win bonus, a release clause that the other teams may pay, a guaranteed leader's role; each lowers the wage asked. [2]
+- **Comparison table** of up to four riders, the best value of each line marked. [FM]
+- **Sprint train and team time trial order.** The sprint train as the roles make it, shown before the start; in a team time trial the line can wait for the leader. [PCM]
+- **Jerseys** of the leaders in report and live view, in the colours of the Grand Tours; the report names who takes a jersey. [PCM]
+- **Personalities from the WorldDB:** loyalty from a rider's contract loyalty, more professional and steadier with years as a professional, more ambitious with wins; the same personality in every career.
+- **The manager's career.** Reputation from results against what the team's strength promised. With the job market switched on (off by default, so that nobody loses his team unasked): on 1 November the board judges the season, warns after a bad one and dismisses after two; other teams offer a job as a talk in the inbox, and an accepted offer hands the player the new team at the turn of the year. [FM]
 
-*Sixth, because investments that pay off over years can only be balanced once the money has been stable for many seasons.*
+### 0.6.0 The organisation and what is left
 
-- **Sponsors.** Contracts over several years, income that follows tier and results, wishes that are met by the race itself (jersey in the break at the home race, a win in the sponsor's country) instead of abstract targets. Offers fit the team: nationality of riders and where it wins. [2] *Done:* staggered contracts, offers from the ranking, a wish per sponsor and season with a bonus.
-- **Staff.** Coaches, directors, scouts and doctors improve, have ambitions and can be lured away. A weekly note from the staff: "this is what I would change". [VV, FM] *Done.*
-- **Facilities.** Medical, training, scouting, marketing, equipment, each with a few levels and a cost per season. [VV] *Done* for training, medical, scouting, sports science and the youth academy, with levels from the team's strength at the start; marketing is open.
-- **Equipment.** The supplier's material with a small effect on time trials and cobbles. [2] *Done* with the real suppliers, tyre and bike choice per race; the effects still need calibrating.
-- **The manager's career.** Reputation, offers from other teams, dismissal when goals are missed. [FM]
-- **History.** Season review, awards, a trophy room, records, the career of every retired rider. [7, VV] *Done:* the review after the last race and a history page with trophy room, seasons, records and retired riders.
+*Fourth, because investments that pay off over years can only be balanced once the money has been stable for many seasons.*
 
-### 0.9.0 Beta
+**The organisation**
+
+- **Facilities, second step:** a marketing facility that raises what sponsors pay. [VV]
+- **The season plan in December** for the next year, which needs the next calendar and next year's squads before the turn of the year.
+- **Vacation mode.** The assistant takes over for a period, with rules for what he may decide; the board stays out of the market. [9]
+
+**Races**
+
+- **The race shape, second step:** see "Next up", item 4.
+- **The time limit with real fields.** On a synthetic field too many sprinters miss it in the mountains.
+- **Weather, second step.** Real compass headings for the routes and riders who cope differently with heat and cold. [PCM, VV]
+- **Speed.** A stage takes two to three times as long as in 0.2.0, so a night of calibration holds only a few hundred attempts.
+- **Older seasons.** The database covers 58 % of the finishers of 2021 and 75 % of 2023; anonymous riders of typical strength in place of the missing ones would bring the earlier seasons back to the calibration.
+
+### 0.7.0 Beta
 
 *Last: no new systems. See below.*
 
 ## Quality of life
 
-These are spread over the versions above rather than saved for the end. The first group has no dependencies and goes into 0.3.0 and 0.4.0.
+These are spread over the versions above rather than saved for the end; each names the version that brought it.
 
 **Navigation and speed**
 
-- A back button and history that always return to the previous page. [5] *Done for 0.3.0,* with filters, sorting and scroll position kept for the session.
-- Keyboard control: space to continue, arrow keys from rider to rider, Ctrl+F for the search, Esc to go back. [6] *Done for 0.3.0,* including the rows of a list.
-- Every name is a link: rider, team, race, country, wherever it appears. *Done for the common cases:* riders and teams in race results, teams in the ranking and on the rider page, races on the rider page, a team's flag to the riders of its country.
-- No screen waits for the simulation; a day simulates in the background with a visible progress. *Done:* the stages run on other isolates, and the header shows what is being simulated.
-- Bookmarks for pages the player uses often. [5]
+- A back button and history that always return to the previous page, with filters, sorting and scroll position kept for the session. [5] *0.3.0.*
+- Keyboard control: space to continue, arrow keys from rider to rider and through the rows of a list, Ctrl+F for the search, Esc to go back. [6] *0.3.0.*
+- Every name is a link: rider, team, race, country, wherever it appears. *0.3.0 for the common cases:* riders and teams in race results, teams in the ranking and on the rider page, races on the rider page, a team's flag to the riders of its country.
+- No screen waits for the simulation: the stages run on other isolates, and the header shows what is being simulated. *0.3.0.*
+- Bookmarks for pages the player uses often. [5] *Open, 0.6.0.*
 
 **Lists**
 
-- Saved filters and saved column sets per list, with a default the player chooses. PCM added saved search filters in a patch after its players asked. [10] *Done* for the rider search and the transfer market.
-- Multi-select with checkboxes for actions on several riders: assign a programme, a camp, a training focus, put on the shortlist. [7] *A first step:* a star per row for the shortlist.
-- Sorting by any column, remembered per list. *Done for the session.*
-- Export of any list as CSV. [7] *Done* for the rider search and team pages.
+- Saved filters and saved column sets per list. PCM added saved search filters in a patch after its players asked. [10] *0.4.0,* for the rider search and the transfer market.
+- Multi-select with checkboxes for actions on several riders: assign a programme, a camp, a training focus, put on the shortlist. [7] *A first step in 0.3.0:* a star per row for the shortlist. *The rest is open, 0.6.0.*
+- Sorting by any column, remembered for the session. *0.3.0.*
+- Export of any list as CSV. [7] *0.3.0* for team pages; *open, 0.6.0,* for every other list.
 
 **The inbox**
 
-- Fewer messages rather than more filters: one summary per day and topic, not one message per event. [6] *Done:* from three messages of a topic on a day.
-- Settings per topic: show, summarise, or do not send. *Done:* each topic can be switched off; summarising is one switch for all.
-- Filters that stay set. A filter that resets itself is among the oldest FM complaints. [6] *Done;* the filters of the rider search also survive a restart.
-- Messages that ask for a decision are marked and carry the decision in them. *A first step:* every message leads to the page of its topic.
+- Fewer messages rather than more filters: one summary per day and topic, from three messages of a topic on a day. [6] *0.3.0.*
+- Settings per topic: each topic can be switched off; summarising is one switch for all. *0.3.0.*
+- Filters that stay set; those of the rider search also survive a restart. A filter that resets itself is among the oldest FM complaints. [6] *0.3.0.*
+- Messages that ask for a decision carry it in them. *0.3.0:* every message leads to the page of its topic. *0.4.0:* talks with riders are answered in the message. *0.5.0:* job offers too.
 
 **Continuing**
 
-- "Simulate until" stops for what the player has chosen: own race, contract offer, injury, transfer deadline. [9] *Done* by topic of the inbox.
-- **Vacation mode.** The assistant takes over for a period, with rules for what he may decide. [9]
-- Autosave with several rolling files; a weekly save can be opened again. A PCM thread asks for a way to go back a few days. [4] *Done:* four weekly files.
-- Undo for the last line-up or plan change before it is confirmed. *Done* in the race preparation.
+- "Simulate until" stops for what the player has chosen, by topic of the inbox. [9] *0.3.0.*
+- **Vacation mode.** [9] *Open, 0.6.0.*
+- Autosave in four weekly files that can be opened again. A PCM thread asks for a way to go back a few days. [4] *0.3.0.*
+- Undo for the last line-up or plan change before it is confirmed. *0.4.0,* in the race preparation.
 
 **Planning**
 
-- The season planner shows conflicts at once: rider entered twice, too many race days, a goal race without the leader. [2] *Done:* overlapping races, more than 85 race days, a goal race he is not planned for, more riders than places; the rider matrix is a timeline that shows each race over its dates.
-- Copy a line-up from the last race or from a template. *Done:* last year's line-up and saved templates.
-- An assistant's proposal for every chore (line-up, programme, training), which the player accepts or changes. Nothing has to be done by hand that the player does not care about. *Done* for line-ups, tactics (pins), the season plan and training.
+- The season planner shows conflicts at once. [2] *0.3.0:* riders entered twice. *0.4.0:* more than 85 race days, a goal race he is not planned for, more riders than places, and the rider matrix as a timeline that shows each race over its dates, in the manner of PCM.
+- Copy a line-up from the last race or from a template. *0.3.0:* last year's line-up. *0.4.0:* saved line-up templates.
+- An assistant's proposal for every chore, which the player accepts or changes. *0.3.0* for line-ups, tactics (pins), the season plan and training.
 
 **Reading**
 
-- Text scaling and layouts for wide and high-resolution screens. Exists as a scale; needs a check at 4K and 21:9. [7]
-- A clearer form display than the scale from −3 % to +4 %: steps with an arrow for the trend. *Done.*
-- Notes on a rider, written by the player. *Done.*
-- A glossary behind the tooltips, and a short introduction for new careers. *Done:* the help page and a welcome message.
-- Singular and plural in English, dates in the format of the language, command-line tools in English. *Started:* contract dates. *Done:* English is the source language of all texts of the game, German a translation table.
+- Text scaling and layouts for wide and high-resolution screens. *0.3.0* as a scale; a check at 4K and 21:9 is open. [7]
+- A clearer form display than the scale from −3 % to +4 %: steps with an arrow for the trend. *0.4.0.*
+- Notes on a rider, written by the player. *0.3.0.*
+- A glossary behind the tooltips, and a short introduction for new careers. *0.3.0:* the help page and a welcome message.
+- English as the source language of all texts of the game, German as a translation table. *0.3.0.* Singular and plural in English and dates in the format of the language are open.
 
 **Open data**
 
@@ -225,20 +248,18 @@ The beta is the point from which a stranger can play ten seasons without help, w
 
 ### Open question before a public beta
 
-The world database is built from the WorldDB for Pro Cycling Manager, and rider photos, jerseys and logos are not ours. A beta among friends can use them as today, supplied by each player. A public one needs either a database of its own with real names from open sources, or generated names with an import for community databases. This decision should be taken by 0.6.0, because scouting and generated riders depend on it.
+The world database is built from the WorldDB for Pro Cycling Manager, and rider photos, jerseys and logos are not ours. A beta among friends can use them as today, supplied by each player. A public one needs either a database of its own with real names from open sources, or generated names with an import for community databases. This decision should be taken before the beta, because scouting and generated riders depend on it.
 
 ## Versions at a glance
 
 | Version | Theme | Depends on | Comfort that ships with it |
 | --- | --- | --- | --- |
-| 0.3.0 | Races that hold up *(released 14 October 2026)* | The calibration run | Back and history, keyboard, lists, inbox, shortlist, team pages, season plan |
+| 0.3.0 | Races that hold up *(released 14 October 2026)* | The calibration run | Back and history, keyboard, lists, inbox, shortlist, team pages, autosaves, help |
 | 0.3.1 | The race shape *(released 15 October 2026)* | 0.3.0 | Facilities, dev-team signings, squad-wide training load, an even overview |
 | 0.4.0 | A world that lasts *(released 17 October 2026)* | 0.3.0 | Timeline planner, templates, saved filters and columns, history, our stages live |
-| 0.5.0 | The rider as a person | 0.3.0, 0.4.0 | Goals in the planner, templates, multi-select |
-| 0.6.0 | Scouting and market | 0.4.0, 0.5.0 | Comparison of several riders, decisions in messages |
-| 0.7.0 | Race day | 0.3.0, 0.5.0 | Stops in "simulate until", assistant's proposals |
-| 0.8.0 | The organisation | 0.4.0, 0.6.0 | Vacation mode, history pages |
-| 0.9.0 | Beta | All | Introduction, glossary, difficulty, installer |
+| 0.5.0 | The rider, the market and race day | 0.4.0 | Comparison table, job offers and talks in the inbox, clauses in the offer form |
+| 0.6.0 | The organisation and what is left | 0.5.0 | Vacation mode, multi-select, bookmarks, export from every list |
+| 0.7.0 | Beta | All | Introduction, glossary, difficulty, installer |
 
 ## Sources
 

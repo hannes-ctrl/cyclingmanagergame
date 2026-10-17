@@ -36,9 +36,26 @@ class _TransfersScreenState extends State<TransfersScreen> {
   String? _answer;
   final _wage = TextEditingController();
 
+  /// Clauses of the offer: signing bonus, win bonus and release clause in
+  /// thousands, and the guaranteed leader's role.
+  final _signing = TextEditingController();
+  final _winBonus = TextEditingController();
+  final _release = TextEditingController();
+  var _leader = false;
+
+  Clauses get _clauses => Clauses(
+    signing: (int.tryParse(_signing.text.trim()) ?? 0) * 1000,
+    winBonus: (int.tryParse(_winBonus.text.trim()) ?? 0) * 1000,
+    release: (int.tryParse(_release.text.trim()) ?? 0) * 1000,
+    leader: _leader,
+  );
+
   @override
   void dispose() {
     _wage.dispose();
+    _signing.dispose();
+    _winBonus.dispose();
+    _release.dispose();
     super.dispose();
   }
 
@@ -79,6 +96,10 @@ class _TransfersScreenState extends State<TransfersScreen> {
     _selected = r.id;
     _answer = null;
     _promise = null;
+    _signing.clear();
+    _winBonus.clear();
+    _release.clear();
+    _leader = false;
     // Preset to the market wage; the rider's demand is not known.
     _wage.text = '${widget.state.career.economy.marketWage(r) ~/ 1000}';
   });
@@ -499,6 +520,70 @@ class _TransfersScreenState extends State<TransfersScreen> {
 
   /// Builds the offer form for the selected rider.
   ///
+  /// The clauses of an offer: what lowers the wage he asks.
+  Widget _clauseFields(TeamColors c) {
+    Widget field(String label, TextEditingController controller) => Padding(
+      padding: const EdgeInsets.only(right: 10, bottom: 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 13)),
+          const SizedBox(width: 6),
+          SizedBox(
+            width: 80,
+            child: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.right,
+              decoration: InputDecoration(
+                isDense: true,
+                suffixText: 'T €',
+                hintText: '0',
+                filled: true,
+                fillColor: c.panel2,
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: c.line),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          children: [
+            field(tr('Signing bonus'), _signing),
+            field(tr('Per win'), _winBonus),
+            field(tr('Release clause'), _release),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Checkbox(
+                  value: _leader,
+                  onChanged: (v) => setState(() => _leader = v ?? false),
+                ),
+                Text(
+                  tr('Guaranteed leader'),
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ],
+            ),
+          ],
+        ),
+        Text(
+          tr(
+            'Clauses lower the wage he asks: a signing bonus is paid at once, a win bonus with every win, a low release clause lets another team buy him out, a guaranteed leader must not be demoted.',
+          ),
+          style: const TextStyle(fontSize: 12, color: TeamColors.muted),
+        ),
+      ],
+    );
+  }
+
   /// @param r The rider.
   /// @param status Text describing his contract situation.
   /// @returns The form.
@@ -673,6 +758,8 @@ class _TransfersScreenState extends State<TransfersScreen> {
                 style: const TextStyle(fontSize: 12, color: TeamColors.muted),
               ),
             ),
+          const SizedBox(height: 10),
+          _clauseFields(c),
           const SizedBox(height: 12),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -694,6 +781,7 @@ class _TransfersScreenState extends State<TransfersScreen> {
                       thousands * 1000,
                       _years,
                       promise: _promise,
+                      clauses: _clauses,
                     );
                     setState(
                       () => _answer =

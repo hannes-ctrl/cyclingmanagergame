@@ -65,21 +65,19 @@ class ProgramTemplate {
     ProgramTemplate._(
         'Giro programme',
         (c, r) =>
-            r.info.raceClass == 'CWTGTItalie' ||
+            grandTourOf(r.info) == GrandTour.giro ||
             (r.isStageRace && _big(r) && _months(r, 4, 4)),
         const []),
     ProgramTemplate._(
         'Tour helper',
         (c, r) =>
-            r.info.raceClass == 'CWTGTFrance' ||
+            grandTourOf(r.info) == GrandTour.tour ||
             (r.isStageRace && _wt(r) && _months(r, 6, 6)),
         const []),
     ProgramTemplate._(
         'Vuelta programme',
         (c, r) =>
-            r.tier == RaceTier.grandTour &&
-                r.info.raceClass != 'CWTGTFrance' &&
-                r.info.raceClass != 'CWTGTItalie' ||
+            grandTourOf(r.info) == GrandTour.vuelta ||
             (r.isStageRace &&
                 _big(r) &&
                 (r.start.month == 7 && r.start.day >= 20 ||

@@ -83,6 +83,12 @@ class _PrepScreenState extends State<PrepScreen> {
   /// Sports director in the car; preset to the best free one.
   int? _director;
 
+  /// Road captain; null leaves the choice to the sports director.
+  int? _captain;
+
+  /// In a team time trial the line waits for the leader.
+  var _waitForLeader = false;
+
   /// Earlier states of the line-up and the tactics, for "undo".
   final _undo = <_Choice>[];
 
@@ -292,6 +298,8 @@ class _PrepScreenState extends State<PrepScreen> {
           : null,
       wish: _ownTactics && !_fixAll ? _wish : null,
       directorId: _director,
+      captainId: _captain,
+      waitForLeader: _waitForLeader,
     );
   }
 
@@ -380,6 +388,84 @@ class _PrepScreenState extends State<PrepScreen> {
             child: Text(tr('Save')),
           ),
         ],
+      ),
+    );
+  }
+
+  /// The road captain: who carries the plan out on the road. A good one
+  /// makes the team carry out the plan better.
+  Widget _roadCaptain(AppState s, List<SimRider> lineup) {
+    final people = s.career.people;
+    if (lineup.isEmpty) return const SizedBox();
+    final best = people.bestCaptain(lineup)!;
+    final chosen = lineup.any((r) => r.id == _captain) ? _captain : null;
+    String label(SimRider r) => tr('{0} · leadership {1}, race sense {2}', [
+      r.name,
+      (people.leadership(r.id) * 20).round(),
+      (people.raceSense(r.id) * 20).round(),
+    ]);
+    return Row(
+      children: [
+        Text(
+          tr('Road captain:'),
+          style: const TextStyle(fontSize: 13, color: TeamColors.muted),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: DropdownButton<int?>(
+            value: chosen,
+            isDense: true,
+            isExpanded: true,
+            underline: const SizedBox(),
+            dropdownColor: s.colors.panel2,
+            style: const TextStyle(
+              fontFamily: 'Barlow',
+              fontSize: 13,
+              color: TeamColors.text,
+            ),
+            onChanged: (v) => setState(() => _captain = v),
+            items: [
+              DropdownMenuItem<int?>(
+                value: null,
+                child: Text(
+                  tr('Sports director\'s choice: {0}', [label(best)]),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              for (final r in lineup)
+                DropdownMenuItem<int?>(
+                  value: r.id,
+                  child: Text(label(r), overflow: TextOverflow.ellipsis),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// The sprint train as the roles make it: the lead-out men before the
+  /// sprinter, shown when the race has stages for the sprinters.
+  Widget _sprintTrain(List<SimRider> lineup) {
+    if (!_p.routes.any((r) => r.sprintStage)) return const SizedBox();
+    final sprinter = lineup
+        .where((r) => _roles[r.id] == Role.sprinter)
+        .firstOrNull;
+    final leadOut = [
+      for (final r in lineup)
+        if (_roles[r.id] == Role.leadOut) r,
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        sprinter == null
+            ? tr('Sprint train: no sprinter in the roles.')
+            : tr('Sprint train: {0} → {1}{2}', [
+                leadOut.isEmpty ? '–' : leadOut.map((r) => r.name).join(' → '),
+                sprinter.name,
+                leadOut.length > 2 ? tr(' (two lead-out men count)') : '',
+              ]),
+        style: const TextStyle(fontSize: 13),
       ),
     );
   }
@@ -964,6 +1050,32 @@ class _PrepScreenState extends State<PrepScreen> {
                                           fontSize: 12,
                                           color: TeamColors.red,
                                         ),
+                                      ),
+                                    _roadCaptain(s, lineup),
+                                    _sprintTrain(lineup),
+                                    if (_p.routes.any(
+                                      (r) => r.kind == StageKind.teamTimeTrial,
+                                    ))
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              tr(
+                                                'Team time trial: the line waits for the leader',
+                                              ),
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ),
+                                          Switch(
+                                            value: _waitForLeader,
+                                            activeThumbColor: c.accent,
+                                            onChanged: (v) => setState(
+                                              () => _waitForLeader = v,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     const SizedBox(height: 6),
                                     Expanded(

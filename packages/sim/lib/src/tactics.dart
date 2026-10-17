@@ -138,6 +138,7 @@ class TeamPlan {
     this.approach = Approach.wait,
     this.breakPolicy = BreakPolicy.ignore,
     this.directorSkill = 0.7,
+    this.waitForLeader = false,
   });
 
   /// Role per rider id; whoever is missing is a domestique.
@@ -148,6 +149,10 @@ class TeamPlan {
   /// Quality of the sports director, 0 to 1. Decides how well the sprint
   /// train and the pace-making work.
   final double directorSkill;
+
+  /// In a team time trial the line waits for the leader instead of
+  /// letting him go when he cannot hold the wheel.
+  final bool waitForLeader;
 
   /// @param riderId Id of a rider.
   /// @returns His role, domestique by default.
@@ -164,6 +169,7 @@ class TeamPlan {
         'approach': approach.name,
         'breakPolicy': breakPolicy.name,
         'director': directorSkill,
+        if (waitForLeader) 'wait': true,
       };
 
   /// @param j A map written by [toJson].
@@ -176,13 +182,19 @@ class TeamPlan {
         approach: Approach.values.byName(j['approach'] as String),
         breakPolicy: BreakPolicy.values.byName(j['breakPolicy'] as String),
         directorSkill: (j['director'] as num?)?.toDouble() ?? 0.7,
+        waitForLeader: j['wait'] as bool? ?? false,
       );
 
-  TeamPlan copyWith({Approach? approach, BreakPolicy? breakPolicy}) => TeamPlan(
+  TeamPlan copyWith(
+          {Approach? approach,
+          BreakPolicy? breakPolicy,
+          bool? waitForLeader}) =>
+      TeamPlan(
         roles: roles,
         approach: approach ?? this.approach,
         breakPolicy: breakPolicy ?? this.breakPolicy,
         directorSkill: directorSkill,
+        waitForLeader: waitForLeader ?? this.waitForLeader,
       );
 
   /// The same plan with a different sports director.
@@ -194,6 +206,7 @@ class TeamPlan {
         approach: approach,
         breakPolicy: breakPolicy,
         directorSkill: skill,
+        waitForLeader: waitForLeader,
       );
 }
 

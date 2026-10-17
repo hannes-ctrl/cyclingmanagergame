@@ -844,6 +844,14 @@ class StaffBook {
   /// worse, staff the player did not keep go to the teams that lured them,
   /// and the other teams replace their weakest people where the market has
   /// clearly better ones.
+  /// The player leaves for another team: his scouts stay with the old team,
+  /// and so do their jobs; what they found out he keeps.
+  void handOver() {
+    jobs.clear();
+    assignments.clear();
+    lures.clear();
+  }
+
   void closeSeason() {
     for (final s in all) {
       final age = c.year - s.born;

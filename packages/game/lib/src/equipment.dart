@@ -319,6 +319,15 @@ class Equipment {
     ));
   }
 
+  /// The player leaves for another team: his choices of material and the
+  /// suppliers' offers end; the new team rides what it has.
+  void handOver() {
+    offers.clear();
+    accepted = null;
+    ownTyres.clear();
+    ownTimeTrialBike.clear();
+  }
+
   /// Accepts an offer for the next season.
   ///
   /// @param index Position in [offers].

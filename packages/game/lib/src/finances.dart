@@ -68,6 +68,21 @@ class Finances {
     _wageLevel = wageLevel();
   }
 
+  /// Swaps the books when the player changes teams: the old team gets books
+  /// of its own with the player's money, less what it still owes this
+  /// month; the new one gives up its books.
+  ///
+  /// @param from The team the player leaves.
+  /// @param to The team he takes over.
+  /// @returns The books of the new team.
+  TeamBooks handOver(int from, int to) {
+    final e = c.economy;
+    books[from] = TeamBooks(e.budget, e.available, e.anchorBudget, e.anchorRank)
+      ..prizeMonth = e.prizeMonth;
+    final even = breakEven(to);
+    return books.remove(to) ?? TeamBooks(even, even * 0.1, even, e.anchorRank);
+  }
+
   /// @param teamId A team.
   /// @returns Its sponsor money per year.
   double budgetOf(int teamId) =>

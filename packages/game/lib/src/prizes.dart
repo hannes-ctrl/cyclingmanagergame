@@ -51,9 +51,9 @@ class Prizes {
   static double overallWinner(RaceEntry race) {
     if (!race.isStageRace) return 0;
     if (race.tier == RaceTier.grandTour) {
-      return switch (race.info.raceClass) {
-        'CWTGTFrance' => 500000,
-        'CWTGTItalie' => 265000,
+      return switch (grandTourOf(race.info)) {
+        GrandTour.tour => 500000,
+        GrandTour.giro => 265000,
         _ => 150000,
       };
     }

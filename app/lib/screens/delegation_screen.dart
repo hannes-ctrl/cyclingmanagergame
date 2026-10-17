@@ -233,6 +233,19 @@ class DelegationScreen extends StatelessWidget {
                   s.setAutoRenew,
                 ),
                 Divider(height: 1, color: c.line),
+                row(
+                  tr('Job market'),
+                  tr('Board'),
+                  tr(
+                    'You stay with your team whatever happens; your reputation is still kept.',
+                  ),
+                  tr(
+                    'On 1 November the board judges the season: after a bad one it warns you, after a second one it dismisses you at the end of the year. Other teams offer you jobs; an accepted offer takes effect at the turn of the year.',
+                  ),
+                  d.jobMarket,
+                  (v) => s.delegate('jobMarket', v),
+                ),
+                Divider(height: 1, color: c.line),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Row(

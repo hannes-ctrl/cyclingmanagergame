@@ -220,6 +220,19 @@ class Facilities {
     ));
   }
 
+  /// The player leaves for another team: a building under way is paid for
+  /// and opens for the old team at once.
+  ///
+  /// @param from The team he leaves.
+  void handOver(int from) {
+    final b = building;
+    if (b == null) return;
+    building = null;
+    final old =
+        levels.putIfAbsent(from, () => {for (final f in Facility.values) f: 3});
+    old[b.facility] = (old[b.facility]! + 1).clamp(1, maxLevel);
+  }
+
   /// Daily: a finished building opens.
   void daily() {
     final b = building;

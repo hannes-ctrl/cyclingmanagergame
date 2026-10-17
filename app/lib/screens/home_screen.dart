@@ -251,7 +251,23 @@ class HomeScreen extends StatelessWidget {
               fact(
                 tr('Board confidence'),
                 tr('{0} of 100', [eco.confidence.round()]),
+                color: career.manager.dismissed || career.manager.warned
+                    ? TeamColors.red
+                    : null,
               ),
+              fact(
+                tr('Your reputation'),
+                tr('{0} of 100 · {1}', [
+                  career.manager.reputation.round(),
+                  career.manager.standing,
+                ]),
+              ),
+              if (career.manager.nextTeam case final next?)
+                fact(
+                  tr('From next season'),
+                  career.teams[next]?.name ?? '',
+                  color: TeamColors.green,
+                ),
             ]),
             tile([
               head(tr('Best form'), 'squad:shape'),

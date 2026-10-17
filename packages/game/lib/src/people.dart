@@ -32,25 +32,38 @@ class Personality {
   /// below his form.
   final double adaptability;
 
-  /// Draws the personality of a rider. The same rider in the same career
-  /// always gets the same one.
+  /// Draws the personality of a rider. A rider has the same one in every
+  /// career: the world is the same world.
   ///
   /// Most riders come out near the middle, a few at either end, so that
-  /// good, balanced and difficult characters all exist. Three things shift
-  /// the draw: riders past thirty have learned to live for the job, young
-  /// riders of great potential tend to want more, and the best riders got
-  /// where they are by wanting it: a rider of world class is never
-  /// unambitious or slack.
+  /// good, balanced and difficult characters all exist. What the WorldDB
+  /// knows shifts the draw: his loyalty to contracts (given for the best
+  /// known riders) decides most of his loyalty, a rider who renewed with his
+  /// team is a little more loyal, years as a professional make him steadier
+  /// and more professional, riders past thirty have learned to live for the
+  /// job, young riders of great potential tend to want more, and the best
+  /// riders got where they are by wanting it: a rider of world class is
+  /// never unambitious or slack.
   ///
   /// @param riderId Id of the rider.
-  /// @param seed Seed of the career.
+  /// @param seed Seed of the career; no longer used, kept for callers.
   /// @param age His age, 0 if unknown.
   /// @param potential His potential, 4 if unknown.
   /// @param rating His strength at the start of the career, 0 if unknown.
+  /// @param fidelity Loyalty to contracts from the WorldDB, 1 to 5, 0 unknown.
+  /// @param stayed Whether his contract continues one with the same team.
+  /// @param proYears Years as a professional, 0 if unknown.
+  /// @param wins Wins of his career.
   /// @returns His personality.
   static Personality of(int riderId, int seed,
-      {int age = 0, double potential = 4, double rating = 0}) {
-    final r = Random(seed * 1000003 + riderId * 7919);
+      {int age = 0,
+      double potential = 4,
+      double rating = 0,
+      int fidelity = 0,
+      bool stayed = false,
+      int proYears = 0,
+      int wins = 0}) {
+    final r = Random(riderId * 7919 + 1000003);
     double draw([double shift = 0, double floor = 0]) => max(
             floor,
             ((r.nextDouble() + r.nextDouble() + r.nextDouble()) / 3 - 0.5) *
@@ -60,15 +73,28 @@ class Personality {
         .clamp(0.0, 1.0);
     // Strength above the average professional pushes ambition and
     // professionalism up; world class sets a floor.
-    final top = rating <= 0 ? 0.0 : ((rating - 74) / 10).clamp(-0.1, 0.25);
+    // Weaker riders are pushed down only a little: they are professionals
+    // too.
+    final top = rating <= 0 ? 0.0 : ((rating - 74) / 10).clamp(-0.04, 0.25);
     final floor = rating >= 80 ? 0.55 : 0.0;
+    final veteran = proYears >= 8 ? 0.05 : 0.0;
+    final professionalism =
+        draw((age >= 31 ? 0.08 : 0) + top * 0.7 + veteran, floor);
+    final ambition = draw(
+        (age > 0 && age <= 24 && potential >= 5 ? 0.08 : 0) +
+            top +
+            min(0.1, wins / 400),
+        floor);
+    // Known loyalty decides most of it, with a little spread.
+    final loyaltyDraw = draw(stayed ? 0.08 : 0);
+    final loyalty = fidelity > 0
+        ? (0.12 + 0.2 * (fidelity - 1) + (loyaltyDraw - 0.5) * 0.15)
+            .clamp(0.0, 1.0)
+        : loyaltyDraw;
+    final consistency = draw(proYears >= 6 ? 0.06 : 0);
+    final adaptability = draw(age > 0 && age <= 25 ? 0.05 : 0);
     return Personality(
-      draw((age >= 31 ? 0.08 : 0) + top * 0.7, floor),
-      draw((age > 0 && age <= 24 && potential >= 5 ? 0.08 : 0) + top, floor),
-      draw(),
-      draw(),
-      draw(),
-    );
+        professionalism, ambition, loyalty, consistency, adaptability);
   }
 
   /// @param value One of the values of a personality.
@@ -236,8 +262,18 @@ class People {
               : c.licences.firstYear - r.born ~/ 10000,
           potential: r?.potential ?? 4,
           rating: _startRating[riderId] ?? 0,
+          fidelity: _traits[riderId]?.fidelity ?? 0,
+          stayed: _traits[riderId]?.stayed ?? false,
+          proYears: switch (_traits[riderId]?.neoPro ?? 0) {
+            0 => 0,
+            final neo => c.licences.firstYear - neo,
+          },
+          wins: _traits[riderId]?.wins ?? 0,
         );
       });
+
+  /// What the WorldDB tells about the riders' character and career.
+  late final _traits = c.world.riderTraits();
 
   /// Strength of the riders of the WorldDB at the start of the career.
   late final Map<int, double> _startRating = {
@@ -299,6 +335,50 @@ class People {
   /// @returns Factor on his development: 0.9 for a careless rider, 1.1 for
   ///   a very professional one.
   double growthFactor(int riderId) => 0.9 + 0.2 * professionalism(riderId);
+
+  // --- The road captain ------------------------------------------------------
+
+  /// How well a rider leads his team on the road: professionalism and
+  /// loyalty, and the standing that comes with age.
+  ///
+  /// @param riderId Id of a rider.
+  /// @returns 0 to 1.
+  double leadership(int riderId) {
+    final r = c.riderById[riderId];
+    final age = r == null ? 25 : c.year - r.born ~/ 10000;
+    final p = of(riderId);
+    return (0.4 * professionalism(riderId) +
+            0.3 * p.loyalty +
+            0.3 * ((age - 22) / 12).clamp(0.0, 1.0))
+        .clamp(0.0, 1.0);
+  }
+
+  /// How well a rider reads a race: experience, and the calm of an even
+  /// rider.
+  ///
+  /// @param riderId Id of a rider.
+  /// @returns 0 to 1.
+  double raceSense(int riderId) {
+    final r = c.riderById[riderId];
+    final age = r == null ? 25 : c.year - r.born ~/ 10000;
+    return (0.7 * ((age - 21) / 12).clamp(0.0, 1.0) +
+            0.3 * of(riderId).consistency)
+        .clamp(0.0, 1.0);
+  }
+
+  /// What a rider is worth as road captain.
+  ///
+  /// @param riderId Id of a rider.
+  /// @returns 0 to 1.
+  double captainSkill(int riderId) =>
+      (leadership(riderId) + raceSense(riderId)) / 2;
+
+  /// @param riders Riders of a team in a race.
+  /// @returns The one best suited as road captain, or null.
+  SimRider? bestCaptain(Iterable<SimRider> riders) => riders.isEmpty
+      ? null
+      : riders
+          .reduce((a, b) => captainSkill(b.id) > captainSkill(a.id) ? b : a);
 
   // --- Settling in -----------------------------------------------------------
 
@@ -617,6 +697,10 @@ class People {
     final before = roleOf(riderId);
     if (role == before) return;
     teamRoles[riderId] = role;
+    if (!role.leads &&
+        (c.economy.contracts[riderId]?.clauses.leader ?? false)) {
+      move(riderId, -1.0, tr('His contract guarantees him a leader\'s role'));
+    }
     // Enum order: star first. A talent is not a rank of its own.
     int rank(TeamRole x) => x == TeamRole.prospect ? 3 : x.index;
     final step = rank(before) - rank(role);
@@ -877,6 +961,18 @@ class People {
 
   /// At the turn of the season: the promises of the season are settled,
   /// goals start over and the moods calm down.
+  /// The player leaves for another team: what he promised, the roles he
+  /// gave and the talks he had end with it.
+  void handOver() {
+    promises.clear();
+    ownGoals.clear();
+    teamRoles.clear();
+    askedToLeave.clear();
+    letGo.clear();
+    _talkedDays.clear();
+    _satisfied.clear();
+  }
+
   void closeSeason() {
     for (final promise in [...promises.where((p) => p.year <= c.year)]) {
       promises.remove(promise);

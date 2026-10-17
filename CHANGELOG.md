@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased (0.5.0)
+
+The rider, the market and race day: what was planned for 0.5.0 to 0.7.0, in one version, and the manager's career.
+
+- Road captain: leadership and race sense, from character and experience, decide how well a team carries out its plan; chosen in the race preparation.
+- Contract clauses: signing bonus, win bonus, release clause (the other teams may pay it from August, the money goes to the player) and a guaranteed leader's role; each lowers the wage a rider asks.
+- A comparison table of up to four riders, the best value of each line in green.
+- The race preparation shows the sprint train; in a team time trial the line can wait for the leader.
+- The leaders' jerseys in the colours of the Grand Tours in report and live view; the report names who takes a jersey.
+- The manager's career: a reputation from results against what the team's strength promised. With the job market switched on under Delegation (off by default), the board warns on 1 November after a bad season and dismisses after a second, other teams offer a job in the inbox, and an accepted offer hands you the new team at the turn of the year. The history shows the team of every season.
+- Personalities from the WorldDB: loyalty from a rider's contract loyalty, more professional and steadier with years as a professional, more ambitious with wins; the same personality in every career.
+- ROADMAP and FEATURES name the version that brought each item.
+- Fix: a switched-off inbox topic also swallowed talks, so a rider who asked to leave got no answer; messages that ask for a decision now always arrive.
+- Fix: the Giro was never recognised, because the WorldDB gives it the same class as the Vuelta; its winner got 150,000 € instead of 265,000 €, and the Giro and Vuelta templates held the wrong Grand Tour.
+
 ## 0.4.0 alpha (2026-10-17)
 
 A world that lasts ten seasons, and a manager's year with more to decide. Over ten simulated seasons the field keeps its level (WorldTour strength 77.4 to 78.0, riders of 80 and more 14 to 21), the age stays at 28 to 29 and the WorldTeams' balances hold.

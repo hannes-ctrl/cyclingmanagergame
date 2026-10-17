@@ -6,6 +6,7 @@ import 'package:sim/sim.dart';
 import '../app_state.dart';
 import '../ui.dart';
 import '../widgets.dart';
+import 'compare_dialog.dart';
 import 'scout_button.dart';
 
 // Label, short code (also the key of the scouting range, so that every
@@ -589,6 +590,35 @@ class RiderPage extends StatelessWidget {
                             : TeamColors.muted,
                       ),
                     ),
+                    IconButton(
+                      tooltip: s.compareList.contains(r.id)
+                          ? tr('In the comparison table ({0} of 4) – open it', [
+                              s.compareList.length,
+                            ])
+                          : tr('Add to the comparison table ({0} of 4)', [
+                              s.compareList.length,
+                            ]),
+                      onPressed: () {
+                        if (!s.compareList.contains(r.id) &&
+                            !s.toggleCompare(r.id)) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                tr('The comparison table holds four riders.'),
+                              ),
+                            ),
+                          );
+                        }
+                        showComparison(context, s);
+                      },
+                      icon: Icon(
+                        LucideIcons.columns4,
+                        size: 20,
+                        color: s.compareList.contains(r.id)
+                            ? c.accent
+                            : TeamColors.muted,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(width: 8),
@@ -990,6 +1020,23 @@ class RiderPage extends StatelessWidget {
                       ),
                       if (k != null && !free)
                         fact(tr('Runs until'), contractEnd(k.endYear)),
+                      if (k != null && !k.clauses.isEmpty)
+                        fact(
+                          tr('Clauses'),
+                          [
+                            if (k.clauses.winBonus > 0)
+                              tr('{0} € per win', [euro(k.clauses.winBonus)]),
+                            if (k.clauses.release > 0)
+                              tr('release clause {0} €', [
+                                euro(k.clauses.release),
+                              ]),
+                            if (k.clauses.leader) tr('guaranteed leader'),
+                            if (k.clauses.signing > 0)
+                              tr('signing bonus {0} €', [
+                                euro(k.clauses.signing),
+                              ]),
+                          ].join(' · '),
+                        ),
                       if (k?.nextTeam != null)
                         fact(
                           '${career.year + 1}',

@@ -684,3 +684,31 @@ String formStep(double form) => form >= 1.02
     : form >= 0.96
     ? tr('below par')
     : tr('poor');
+
+/// Colours of a race's leader's jerseys: the three Grand Tours their own,
+/// every other race yellow, green, polka dots and white.
+///
+/// @param tour Which Grand Tour the race is, or null.
+/// @returns General, points, mountains and youth.
+({Color general, Color points, Color mountains, Color youth}) jerseyColors(
+  GrandTour? tour,
+) => switch (tour) {
+  GrandTour.giro => (
+    general: const Color(0xFFF2A0C0),
+    points: const Color(0xFFB0307A),
+    mountains: const Color(0xFF2F6FD0),
+    youth: Colors.white,
+  ),
+  GrandTour.vuelta => (
+    general: const Color(0xFFD82030),
+    points: const Color(0xFF2FA866),
+    mountains: const Color(0xFF3A6FD0),
+    youth: Colors.white,
+  ),
+  _ => (
+    general: const Color(0xFFF5D020),
+    points: const Color(0xFF2FA866),
+    mountains: const Color(0xFFE2333A),
+    youth: Colors.white,
+  ),
+};
