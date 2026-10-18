@@ -211,13 +211,17 @@ class Weather {
 
 /// Wind felt by the riders on each segment of a route.
 class WindField {
-  WindField(this.head, this.cross);
+  WindField(this.head, this.cross, [this.heading = const []]);
 
   /// Component against the direction of travel in m/s; negative is tailwind.
   final List<double> head;
 
   /// Component across the road in m/s, always positive.
   final List<double> cross;
+
+  /// Direction of the road per segment in radians, as the wind was laid
+  /// over it; empty on a day without wind.
+  final List<double> heading;
 
   /// No wind anywhere.
   static WindField still(int segments) =>
@@ -288,6 +292,7 @@ WindField windAlong(SimRoute route, Weather w, Random r) {
   final n = route.segments.length;
   if (w.windMs < 0.5) return WindField.still(n);
   final head = List<double>.filled(n, 0), cross = List<double>.filled(n, 0);
+  final headings = List<double>.filled(n, 0);
   final open = exposedSegments(route);
   var heading = 0.0;
   var blockEnd = -1.0;
@@ -300,6 +305,7 @@ WindField windAlong(SimRoute route, Weather w, Random r) {
       // Drawn as before, so that the random numbers stay in step.
       r.nextDouble();
     }
+    headings[i] = heading;
     final exposure = open[i] ? 1.0 : 0.35;
     // Climbs wind through valleys and woods; at rider height the wind is
     // weaker than at 10 m.
@@ -309,5 +315,5 @@ WindField windAlong(SimRoute route, Weather w, Random r) {
     head[i] = speed * cos(relative);
     cross[i] = (speed * sin(relative)).abs();
   }
-  return WindField(head, cross);
+  return WindField(head, cross, headings);
 }

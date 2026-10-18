@@ -12,6 +12,7 @@ import 'power_view.dart';
 import 'race_replay.dart';
 import 'race_chart.dart';
 import 'tactics_dialog.dart';
+import 'view3d_button.dart';
 import 'whatif_dialog.dart';
 
 /// Grouping of the WorldDB race classes for the list.
@@ -355,6 +356,10 @@ class _RaceDetail extends StatelessWidget {
                   ],
                 ),
               ),
+              if (run != null) ...[
+                View3dButton(state: state, run: run, index: index),
+                const SizedBox(width: 10),
+              ],
               // Ridden road stage with our riders: simulate it again with different tactics.
               if (state.career.progress[race.id] case final p?
                   when index < p.stagesDone &&

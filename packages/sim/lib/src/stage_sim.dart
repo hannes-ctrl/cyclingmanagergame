@@ -308,6 +308,7 @@ String _names(Iterable<_State> riders, [int limit = 6]) {
 /// @param kits Material, staff and style per team id; teams without one
 ///   ride on average material.
 /// @param mountainLeaders Riders in the running for the mountains jersey.
+/// @param track Whether to record where every rider was, for the 3D view.
 /// @returns The result, or a paused result with [StageResult.openCall] set.
 StageResult simulateStage(
   SimRoute route,
@@ -327,6 +328,7 @@ StageResult simulateStage(
   double illness = 0,
   Map<int, TeamKit> kits = const {},
   Set<int> mountainLeaders = const {},
+  bool track = false,
 }) {
   final rng = Random(seed);
   tuning ??= SimTuning.standard;
@@ -359,11 +361,20 @@ StageResult simulateStage(
         ..gcGap = gcGaps[r.id]
         ..climate = climateCost(weather.temperatureC, r),
   ];
+  final recorded = track
+      ? RaceTrack([
+          for (final s in route.segments) s.km + s.lengthM / 1000,
+        ], [
+          for (final r in riders) r.id,
+        ])
+      : null;
+  recorded?.heading = wind.heading;
   final StageResult result;
   if (route.kind != StageKind.road) {
-    result = _timeTrial(route, states, rng, tuning, weather, wind);
+    result = _timeTrial(route, states, rng, tuning, weather, wind, recorded);
   } else {
     final race = _RoadRace(route, states, rng, tuning, weather, wind)
+      ..track = recorded
       ..kitted = kits.isNotEmpty
       ..radioTeam = radioTeam
       ..radio = radio
@@ -376,10 +387,13 @@ StageResult simulateStage(
       return StageResult(const [], race.events, false)
         ..openCall = stop.call
         ..timeline = race._timeline
-        ..weather = weather;
+        ..weather = weather
+        ..track = recorded;
     }
   }
-  return result..weather = weather;
+  return result
+    ..weather = weather
+    ..track = recorded;
 }
 
 /// Kilometres of open, flat road on which the crosswind blows at 5 m/s or
@@ -449,6 +463,9 @@ class _RoadRace {
   double _nextReassignKm = 5;
   final _timeline = <RaceSample>[];
   double _nextSampleKm = 2;
+
+  /// Where every rider was, for the 3D view; null unless asked for.
+  RaceTrack? track;
 
   /// Chance per rider that he is ill and gives up.
   double illness = 0;
@@ -644,8 +661,8 @@ class _RoadRace {
         events.add(RaceEvent(
             km,
             EventType.breakaway,
-            tr('{0} gives chase and bridges to the group',
-                [chaser.rider.name])));
+            tr('{0} gives chase and bridges to the group', [chaser.rider.name]),
+            [chaser.rider.id]));
       }
     }
   }
@@ -953,6 +970,14 @@ class _RoadRace {
       groups = _merge(next, s);
 
       _record(groups, s);
+      final rec = track;
+      if (rec != null) {
+        for (final g in groups) {
+          for (final m in g.members) {
+            rec.pass(seg, m.rider.id, g.clock, m.rank);
+          }
+        }
+      }
       final gap = _mainGroup(groups).clock - groups.first.clock;
       if (gap > maxGap) {
         maxGap = gap;
@@ -1339,8 +1364,11 @@ class _RoadRace {
         ..reserve = min(p.reserve, 0.6);
     }
     peloton.members.removeWhere(picked.contains);
-    events.add(RaceEvent(s.km, EventType.breakaway,
-        tr('{0} riders go clear: {1}', [picked.length, _names(picked)])));
+    events.add(RaceEvent(
+        s.km,
+        EventType.breakaway,
+        tr('{0} riders go clear: {1}', [picked.length, _names(picked)]),
+        [for (final p in picked) p.rider.id]));
     // The group starts with a small cushion; the rest follows from the pace.
     return _Group(picked, peloton.clock - 20);
   }
@@ -1519,11 +1547,9 @@ class _RoadRace {
         followers.isEmpty
             ? tr('{0} attacks {1} km from the finish, nobody follows',
                 [best.rider.name, rest.toStringAsFixed(1)])
-            : tr('{0} attacks {1} km from the finish, followed by: {2}', [
-                best.rider.name,
-                rest.toStringAsFixed(1),
-                _names(followers)
-              ])));
+            : tr('{0} attacks {1} km from the finish, followed by: {2}',
+                [best.rider.name, rest.toStringAsFixed(1), _names(followers)]),
+        [best.rider.id, for (final f in followers) f.rider.id]));
   }
 
   /// Fight for position before a key point. Leaders and sprinters want to
@@ -2403,8 +2429,11 @@ class _RoadRace {
           crash: true);
     }
     if (notable && fallen.isNotEmpty) {
-      events.add(RaceEvent(s.km, EventType.crash,
-          tr('Crash: {0} go down', [_names(fallen, 5)])));
+      events.add(RaceEvent(
+          s.km,
+          EventType.crash,
+          tr('Crash: {0} go down', [_names(fallen, 5)]),
+          [for (final m in fallen) m.rider.id]));
     }
     if (held.isNotEmpty) {
       held.removeWhere((m) => !g.members.contains(m));
@@ -2460,8 +2489,8 @@ class _RoadRace {
         m.incident = RiderIncident.puncture;
       }
       if (m.favorite || _own(m)) {
-        events.add(RaceEvent(
-            s.km, EventType.puncture, tr('Puncture for {0}', [m.rider.name])));
+        events.add(RaceEvent(s.km, EventType.puncture,
+            tr('Puncture for {0}', [m.rider.name]), [m.rider.id]));
       }
     }
     if (g.members.length <= 1) {
@@ -2539,7 +2568,8 @@ class _RoadRace {
         EventType.abandon,
         reason == AbandonReason.crash
             ? tr('{0} has to abandon after a crash', [m.rider.name])
-            : tr('{0} abandons, ill', [m.rider.name])));
+            : tr('{0} abandons, ill', [m.rider.name]),
+        [m.rider.id]));
   }
 
   /// Sorts groups by riding time and merges those that have caught each other.
@@ -2705,8 +2735,11 @@ class _RoadRace {
             m.incident = RiderIncident.crash;
             injuries[m.rider.id] = Injury(0.01, 0.02);
           }
-          events.add(RaceEvent(route.raceKm - 0.2, EventType.crash,
-              tr('Crash in the sprint: {0}', [_names(fallen, 4)])));
+          events.add(RaceEvent(
+              route.raceKm - 0.2,
+              EventType.crash,
+              tr('Crash in the sprint: {0}', [_names(fallen, 4)]),
+              [for (final m in fallen) m.rider.id]));
         }
         // At sprint speed the line of a big group breaks: behind the first
         // ones a gap of a second or more opens now and then, and everyone
@@ -2809,7 +2842,7 @@ String _clock(double seconds) {
 /// @param wind Wind along the route.
 /// @returns The stage result.
 StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
-    SimTuning t, Weather weather, WindField wind) {
+    SimTuning t, Weather weather, WindField wind, RaceTrack? track) {
   final segments = route.segments;
   final rho = [for (final s in segments) airDensity(s.altitudeM)];
   final crr = [
@@ -2908,7 +2941,7 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
       loss += (20 + 15 * rng.nextDouble()) * m.kit.serviceLoss;
       m.incident = RiderIncident.puncture;
       events.add(RaceEvent(rng.nextDouble() * route.raceKm, EventType.puncture,
-          tr('Puncture for {0}', [m.rider.name])));
+          tr('Puncture for {0}', [m.rider.name]), [m.rider.id]));
     }
     final technical =
         segments.where((s) => s.grade < -0.04).length / max(1, segments.length);
@@ -2923,14 +2956,17 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
       if (rng.nextDouble() < 0.08) {
         abandons.add(
             Abandon(m.rider, km, AbandonReason.crash, 7 + rng.nextInt(30)));
-        events.add(RaceEvent(km, EventType.abandon,
-            tr('{0} has to abandon after a crash', [m.rider.name])));
+        events.add(RaceEvent(
+            km,
+            EventType.abandon,
+            tr('{0} has to abandon after a crash', [m.rider.name]),
+            [m.rider.id]));
         return null;
       }
       loss += 30 + 30 * rng.nextDouble();
       injuries[m.rider.id] = Injury(0.01, 0.03);
-      events.add(RaceEvent(
-          km, EventType.crash, tr('Crash: {0} go down', [m.rider.name])));
+      events.add(RaceEvent(km, EventType.crash,
+          tr('Crash: {0} go down', [m.rider.name]), [m.rider.id]));
     }
     return loss;
   }
@@ -2950,7 +2986,10 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
         drain(m, pace, dt);
         record(m, i, p, dt);
         time += dt;
+        track?.pass(i, m.rider.id, time, 0);
       }
+      // Riders set off a minute apart.
+      track?.starts[m.rider.id] = 60.0 * startIndex[m]!;
       final loss = mishaps(m);
       if (loss != null) times[m] = time + loss;
     }
@@ -3042,8 +3081,16 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
           drain(m, pace, ddt);
           record(m, i, p, ddt);
           alone[m] = e.value + ddt;
+          track?.pass(i, m.rider.id, alone[m]!, 0);
         }
         clock += dt;
+        for (final (k, m) in line.indexed) {
+          track?.pass(i, m.rider.id, clock, k);
+        }
+      }
+      // Teams set off two minutes apart.
+      for (final m in members) {
+        track?.starts[m.rider.id] = 120.0 * (teamIndex - 1);
       }
       final finish = {
         for (final m in members) m: alone[m] ?? clock,

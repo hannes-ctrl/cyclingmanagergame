@@ -155,6 +155,15 @@ class World {
       });
   final _schemes = <int, PointsScheme>{};
 
+  /// @param raceId Id of the race.
+  /// @returns The key of the race in the WorldDB's graphics pack (its
+  ///   leader jerseys and logo), empty if unknown.
+  String raceKey(int raceId) {
+    final r = _db.select(
+        'SELECT CONSTANT AS k FROM raw_STA_race WHERE IDrace = ?', [raceId]);
+    return r.isEmpty ? '' : ((r.first['k'] as String?) ?? '').toLowerCase();
+  }
+
   /// @returns Per team id the file name key of its jersey in the WorldDB's
   ///   graphics pack.
   Map<int, String> jerseyKeys() => {

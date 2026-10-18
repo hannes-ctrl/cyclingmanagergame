@@ -9,6 +9,7 @@ import 'package:game/game.dart';
 import 'package:sim/sim.dart';
 
 import 'settings.dart';
+import 'viewer_link.dart';
 import 'zip.dart';
 
 /// Colours of the user interface, derived from the team colours.
@@ -1376,6 +1377,38 @@ class AppState extends ChangeNotifier {
       (a, b) => b.race.race.tier.factor > a.race.race.tier.factor ? b : a,
     );
     return (race: best.race.race.info, stageIndex: best.stageIndex);
+  }
+
+  /// Shows a stage in the 3D viewer, which runs as a program of its own.
+  ///
+  /// @param run The race.
+  /// @param index Index of the stage within the race.
+  /// @returns null if it is on its way, otherwise why it is not.
+  Future<String?> showIn3D(RaceRun run, int index) {
+    final stageRace = run.stages.length > 1;
+    return ViewerLink.instance.show(
+      dataDir,
+      viewerRace(
+        title: run.race.name,
+        stage: stageRace ? tr('Stage {0}', [run.stages[index].number]) : '',
+        route: run.routes[index],
+        result: run.result.stages[index],
+        riders: run.riders,
+        teams: career.teams,
+        ownTeam: team.id,
+        // The same stage is laid out the same way every time.
+        seed: run.race.id * 100 + index,
+        kits: Directory('$dataDir/kits').existsSync() ? '$dataDir/kits' : null,
+        kitOf: _jerseys,
+        raceKey: world.raceKey(run.race.id),
+        leaders: stageRace && index > 0 && run.result.standings.length >= index
+            ? leaderJerseys(run.result.standings[index - 1])
+            : const {},
+        logo: File('$dataDir/logos/${run.race.id}.png').existsSync()
+            ? '$dataDir/logos/${run.race.id}.png'
+            : null,
+      ),
+    );
   }
 
   /// Ends the live view and shows the result of the race.

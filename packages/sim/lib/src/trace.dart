@@ -1,4 +1,62 @@
+import 'dart:typed_data';
+
 import 'tactics.dart';
+
+/// Where every rider was during a stage, for the 3D view: for the end of
+/// every segment the time each rider passed it and his place in his group.
+/// It is only recorded for the races the game shows, and never saved.
+class RaceTrack {
+  /// @param km Race kilometre at the end of each segment.
+  /// @param riders Ids of the riders at the start.
+  RaceTrack(this.km, Iterable<int> riders)
+      : times = {
+          for (final id in riders)
+            id: Float32List(km.length)..fillRange(0, km.length, double.nan),
+        },
+        ranks = {for (final id in riders) id: Uint8List(km.length)};
+
+  /// Race kilometre at the end of each segment.
+  final List<double> km;
+
+  /// Per rider id: seconds after his start at which he passed each point;
+  /// NaN where he did not, because he had left the race or the stage was
+  /// paused before.
+  final Map<int, Float32List> times;
+
+  /// Per rider id: his place within his group at each point, 0 at the
+  /// front.
+  final Map<int, Uint8List> ranks;
+
+  /// Per rider id: seconds after the first start at which he set off; empty
+  /// in a road race, where everybody starts together.
+  final Map<int, double> starts = {};
+
+  /// Direction of the road per segment in radians, as the simulation laid
+  /// the wind over it; empty on a day without wind.
+  List<double> heading = const [];
+
+  /// Points recorded so far, from the start.
+  int length = 0;
+
+  /// Records a rider passing a point.
+  ///
+  /// @param point Index of the point.
+  /// @param riderId Id of the rider.
+  /// @param timeS Seconds after his start; never earlier than at the point
+  ///   before.
+  /// @param rank His place in his group, 0 at the front.
+  void pass(int point, int riderId, double timeS, int rank) {
+    final t = times[riderId];
+    if (t == null) return;
+    // A group that catches the one ahead takes over its clock, which puts
+    // the chasers a few seconds back in time; on the screen they close the
+    // rest of the gap over the next segment instead.
+    final before = point > 0 ? t[point - 1] : double.nan;
+    t[point] = before.isNaN || timeS > before ? timeS : before + 0.5;
+    ranks[riderId]![point] = rank.clamp(0, 255);
+    if (point >= length) length = point + 1;
+  }
+}
 
 /// State of the race at one kilometre, for the chart of the race report.
 class RaceSample {

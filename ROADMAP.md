@@ -8,12 +8,13 @@ Nothing here is promised; priorities are set version by version. Ideas come from
 
 The working list, in order. It is rewritten whenever something on it is done; the sections below hold the full plan.
 
-1. **The beta test among friends** with the 0.6.1 zip: where strangers get stuck, what they do not understand, what breaks. It decides what the beta still needs.
-2. **The race shape, in the model, as ongoing work.** It is good enough for the beta. The largest gaps after the calibration of 17 and 18 October: bunch sprints on flat days end in groups of 25 instead of 35; breakaways win 21 % of mountain stages instead of 36 %; 35 % of the sprinters finish outside the time limit on mountain stages instead of 17 %; on hilly days the tenth is 0:54 behind instead of 0:19; the leaders of a stage race lose 0:28 a stage instead of 0:17. Four tuning values sit at the edge of their range, so the search alone cannot close these gaps.
-3. **Speed** beyond the beta condition: two thirds of the time go into the step of each rider through each segment; a real gain needs longer segments where nothing happens.
-4. **Weather, third step:** real compass headings, once a source for the routes' directions is found; the WorldDB has none.
+1. **The 3D view, second step:** the simulation steps along with the viewer instead of being replayed, so that the race can be watched live; then the player's instructions to his riders from the viewer (attack, follow, ride tempo, wait), sent back over the same link. The first step is done: a Godot viewer (Windows, Linux, macOS) replays the recorded stages, with the real kits, the land beside the road, team cars and spectators.
+2. **The beta test among friends** with the 0.6.1 zip: where strangers get stuck, what they do not understand, what breaks. It decides what the beta still needs.
+3. **The race shape, in the model, as ongoing work.** It is good enough for the beta. The largest gaps after the calibration of 17 and 18 October: bunch sprints on flat days end in groups of 25 instead of 35; breakaways win 21 % of mountain stages instead of 36 %; 35 % of the sprinters finish outside the time limit on mountain stages instead of 17 %; on hilly days the tenth is 0:54 behind instead of 0:19; the leaders of a stage race lose 0:28 a stage instead of 0:17. Four tuning values sit at the edge of their range, so the search alone cannot close these gaps.
+4. **Speed** beyond the beta condition: two thirds of the time go into the step of each rider through each segment; a real gain needs longer segments where nothing happens.
+5. **Weather, third step:** real compass headings, once a source for the routes' directions is found; the WorldDB has none.
 
-Done since the last version of this list: explanations for every figure and choice, the owners' skim removed, the save format with a version and a migration, the release zip, balance bands, render tests of every page in both languages, a money sink for the player, less text, rider profiles and the licence rules when founding a team, the intake of ordinary riders that the first hundred-season run asked for, every tool in English, the calibration from 2021 (see the CHANGELOG), the balance bands on three seeds. The calibration now measures a real race on the riders the simulation has: the middle of the field and the favourite wins had been measured against riders the simulation does not have.
+Done since the last version of this list: explanations for every figure and choice, the owners' skim removed, the save format with a version and a migration, the release zip, balance bands, render tests of every page in both languages, a money sink for the player, less text, rider profiles and the licence rules when founding a team, the intake of ordinary riders that the first hundred-season run asked for, every tool in English, the calibration from 2021 (see the CHANGELOG), the balance bands on three seeds; in the 3D view the real kits from the game, the land beside the road, team cars and motorbikes, spectators and the race's logo. The calibration now measures a real race on the riders the simulation has: the middle of the field and the favourite wins had been measured against riders the simulation does not have.
 
 ## Principles
 
@@ -176,7 +177,16 @@ Each phase is one version. Every item stands under the version that brought it, 
 
 ### 0.7.0 Beta
 
-*Last: no new systems. What the test among friends with 0.6.1 brings up, then the beta. See below.*
+*Last: what the test among friends with 0.6.1 brings up, then the beta. See below. In progress: the stage in 3D, which Hannes asked for: a viewer made with Godot, so that it runs on Windows, Linux and macOS, and so that the player can one day steer his riders in it.*
+
+**The 3D view**
+
+- **Done:** the simulation records where every rider was at each 200 m point, for the races of the player's team; the game sends a stage over a WebSocket on the local machine to a viewer made with Godot 4.7; the viewer lays out the road from the profile and the directions of the wind model, with hairpins on steep climbs, builds the land around the camera, and replays the stage with every rider in his team's colours, cameras, a director, the groups and the profile.
+- **Done, second step:** riders made from a human model (CC0, Quaternius) on road bikes made in code, pedalling by inverse kinematics and drawn from a vertex animation texture with a coarser version for the distance; the kit in the team's colours; the road with photo textures (CC0, Poly Haven), markings, finish line and rain; Forward+. Then the riders made into lean road cyclists on the hoods of a drop bar, scaled to their real height, with helmets, glasses and shoes, and three levels of detail.
+- **Done, animations:** six stances baked into the animation texture (sitting, standing, sprinting, tucked, the salute, the time trial position on a time trial bike), chosen by every rider from the race; the bike rocking out of the saddle, cadence, freewheeling, leaning into bends; crashes and punctures where they happened.
+- **Done, the picture:** the real kits from the game (every team, the leaders' jerseys), helmets and bikes in their colours; beside the road a finer strip with a verge, a ditch and an embankment or a cutting to the land instead of a bench; team cars behind the groups and every rider in a time trial, motorbikes ahead; spectators made from the base character who cheer; the race's logo on the finish arch and the barriers. The game's own helmets and bikes are meshes in a container the tools cannot read.
+- **Next:** live: the simulation steps segment by segment while the viewer shows it, instead of a replay; then the player's instructions from the viewer (attack, follow, ride tempo, wait for the leader), sent back over the same link. PCM lets the player steer his riders in its 3D view; this is the reason for a real engine.
+- **Later:** a rider getting a bottle or a new wheel from the car, looking back over his shoulder, numbers on the backs, towns and villages along the road, lakes and rivers, cleaner land on the inside of tight hairpins.
 
 ## Quality of life
 

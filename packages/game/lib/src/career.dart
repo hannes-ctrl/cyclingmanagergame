@@ -1753,6 +1753,7 @@ class Career {
           radio: _radio[id] ?? const {},
           askRadio: true,
           kits: _kitsFor(p, route),
+          track: true,
         ),
       );
     }
@@ -1920,6 +1921,8 @@ class Career {
           radioTeam: teamId,
           radio: _radio.remove(id) ?? const {},
           kits: _kitsFor(p, route),
+          // Where every rider was, for the 3D view of the player's races.
+          track: p.run.riders.any((r) => r.teamId == teamId),
         ),
       ));
     }
@@ -1934,6 +1937,16 @@ class Career {
     if (!result.placings.any((p) => p.rider.teamId == teamId)) {
       for (final s in result.timeline) {
         s.groups = const [];
+      }
+      result.track = null;
+    } else {
+      // The tracks for the 3D view take a megabyte a stage: only the race
+      // that is running keeps them.
+      for (final other in progress.values) {
+        if (identical(other, stage.race)) continue;
+        for (final r in other.run.results) {
+          r.track = null;
+        }
       }
     }
     // Power figures are kept for the player's riders and the first ten.

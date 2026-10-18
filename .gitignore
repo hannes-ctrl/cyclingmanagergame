@@ -4,6 +4,7 @@
 # Derived from the WorldDB or fetched from the web; rebuilt by the tools
 /data/world.sqlite
 /data/jerseys/
+/data/kits/
 /data/pcs_cache/
 /data/*.log
 
@@ -50,3 +51,10 @@ build/
 
 # Release zips (release.ps1)
 /dist/
+
+# Races exported for developing the 3D viewer (packages/sim: dart run bin/sim.dart viewer)
+/viewer/samples/
+# Godot caches and exports
+/viewer/.godot/
+/viewer/build/
+/viewer/override.cfg

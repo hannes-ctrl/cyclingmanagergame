@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:sim/sim.dart';
 import 'package:test/test.dart';
@@ -214,6 +216,50 @@ void main() {
       }
       expect(echelons, greaterThan(0));
       expect(gale, lessThan(calm * 0.8));
+    });
+
+    test('the track for the 3D view changes nothing and reaches the finish',
+        () {
+      final route = hillyClassic();
+      final plain = simulateStage(route, field, seed: 3);
+      final traced = simulateStage(route, field, seed: 3, track: true);
+      expect([for (final p in traced.placings) (p.rider.id, p.timeS)],
+          [for (final p in plain.placings) (p.rider.id, p.timeS)]);
+      expect(plain.track, isNull);
+      final track = traced.track!;
+      expect(track.length, route.segments.length);
+      expect(track.km.last, closeTo(route.raceKm, 0.01));
+      for (final p in traced.placings) {
+        final times = track.times[p.rider.id]!;
+        // Every finisher passes every point, one after the other, and
+        // crosses the line with his finishing time give or take the sprint.
+        expect(times.every((t) => !t.isNaN), isTrue);
+        for (var i = 1; i < times.length; i++) {
+          expect(times[i], greaterThan(times[i - 1]));
+        }
+        expect(times.last, closeTo(p.timeS, 30));
+      }
+      final tt = simulateStage(timeTrial(), field, seed: 3, track: true);
+      final starts = tt.track!.starts.values.toList()..sort();
+      expect(starts.first, 0);
+      expect(starts[1], 60);
+
+      // The message for the viewer carries the track losslessly.
+      final message = jsonDecode(jsonEncode(viewerRace(
+          title: 'Test',
+          stage: '',
+          route: route,
+          result: traced,
+          riders: field,
+          teams: const {},
+          ownTeam: field.first.teamId))) as Map<String, dynamic>;
+      expect(message['protocol'], viewerProtocol);
+      final id = traced.placings.first.rider.id;
+      final bytes = base64Decode((message['track']['times'] as Map)['$id']);
+      final back = Float32List.view(Uint8List.fromList(bytes).buffer);
+      expect(back, track.times[id]);
+      expect((message['riders'] as List).where((r) => r['own'] == true),
+          hasLength(field.where((r) => r.teamId == field.first.teamId).length));
     });
 
     test('weather is part of the result', () {

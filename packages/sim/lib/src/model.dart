@@ -366,10 +366,15 @@ class Injury {
 
 /// Something that happened during the stage, with the kilometre it happened at.
 class RaceEvent {
-  RaceEvent(this.km, this.type, this.text);
+  RaceEvent(this.km, this.type, this.text, [this.riders = const []]);
   final double km;
   final EventType type;
   final String text;
+
+  /// Ids of the riders it is about, for the 3D viewer: who went clear,
+  /// attacked (the attacker first), crashed, punctured or abandoned. Empty
+  /// for events about nobody in particular.
+  final List<int> riders;
 }
 
 /// Outcome of a stage or one-day race.
@@ -410,6 +415,10 @@ class StageResult {
 
   /// Weather of the day; null for results stored before it was simulated.
   Weather? weather;
+
+  /// Where every rider was along the route, for the 3D view; null unless
+  /// asked for, and never saved.
+  RaceTrack? track;
 
   /// Finishing time of the winner in seconds.
   double get winnerTimeS => placings.first.timeS;

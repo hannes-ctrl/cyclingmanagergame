@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased (0.7.0)
+
+- The stage in 3D: a viewer made with Godot (Windows, Linux, macOS) shows the player's stages from the button 3D, with every rider where the simulation had him, a road laid out from the real profile, hairpins in the mountains, cameras and a director.
+- The simulation records for the races of the player's team where every rider was at each 200 m point; only the running race keeps it. `sim.dart viewer` exports a stage for the viewer.
+- The release zip contains the viewer (`-NoViewer` leaves it out).
+- The 3D viewer looks far better: riders made from a CC0 human model on a detailed road bike, pedalling with bending knees, kits in the team's colours with six designs, helmets and glasses; asphalt, cobbles and gravel from CC0 photo textures with sharp markings and the finish line; rounder bends; Forward+ rendering. The full field still draws in one go.
+- The riders look like road cyclists: lean, as tall as the real riders, a natural position on the hoods with the hands round the brake hoods of a drop bar; helmets with vents and chin straps, sports glasses, cycling shoes, clean hems on the kit. A third, coarser level of detail keeps the field fast.
+- No trees on the road any more, also in hairpins.
+- Animations in the 3D viewer: riders stand on the pedals on climbs and when they attack (the bike rocks under them), sprint on the drops, tuck on descents, lean into bends, freewheel, and the winner raises his arms; time trials on time trial bikes in the aero position; crashes and punctures shown where they happen. Race events name the riders they are about, for the viewer.
+- The real kits from the game in the 3D viewer (`worlddb kits`): every team in its jersey and shorts, socks, shoes, gloves, bar tape and bottle, the leaders of a stage race in their jerseys; helmets and bikes in the colours of the kit.
+- Beside the road a verge, a ditch and an embankment or a cutting to the land, instead of a bench.
+- Team cars behind the groups and behind every rider in a time trial, motorbikes with cameramen ahead; spectators who cheer by the road; the race's logo on the finish arch and the barriers.
+
 ## 0.6.1 alpha (2026-10-18)
 
 Every condition for the beta is met; this is the version for the test among friends.

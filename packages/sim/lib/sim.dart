@@ -13,5 +13,6 @@ export 'src/stage_sim.dart';
 export 'src/tactics.dart';
 export 'src/trace.dart';
 export 'src/tuning.dart';
+export 'src/viewer.dart';
 export 'src/weather.dart';
 export 'src/world.dart';

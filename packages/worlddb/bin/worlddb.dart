@@ -14,6 +14,8 @@ Usage: dart run worlddb <command> [--worlddb <folder>]
   game-stages <file.pak>      unpack the stage files of the base game into worlddb/GameStages
   classifications             add the points scales to an existing world database
   jerseys <file.pak>          write the team jerseys of the graphics pack to data/jerseys
+  kits <file.pak>             write the 3D kits of the teams and the leader jerseys of
+                              the races (graphics pack) to data/kits
   import                      build the world database data/world.sqlite from the WorldDB
   sql "<query>"               query data/world.sqlite
   serve                       database browser on http://localhost:8765
@@ -87,6 +89,58 @@ Future<void> main(List<String> argv) async {
       print(
           '$shown files, ${(bytes / 1048576).toStringAsFixed(1)} MB, $methods');
       pak.close();
+    case 'kits':
+      // Exports the textures of the 3D kits for the viewer: per team of the
+      // database its jersey with shorts, socks, shoes, gloves, bar tape and
+      // bottle, and its leader jerseys in the grand tours; per race the
+      // generic leader jerseys. Half size is plenty for the viewer.
+      final pak = PakFile.open(args[1]);
+      final outDir = Directory('${File(worldPath).parent.path}/kits')
+        ..createSync(recursive: true);
+      final db = openSqlite(worldPath);
+      final teams = {
+        for (final r in db.select(
+            'SELECT DISTINCT jersey_sz_abbreviation AS k FROM raw_DYN_team'))
+          ((r['k'] as String?) ?? '').toLowerCase(),
+      }..remove('');
+      final races = {
+        for (final r in db.select('SELECT CONSTANT AS c FROM raw_STA_race'))
+          ((r['c'] as String?) ?? '').toLowerCase(),
+      }..remove('');
+      db.dispose();
+      final team = RegExp(
+          r'^Content/Jersey/Team/([^/]+)/[^/]+?_(maillot|socks|shoes|gloves|handles|bottle|maillot_(?:time|points|mountain|young)_(?:giro|tour|vuelta))\.uexp$');
+      final race = RegExp(
+          r'^Content/Jersey/Race/([^/]+?)_maillot_(time|points|mountain|young)\.uexp$');
+      final ooz = Ooz(Platform.script
+          .resolve('../../../native/build/ooz.dll')
+          .toFilePath());
+      var written = 0, skipped = 0, bytes = 0;
+      for (final e in pak.entries) {
+        String? file;
+        final t = team.firstMatch(e.path);
+        if (t != null && teams.contains(t[1]!.toLowerCase())) {
+          file = '${t[1]!.toLowerCase()}/${t[2]}.png';
+        }
+        final r = race.firstMatch(e.path);
+        if (r != null && races.contains(r[1]!.toLowerCase())) {
+          file = 'races/${r[1]!.toLowerCase()}_${r[2]}.png';
+        }
+        if (file == null) continue;
+        final texture = Texture.fromUexp(pak.read(e, decoder: ooz.decode));
+        if (texture == null) {
+          skipped++;
+          continue;
+        }
+        final out = File('${outDir.path}/$file')
+          ..parent.createSync(recursive: true);
+        final png = texture.shrink(1).toPng();
+        out.writeAsBytesSync(png);
+        bytes += png.length;
+        written++;
+      }
+      pak.close();
+      print('$written textures (${(bytes / 1048576).toStringAsFixed(1)} MB) to ${outDir.path}, $skipped unreadable');
     case 'jerseys':
       // Exports the small team jerseys of the graphics pack as PNG files.
       final pak = PakFile.open(args[1]);

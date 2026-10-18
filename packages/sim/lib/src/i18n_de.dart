@@ -2177,5 +2177,17 @@ const german = <String, String>{
       'Das Team schickt einen Fahrer in die Ausreißergruppe des Tages.',
   'The team does not let the break go and rides behind it.':
       'Das Team lässt die Ausreißer nicht ziehen und fährt hinterher.',
-  'What the board expects this season. At the turn of the year each goal met raises its confidence by seven points times its weight, each one missed lowers it by nine times its weight.': 'Was der Vorstand in dieser Saison erwartet. Zum Jahreswechsel hebt jedes erreichte Ziel sein Vertrauen um sieben Punkte mal Gewicht, jedes verfehlte senkt es um neun mal Gewicht.',
+  'What the board expects this season. At the turn of the year each goal met raises its confidence by seven points times its weight, each one missed lowers it by nine times its weight.':
+      'Was der Vorstand in dieser Saison erwartet. Zum Jahreswechsel hebt jedes erreichte Ziel sein Vertrauen um sieben Punkte mal Gewicht, jedes verfehlte senkt es um neun mal Gewicht.',
+  'Watch the stage in 3D, in a window of its own.':
+      'Die Etappe in 3D ansehen, in einem eigenen Fenster.',
+  'The 3D viewer is not installed.': 'Der 3D-Viewer ist nicht installiert.',
+  'The 3D viewer could not be started: {0}':
+      'Der 3D-Viewer ließ sich nicht starten: {0}',
+  'Waiting for the game …': 'Warte auf das Spiel …',
+  'Director': 'Regie',
+  'Motorbike': 'Motorrad',
+  'Helicopter': 'Hubschrauber',
+  'Finish': 'Ziel',
+  '{0} km to go': 'noch {0} km',
 };

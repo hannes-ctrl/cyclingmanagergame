@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:sim/sim.dart';
@@ -7,6 +8,8 @@ Usage: dart run sim <command>
 
   stage "<race>" [stage] [--runs n] [--seed s]   a stage or one-day race
   race "<race>" [--seed s]                       a whole stage race with its classifications
+  viewer "<race>" [stage] [--seed s] [--team ABBR] [--out file]
+                                                 a stage as a message for the 3D viewer
   check                                          self-test of the simulation
 ''';
 
@@ -42,6 +45,16 @@ void main(List<String> argv) {
 
   final runs = option('--runs', 1);
   final seed = option('--seed', 1);
+  String text(String name, String fallback) {
+    final i = args.indexOf(name);
+    if (i < 0) return fallback;
+    final v = args[i + 1];
+    args.removeRange(i, i + 2);
+    return v;
+  }
+
+  final team = text('--team', '');
+  final out = text('--out', 'race.json');
   if (args.isNotEmpty && args[0] == 'check') {
     exitCode = _check() ? 0 : 1;
     return;
@@ -109,6 +122,49 @@ void main(List<String> argv) {
           'Mountains: ${top(last.mountains.map((e) => '${e.rider.name} ${e.points}'))}');
       print('Youth:     ${top(last.youth.map((e) => e.rider.name))}');
       print('Teams:     ${top(last.teams.map((e) => e.team))}');
+    case 'viewer':
+      final number = args.length > 2 ? int.parse(args[2]) : 1;
+      final stage = stages.firstWhere((s) => s.number == number);
+      final route = world.route(stage.id);
+      final teams = {for (final t in world.teams()) t.id: t};
+      final own = teams.values.where((t) => t.abbr == team).firstOrNull;
+      final result =
+          simulateStage(route, riders, seed: seed, tuning: tuning, track: true);
+      // The leaders' jerseys come from the stages before.
+      var leaders = const <String, int>{};
+      if (number > 1) {
+        final before = [
+          for (final s in stages.where((s) => s.number < number))
+            world.route(s.id)
+        ];
+        leaders = leaderJerseys(
+            simulateStageRace(before, riders, seed: seed, tuning: tuning)
+                .standings
+                .last);
+      }
+      final kits =
+          Directory(Platform.script.resolve('../../../data/kits').toFilePath());
+      final logo = File(Platform.script
+          .resolve('../../../data/logos/${race.id}.png')
+          .toFilePath());
+      final message = viewerRace(
+          title: race.name,
+          stage: stages.length > 1 ? 'Stage $number' : '',
+          route: route,
+          result: result,
+          riders: riders,
+          teams: teams,
+          ownTeam: own?.id,
+          seed: seed,
+          kits: kits.existsSync() ? kits.absolute.path : null,
+          kitOf: world.jerseyKeys(),
+          raceKey: world.raceKey(race.id),
+          leaders: leaders,
+          logo: logo.existsSync() ? logo.absolute.path : null);
+      File(out).writeAsStringSync(jsonEncode(message));
+      print('${race.name} ${stages.length > 1 ? 'stage $number ' : ''}'
+          '(${route.raceKm.toStringAsFixed(1)} km, ${riders.length} riders) '
+          'written to $out');
     default:
       stdout.write(_usage);
   }

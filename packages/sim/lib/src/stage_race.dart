@@ -239,12 +239,14 @@ class StageRaceRun {
   /// @param radioTeam Team that is asked over the radio.
   /// @param radio Overrides the radio answers stored in the snapshot.
   /// @param askRadio Whether to pause at the first unanswered question.
+  /// @param track Whether to record where every rider was.
   /// @returns The stage result.
   StageResult _simulate(SimRoute route, _Snapshot s,
           {Map<int, TeamPlan>? plans,
           int? radioTeam,
           Map<RadioKind, int>? radio,
-          bool askRadio = false}) =>
+          bool askRadio = false,
+          bool track = false}) =>
       simulateStage(
         route,
         s.riders,
@@ -262,13 +264,14 @@ class StageRaceRun {
         illness: oneDay ? 0 : illnessPerStage,
         kits: s.kits,
         mountainLeaders: s.mountainLeaders,
+        track: track,
       );
 
   /// Packs a stage into a job.
   StageJob _job(SimRoute route, _Snapshot s,
-          {int? radioTeam, bool askRadio = false}) =>
+          {int? radioTeam, bool askRadio = false, bool track = false}) =>
       StageJob._(route, s, tuning, month, country, oneDay ? 0 : illnessPerStage,
-          radioTeam, askRadio, I18n.lang);
+          radioTeam, askRadio, I18n.lang, track);
 
   /// The next stage as a job that does not count: for a preview that is
   /// simulated on another isolate.
@@ -280,6 +283,7 @@ class StageRaceRun {
   /// @param radio Answers given so far.
   /// @param askRadio Whether to pause at the first unanswered question.
   /// @param kits Material and staff per team.
+  /// @param track Whether to record where every rider was, for the 3D view.
   /// @returns The job; its result is not to be passed to [finish].
   StageJob previewJob(SimRoute route,
           {Map<int, TeamPlan> plans = const {},
@@ -287,9 +291,10 @@ class StageRaceRun {
           int? radioTeam,
           Map<RadioKind, int> radio = const {},
           bool askRadio = false,
-          Map<int, TeamKit> kits = const {}}) =>
+          Map<int, TeamKit> kits = const {},
+          bool track = false}) =>
       _job(route, _snapshot(plans, directorSkills, radio, kits),
-          radioTeam: radioTeam, askRadio: askRadio);
+          radioTeam: radioTeam, askRadio: askRadio, track: track);
 
   /// Starts the next stage: fixes everything that decides it and returns it
   /// as a job. The job can be run here or on another isolate; its result
@@ -301,16 +306,18 @@ class StageRaceRun {
   /// @param radioTeam Team whose radio answers apply.
   /// @param radio Radio answers of that team.
   /// @param kits Material and staff per team.
+  /// @param track Whether to record where every rider was, for the 3D view.
   /// @returns The job.
   StageJob begin(SimRoute route,
       {Map<int, TeamPlan> plans = const {},
       Map<int, double> directorSkills = const {},
       int? radioTeam,
       Map<RadioKind, int> radio = const {},
-      Map<int, TeamKit> kits = const {}}) {
+      Map<int, TeamKit> kits = const {},
+      bool track = false}) {
     final snapshot = _snapshot(plans, directorSkills, radio, kits);
     _before.add(snapshot);
-    return _job(route, snapshot, radioTeam: radioTeam);
+    return _job(route, snapshot, radioTeam: radioTeam, track: track);
   }
 
   /// Takes the result of a job started with [begin] into the race: time
@@ -352,6 +359,7 @@ class StageRaceRun {
       ..power = r.power
       ..injuries = r.injuries
       ..weather = r.weather
+      ..track = r.track
       ..abandons = [
         for (final a in r.abandons)
           Abandon(own[a.rider.id]!, a.km, a.reason, a.days),
@@ -702,7 +710,8 @@ class StageRaceRun {
         for (final p in r.placings) [at[p.rider], p.timeS, p.group],
       ],
       'events': [
-        for (final e in r.events) [e.km, e.type.index, e.text],
+        for (final e in r.events)
+          [e.km, e.type.index, e.text, if (e.riders.isNotEmpty) e.riders],
       ],
       'awards': [
         for (final a in r.awards)
@@ -819,8 +828,11 @@ class StageRaceRun {
         ],
         [
           for (final e in s['events'] as List)
-            RaceEvent(((e as List)[0] as num).toDouble(),
-                EventType.values[e[1] as int], e[2] as String),
+            RaceEvent(
+                ((e as List)[0] as num).toDouble(),
+                EventType.values[e[1] as int],
+                e[2] as String,
+                e.length > 3 ? (e[3] as List).cast<int>() : const []),
         ],
         s['break'] as bool,
         [
@@ -884,7 +896,8 @@ class StageRaceRun {
 /// handed to another isolate and simulated there.
 class StageJob {
   StageJob._(this.route, this._s, this._tuning, this._month, this._country,
-      this._illness, this._radioTeam, this._askRadio, this._lang);
+      this._illness, this._radioTeam, this._askRadio, this._lang,
+      [this._track = false]);
 
   /// The stage.
   final SimRoute route;
@@ -899,6 +912,9 @@ class StageJob {
   /// Language of the event texts; an isolate does not know the setting of
   /// the one that started it.
   final Lang _lang;
+
+  /// Whether to record where every rider was, for the 3D view.
+  final bool _track;
 
   /// Simulates the stage. The same job always gives the same result.
   ///
@@ -922,6 +938,7 @@ class StageJob {
       illness: _illness,
       kits: _s.kits,
       mountainLeaders: _s.mountainLeaders,
+      track: _track,
     );
   }
 }

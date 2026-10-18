@@ -7,6 +7,7 @@ import '../app_state.dart';
 import '../ui.dart';
 import '../widgets.dart';
 import 'race_replay.dart';
+import 'view3d_button.dart';
 
 /// A stage of the player's team as it happens: the stage in fast motion
 /// runs before the result is shown, with the riders of the team and the
@@ -132,6 +133,8 @@ class _LiveScreenState extends State<LiveScreen> {
                       ),
                     ),
                   ),
+                View3dButton(state: s, run: run, index: index),
+                const SizedBox(width: 8),
                 FilledButton(
                   style: FilledButton.styleFrom(
                     backgroundColor: c.accent,

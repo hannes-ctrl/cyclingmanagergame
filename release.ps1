@@ -3,7 +3,12 @@
 #
 #   .\release.ps1                 program and tuning values only
 #   .\release.ps1 -World          with the world database data\world.sqlite
-#   .\release.ps1 -World -Art     also with jerseys, race logos and rider photos
+#   .\release.ps1 -World -Art     also with jerseys, kits, race logos and rider photos
+#   .\release.ps1 -NoViewer       without the 3D viewer
+#
+# The 3D viewer is built with Godot (viewer\build.ps1; the path comes from
+# GODOT or the default under D:\dev\godot) unless viewer\build\windows
+# already holds a build.
 #
 # The world database and the pictures come from the WorldDB for Pro Cycling
 # Manager and from the game itself: they are not ours to publish. Pass them
@@ -12,7 +17,8 @@
 
 param(
     [switch]$World,
-    [switch]$Art
+    [switch]$Art,
+    [switch]$NoViewer
 )
 
 # Uses flutter from the PATH. A file env.local.ps1 next to this script (not
@@ -50,12 +56,23 @@ foreach ($dll in 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
     if (Test-Path $from) { Copy-Item $from $out } else { Write-Warning "$dll not found" }
 }
 
+if (-not $NoViewer) {
+    $viewer = "$PSScriptRoot\viewer\build\windows\RadmanagerViewer.exe"
+    if (-not (Test-Path $viewer)) {
+        & "$PSScriptRoot\viewer\build.ps1" -Platforms 'Windows Desktop'
+    }
+    if (Test-Path $viewer) {
+        New-Item -ItemType Directory -Force "$out\viewer" | Out-Null
+        Copy-Item $viewer "$out\viewer\"
+    } else { Write-Warning 'The 3D viewer could not be built; the zip comes without it.' }
+}
+
 if ($World) {
     if (-not (Test-Path "$data\world.sqlite")) { Write-Error 'data\world.sqlite is missing.'; exit 1 }
     Copy-Item "$data\world.sqlite" "$out\data\"
 }
 if ($Art) {
-    foreach ($dir in 'jerseys', 'logos', 'photos') {
+    foreach ($dir in 'jerseys', 'kits', 'logos', 'photos') {
         if (Test-Path "$data\$dir") { Copy-Item -Recurse "$data\$dir" "$out\data\$dir" }
     }
 }
@@ -77,6 +94,8 @@ Radmanager $version
 2. $database
 3. Start radmanager.exe. Saves, settings and exports are kept in the folder
    data.
+4. The button 3D in the race report and the live view starts the 3D viewer
+   (viewer\RadmanagerViewer.exe) in a window of its own.
 
 Windows 10 or 11, 64 bit. Nothing has to be installed.
 "@ | Out-File -Encoding utf8 "$out\README.txt"

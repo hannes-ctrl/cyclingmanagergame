@@ -1,0 +1,2 @@
+Textures from Poly Haven (https://polyhaven.com), CC0 1.0 Universal:
+asphalt_02, cobblestone_large_01, gravel_road (2K JPG: diffuse, OpenGL normal, roughness).
