@@ -2026,12 +2026,10 @@ const german = <String, String>{
       'Die Punkte aller Fahrer des Teams in dieser Saison, nach der UCI-Skala. Der Platz entscheidet, was Sponsoren bieten, und ist eines der Ziele des Vorstands.',
   'The points of a team\'s 20 best riders over three seasons. At the end of the third, the best teams get the WorldTour licences; the two best ProTeams are invited to every WorldTour race.':
       'Die Punkte der 20 besten Fahrer eines Teams über drei Saisons. Am Ende der dritten erhalten die besten Teams die WorldTour-Lizenzen; die zwei besten ProTeams sind zu jedem WorldTour-Rennen eingeladen.',
-  'Money in the account. It grows with sponsor and prize money and shrinks with wages and running costs, month by month. Savings raise what you may pay your riders; at the turn of the year the owners take what is beyond half the budget.':
-      'Geld auf dem Konto. Es wächst mit Sponsoren- und Preisgeld und schrumpft mit Gehältern und laufenden Kosten, Monat für Monat. Ersparnisse erhöhen, was du deinen Fahrern zahlen darfst; zum Jahreswechsel nehmen die Eigentümer, was über dem halben Budget liegt.',
+  'Money in the account. It grows with sponsor and prize money and shrinks with wages and running costs, month by month. Savings raise what you may pay your riders.':
+      'Geld auf dem Konto. Es wächst mit Sponsoren- und Preisgeld und schrumpft mit Gehältern und laufenden Kosten, Monat für Monat. Ersparnisse erhöhen, was du deinen Fahrern zahlen darfst.',
   'How content the board is, 0 to 100. Every season goal met raises it, every one missed lowers it more; it decides what sponsors offer, and with the job market switched on a low value can cost you the job.':
       'Wie zufrieden der Vorstand ist, 0 bis 100. Jedes erreichte Saisonziel hebt es, jedes verfehlte senkt es stärker; es entscheidet, was Sponsoren bieten, und mit eingeschaltetem Jobmarkt kann ein niedriger Wert dich den Job kosten.',
-  'The owners take {0} of the savings beyond half the budget':
-      'Die Eigentümer nehmen {0} der Ersparnisse über dem halben Budget',
   'The save comes from a newer version of the game.':
       'Der Spielstand stammt aus einer neueren Version des Spiels.',
   'The saved game could not be opened ({0}). It is kept as {1}; a new career has begun.':
@@ -2079,4 +2077,105 @@ const german = <String, String>{
       'Die Einrichtung wird bereits ausgebaut.',
   'Two facilities are already being built.':
       'Es werden bereits zwei Einrichtungen ausgebaut.',
+  'How quickly a rider settles in a new team. Until he has, his form is up to 0.8 per cent lower: an adaptable rider needs a few weeks, an inflexible one up to four months.':
+      'Wie schnell sich ein Fahrer in einem neuen Team einlebt. Bis dahin ist seine Form um bis zu 0,8 Prozent schwächer: ein anpassungsfähiger Fahrer braucht ein paar Wochen, ein unflexibler bis zu vier Monate.',
+  'Taller riders catch more wind: their air resistance grows with their height, which costs time on the flat and in time trials.':
+      'Große Fahrer fangen mehr Wind: ihr Luftwiderstand wächst mit der Größe, das kostet Zeit im Flachen und im Zeitfahren.',
+  'Every kilogram has to be carried uphill: at the same power a light rider climbs faster, on the flat weight matters little. Heavy riders also suffer more in the heat.':
+      'Jedes Kilo muss bergauf getragen werden: bei gleicher Leistung klettert ein leichter Fahrer schneller, im Flachen spielt das Gewicht kaum eine Rolle. Schwere Fahrer leiden außerdem stärker unter Hitze.',
+  'Days a rider spent in the break of the day this season. They have their own ranking.':
+      'Tage, die ein Fahrer in dieser Saison in der Ausreißergruppe verbracht hat. Sie haben eine eigene Wertung.',
+  'Combativity awards this season: on every stage the rider of the break who stayed out in front the longest.':
+      'Kämpferischste Fahrer der Saison: auf jeder Etappe der Ausreißer, der am längsten vorn geblieben ist.',
+  'WorldTeam, ProTeam or Continental. It decides which races a team may and must ride and how many riders it may sign (WorldTeam 27–30, ProTeam 20–30, Continental 16–30). The WorldTour licences are given every three years by the three-year ranking.':
+      'WorldTeam, ProTeam oder Continental. Sie entscheidet, welche Rennen ein Team fahren darf und muss und wie viele Fahrer es unter Vertrag nehmen darf (WorldTeam 27–30, ProTeam 20–30, Continental 16–30). Die WorldTour-Lizenzen werden alle drei Jahre nach der Dreijahreswertung vergeben.',
+  'UCI points by the official scale. They decide the team ranking of the season, and with it what sponsors offer, and over three seasons the licences.':
+      'UCI-Punkte nach der offiziellen Tabelle. Sie entscheiden die Teamwertung der Saison und damit, was Sponsoren bieten, und über drei Jahre die Lizenzen.',
+  'What kind of rider he is, read from his best attributes. It only describes him; in a race the attributes themselves count.':
+      'Was für ein Fahrer er ist, abgelesen an seinen besten Werten. Das beschreibt ihn nur; im Rennen zählen die Werte selbst.',
+  'The wage his strength would fetch on the market: what a contract with your pro team would cost.':
+      'Das Gehalt, das seine Stärke auf dem Markt wert ist: so viel würde ein Vertrag bei deinem Profiteam kosten.',
+  'How far the scouts have got: a first impression gives rough ranges, a detailed report narrower ones, and after the test at the base every value is known.':
+      'Wie weit die Scouts sind: ein erster Eindruck liefert grobe Spannen, ein ausführlicher Bericht engere, und nach dem Test an der Basis ist jeder Wert bekannt.',
+  'The category of the race: WorldTour, ProSeries, class 1 or class 2. It decides how many UCI points there are and which teams may start.':
+      'Die Kategorie des Rennens: WorldTour, ProSeries, Klasse 1 oder Klasse 2. Sie entscheidet, wie viele UCI-Punkte es gibt und welche Teams starten dürfen.',
+  'From 1 August riders of the development team may start for the pro team, except in WorldTour races and championships. They stay in the development team.':
+      'Ab dem 1. August dürfen Fahrer des Development-Teams für das Profiteam starten, außer in WorldTour-Rennen und Meisterschaften. Sie bleiben im Development-Team.',
+  'Fitness is the training and racing load of roughly the last six weeks, fatigue that of the last week; fitness minus fatigue is the freshness. Both feed the form.':
+      'Fitness ist die Trainings- und Rennbelastung der letzten etwa sechs Wochen, Ermüdung die der letzten Woche; Fitness minus Ermüdung ist die Frische. Beides fließt in die Form ein.',
+  'The yearly wage a rider of his strength would get on the market. His demands start from it.':
+      'Das Jahresgehalt, das ein Fahrer seiner Stärke auf dem Markt bekäme. Davon gehen seine Forderungen aus.',
+  'An experienced rider of 28 or more who looks after a young one of 23 at most in the same team or its development team. The young rider takes on some of his professionalism. A mentor looks after two at most.':
+      'Ein erfahrener Fahrer ab 28, der sich im selben Team oder dessen Development-Team um einen jungen Fahrer bis 23 kümmert. Der junge übernimmt einen Teil seiner Professionalität. Ein Mentor betreut höchstens zwei.',
+  'The young riders he looks after. They take on some of his professionalism.':
+      'Die jungen Fahrer, um die er sich kümmert. Sie übernehmen einen Teil seiner Professionalität.',
+  'How well your scouts know the rider. Unknown values show as ranges that narrow with every report, until the test at the base reveals them all.':
+      'Wie gut deine Scouts den Fahrer kennen. Unbekannte Werte erscheinen als Spannen, die mit jedem Bericht enger werden, bis der Test an der Basis alle zeigt.',
+  'What the team may pay its riders per year. It follows from the budget and grows with the savings.':
+      'Was das Team seinen Fahrern im Jahr zahlen darf. Es folgt aus dem Budget und wächst mit den Ersparnissen.',
+  'What is left of the wage budget for new contracts after the wages already agreed.':
+      'Was vom Gehaltsbudget nach den bereits vereinbarten Gehältern für neue Verträge übrig ist.',
+  'Whether the rider is available, out injured or ill, at a training camp or racing.':
+      'Ob der Fahrer verfügbar ist, verletzt oder krank ausfällt, im Trainingslager ist oder ein Rennen fährt.',
+  'What the ranking means for the licences at the end of the three years: who keeps a WorldTour licence, who goes up and who goes down.':
+      'Was die Wertung für die Lizenzen am Ende der drei Jahre bedeutet: wer eine WorldTour-Lizenz behält, wer aufsteigt und wer absteigt.',
+  'The points of the seasons of the current three-year cycle added up.':
+      'Die Punkte der Saisons des laufenden Dreijahreszyklus zusammengezählt.',
+  'Another team wants to lure this person away. Match the offer, or he leaves at the turn of the year.':
+      'Ein anderes Team will diese Person abwerben. Halte mit dem Angebot mit, sonst geht sie zum Jahreswechsel.',
+  'Running costs of the month beside the riders\' wages: staff, facilities, travel, material and service, less what the suppliers pay, plus one-off costs such as camps.':
+      'Laufende Kosten des Monats neben den Fahrergehältern: Personal, Einrichtungen, Reisen, Material und Service abzüglich dessen, was die Ausrüster zahlen, dazu einmalige Kosten wie Trainingslager.',
+  'How often he won in the trial runs of this race.':
+      'Wie oft er in den Probeläufen dieses Rennens gewonnen hat.',
+  'How often he finished on the podium in the trial runs.':
+      'Wie oft er in den Probeläufen auf dem Podium landete.',
+  'His average place in the trial runs.':
+      'Seine durchschnittliche Platzierung in den Probeläufen.',
+  'His contract for next season: renewed, signed with another team, or still open.':
+      'Sein Vertrag für die nächste Saison: verlängert, bei einem anderen Team unterschrieben oder noch offen.',
+  'Whether the team starts: invited or obliged by its licence, or as a wildcard with the chance the organiser picks it.':
+      'Ob das Team startet: eingeladen oder durch seine Lizenz verpflichtet, oder per Wildcard mit der Chance, dass der Veranstalter es auswählt.',
+  'Agreed in the contract: a bonus per win, a release clause for which another team may buy him out, or a guaranteed role.':
+      'Im Vertrag vereinbart: eine Prämie je Sieg, eine Ausstiegsklausel, für die ein anderes Team ihn herauskaufen darf, oder eine garantierte Rolle.',
+  'Rides for the team\'s main goal; his team-mates keep him out of the wind.':
+      'Fährt für das Hauptziel des Teams; seine Teamkollegen halten ihn aus dem Wind.',
+  'The second card: kept out of the wind, he may follow moves and attack himself.':
+      'Die zweite Karte: aus dem Wind gehalten, darf er Attacken folgen und selbst angreifen.',
+  'Kept out of the wind without a goal of his own, to save his strength for another day.':
+      'Aus dem Wind gehalten, ohne eigenes Ziel, um Kraft für einen anderen Tag zu sparen.',
+  'Tries to make the break of the day and rides for the stage win.':
+      'Versucht, in die Ausreißergruppe des Tages zu kommen, und fährt auf den Etappensieg.',
+  'Kept out of the wind and rides for the bunch sprint.':
+      'Wird aus dem Wind gehalten und fährt auf den Massensprint.',
+  'One of the last men in front of the sprinter in the run-in to the finish.':
+      'Einer der letzten Männer vor dem Sprinter auf dem Weg ins Ziel.',
+  'Sets the pace on the climbs for his leader.':
+      'Macht an den Anstiegen das Tempo für seinen Kapitän.',
+  'Controls the field on the flat and brings breaks and groups back.':
+      'Kontrolliert das Feld im Flachen und holt Ausreißer und Gruppen zurück.',
+  'Goes into the break as a relay for his leader later in the stage.':
+      'Geht in die Ausreißergruppe, um später auf der Etappe seinem Kapitän zu helfen.',
+  'Works for the team and does not ride for himself.':
+      'Arbeitet für das Team und fährt nicht auf eigene Rechnung.',
+  'Decides for himself as the race unfolds.':
+      'Entscheidet im Rennverlauf selbst.',
+  'Goes into the breaks of mountain stages and takes the points on the climbs, for the mountains jersey.':
+      'Geht auf Bergetappen in die Ausreißergruppen und holt die Punkte an den Anstiegen, für das Bergtrikot.',
+  'Goes into the breaks of flat stages and sprints at the intermediate sprints, for the points jersey.':
+      'Geht auf Flachetappen in die Ausreißergruppen und sprintet bei den Zwischensprints, für das Punktetrikot.',
+  'The team rides along and saves its strength for the finale.':
+      'Das Team fährt mit und spart seine Kraft für das Finale.',
+  'The team controls the field and catches the break of the day in time.':
+      'Das Team kontrolliert das Feld und holt die Ausreißergruppe rechtzeitig zurück.',
+  'The team sets a hard pace on the climbs before the finale, so that weaker riders are dropped.':
+      'Das Team macht an den Anstiegen vor dem Finale hohes Tempo, damit schwächere Fahrer abreißen.',
+  'Where the wind allows it on open roads the team rides in the gutter to split the field; elsewhere it controls the race.':
+      'Wo der Wind es auf offenen Straßen erlaubt, fährt das Team an der Kante, um das Feld zu teilen; sonst kontrolliert es das Rennen.',
+  'Nobody of the team goes into the break of the day.':
+      'Niemand aus dem Team geht in die Ausreißergruppe des Tages.',
+  'The team puts a rider into the break of the day.':
+      'Das Team schickt einen Fahrer in die Ausreißergruppe des Tages.',
+  'The team does not let the break go and rides behind it.':
+      'Das Team lässt die Ausreißer nicht ziehen und fährt hinterher.',
+  'What the board expects this season. At the turn of the year each goal met raises its confidence by seven points times its weight, each one missed lowers it by nine times its weight.': 'Was der Vorstand in dieser Saison erwartet. Zum Jahreswechsel hebt jedes erreichte Ziel sein Vertrauen um sieben Punkte mal Gewicht, jedes verfehlte senkt es um neun mal Gewicht.',
 };

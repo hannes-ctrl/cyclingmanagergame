@@ -435,6 +435,7 @@ class _RankingsScreenState extends State<RankingsScreen> {
               children: [
                 Label(
                   tr('Three-year ranking {0}–{1}', [l.cycleStart, l.cycleEnd]),
+                  help: 'Three-year ranking',
                 ),
                 const SizedBox(height: 2),
                 Text(

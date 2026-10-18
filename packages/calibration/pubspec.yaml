@@ -1,6 +1,6 @@
 name: calibration
 description: Fetches real race results and tunes the simulation to them.
-version: 0.6.0-alpha
+version: 0.6.1-alpha
 publish_to: none
 
 environment:

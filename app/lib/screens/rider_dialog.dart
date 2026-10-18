@@ -395,29 +395,33 @@ class RiderPage extends StatelessWidget {
       );
     }
 
-    Widget fact(String label, String value, {Color? color}) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.5),
-      child: Row(
-        children: [
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: withHelp(
-                label,
-                Text(label, style: const TextStyle(color: TeamColors.muted)),
+    Widget fact(String label, String value, {Color? color, String? help}) =>
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2.5),
+          child: Row(
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: withHelp(
+                    help ?? label,
+                    Text(
+                      label,
+                      style: const TextStyle(color: TeamColors.muted),
+                    ),
+                  ),
+                ),
               ),
-            ),
+              Text(
+                value,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: color ?? TeamColors.text,
+                ),
+              ),
+            ],
           ),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: color ?? TeamColors.text,
-            ),
-          ),
-        ],
-      ),
-    );
+        );
 
     Widget line(
       String left,
@@ -873,6 +877,7 @@ class RiderPage extends StatelessWidget {
                       fact(
                         tr('Race days {0}', [career.year]),
                         '${shape.raceDays}',
+                        help: 'Race days',
                       ),
                       if ((career.breakDays[r.id] ?? 0) > 0)
                         fact(
@@ -975,6 +980,7 @@ class RiderPage extends StatelessWidget {
                             tr('Promised for {0}', [career.year + 1]),
                             promiseText(nextPromise),
                             color: TeamColors.gold,
+                            help: 'Promise',
                           ),
                         fact(
                           tr('Professionalism'),

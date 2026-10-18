@@ -634,11 +634,16 @@ class _PrepScreenState extends State<PrepScreen> {
           runSpacing: 6,
           children: [
             for (final e in labels.entries)
-              Pill(
-                label: tr(e.value),
-                selected: e.key == current,
-                colors: c,
-                onTap: _ownTactics ? () => setState(() => onPick(e.key)) : null,
+              withHelp(
+                e.value,
+                Pill(
+                  label: tr(e.value),
+                  selected: e.key == current,
+                  colors: c,
+                  onTap: _ownTactics
+                      ? () => setState(() => onPick(e.key))
+                      : null,
+                ),
               ),
           ],
         ),
@@ -1129,8 +1134,11 @@ class _PrepScreenState extends State<PrepScreen> {
                                                           in Role.values)
                                                         DropdownMenuItem(
                                                           value: role,
-                                                          child: Text(
-                                                            role.label,
+                                                          child: Tooltip(
+                                                            message: role.help,
+                                                            child: Text(
+                                                              role.label,
+                                                            ),
                                                           ),
                                                         ),
                                                     ],

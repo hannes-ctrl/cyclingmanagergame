@@ -5,47 +5,62 @@ import 'stage_sim.dart' show suitability;
 /// A rider's job in the race.
 enum Role {
   /// Rides for the team's main goal and is protected.
-  leader('Leader'),
+  leader('Leader',
+      'Rides for the team\'s main goal; his team-mates keep him out of the wind.'),
 
   /// Second card; may follow moves and attack himself.
-  coLeader('Co-leader'),
+  coLeader('Co-leader',
+      'The second card: kept out of the wind, he may follow moves and attack himself.'),
 
   /// Protected, but without a goal of his own.
-  protected('Protected rider'),
+  protected('Protected rider',
+      'Kept out of the wind without a goal of his own, to save his strength for another day.'),
 
   /// Should make the break of the day and ride for the stage win.
-  stageHunter('Stage hunter'),
-  sprinter('Sprinter'),
+  stageHunter('Stage hunter',
+      'Tries to make the break of the day and rides for the stage win.'),
+  sprinter('Sprinter', 'Kept out of the wind and rides for the bunch sprint.'),
 
   /// Last men in front of the sprinter.
-  leadOut('Lead-out man'),
+  leadOut('Lead-out man',
+      'One of the last men in front of the sprinter in the run-in to the finish.'),
 
   /// Sets the pace on climbs for the leader.
-  climbDomestique('Climbing domestique'),
+  climbDomestique(
+      'Climbing domestique', 'Sets the pace on the climbs for his leader.'),
 
   /// Controls the field on the flat and brings groups back.
-  tempo('Tempo rider'),
+  tempo('Tempo rider',
+      'Controls the field on the flat and brings breaks and groups back.'),
 
   /// Should make the break as a relay for the leader.
-  breakaway('Breakaway'),
-  domestique('Water carrier'),
+  breakaway('Breakaway',
+      'Goes into the break as a relay for his leader later in the stage.'),
+  domestique(
+      'Water carrier', 'Works for the team and does not ride for himself.'),
 
   /// Decides for himself as the race unfolds.
-  freeRole('Free role'),
+  freeRole('Free role', 'Decides for himself as the race unfolds.'),
 
   /// Goes into the breaks of mountain stages and takes the points on the
   /// climbs, for the mountains jersey.
-  mountainHunter('Mountains jersey hunter'),
+  mountainHunter('Mountains jersey hunter',
+      'Goes into the breaks of mountain stages and takes the points on the climbs, for the mountains jersey.'),
 
   /// Goes into the breaks of flat stages and sprints at the intermediate
   /// sprints, for the points jersey.
-  pointsHunter('Points jersey hunter');
+  pointsHunter('Points jersey hunter',
+      'Goes into the breaks of flat stages and sprints at the intermediate sprints, for the points jersey.');
 
-  const Role(this._label);
+  const Role(this._label, this._help);
   final String _label;
+  final String _help;
 
   /// The label in the current language.
   String get label => tr(_label);
+
+  /// What the role does in a race, in the current language.
+  String get help => tr(_help);
 
   /// Riders who ride for themselves and may attack.
   bool get ridesForHimself =>

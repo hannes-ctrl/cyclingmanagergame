@@ -4,7 +4,7 @@
 
 The game runs on the community **WorldDB** for Pro Cycling Manager, so riders, teams, races and stage profiles are the real ones.
 
-> **Status:** version 0.6.0 alpha. A private hobby project, playable end to end, not balanced. English and German. Nothing in this repository is affiliated with Cyanide, Nacon, Sports Interactive or the UCI.
+> **Status:** version 0.6.1 alpha. A private hobby project, playable end to end, not balanced. English and German. Nothing in this repository is affiliated with Cyanide, Nacon, Sports Interactive or the UCI.
 
 ## Highlights
 

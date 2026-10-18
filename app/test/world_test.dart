@@ -606,10 +606,7 @@ void main() {
       final ready = DateTime.utc(2026, 5, 1);
       (old['facilities'] as Map<String, dynamic>)
         ..remove('builds')
-        ..['building'] = [
-          Facility.medical.index,
-          ready.millisecondsSinceEpoch,
-        ];
+        ..['building'] = [Facility.medical.index, ready.millisecondsSinceEpoch];
       final copy = Career(world, teamId: team, seed: 4)..restore(old, const []);
       expect(copy.teamId, team);
       expect(copy.delegation.jobMarket, isFalse);
@@ -629,7 +626,7 @@ void main() {
   );
 
   test(
-    'The owners take savings beyond half the budget',
+    'The player keeps his savings over the turn of the year',
     skip: dataDir == null,
     timeout: const Timeout(Duration(minutes: 5)),
     () {
@@ -641,14 +638,7 @@ void main() {
       c.economy.balance = 1e9;
       c.today = DateTime.utc(c.year + 1, 1, 1);
       c.startNextSeason();
-      expect(
-        c.economy.balance,
-        lessThanOrEqualTo(Economy.ownerShare * c.economy.budget + 1),
-      );
-      expect(
-        c.inbox.any((m) => m.body.contains('Die Eigentümer nehmen')),
-        isTrue,
-      );
+      expect(c.economy.balance, greaterThan(0.95e9));
     },
   );
 }

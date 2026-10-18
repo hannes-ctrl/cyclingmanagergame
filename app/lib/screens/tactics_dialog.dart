@@ -171,11 +171,14 @@ class _TacticsDialogState extends State<_TacticsDialog> {
           runSpacing: 6,
           children: [
             for (final e in labels.entries)
-              Pill(
-                label: tr(e.value),
-                selected: e.key == current,
-                colors: c,
-                onTap: () => setState(() => onPick(e.key)),
+              withHelp(
+                e.value,
+                Pill(
+                  label: tr(e.value),
+                  selected: e.key == current,
+                  colors: c,
+                  onTap: () => setState(() => onPick(e.key)),
+                ),
               ),
           ],
         ),
@@ -300,7 +303,10 @@ class _TacticsDialogState extends State<_TacticsDialog> {
                                 for (final role in Role.values)
                                   DropdownMenuItem(
                                     value: role,
-                                    child: Text(role.label),
+                                    child: Tooltip(
+                                      message: role.help,
+                                      child: Text(role.label),
+                                    ),
                                   ),
                               ],
                             ),

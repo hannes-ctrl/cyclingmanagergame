@@ -1,6 +1,6 @@
 name: worlddb
 description: Reads the files of the PCM WorldDB (database .cdb, stages .cds).
-version: 0.6.0-alpha
+version: 0.6.1-alpha
 publish_to: none
 
 environment:

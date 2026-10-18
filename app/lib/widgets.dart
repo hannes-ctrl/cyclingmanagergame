@@ -41,19 +41,26 @@ Color attributeColor(double v) => v >= 78
     ? TeamColors.muted
     : TeamColors.text;
 
-/// Small upper-case heading of a panel.
+/// Small upper-case heading of a panel, with the explanation of its figure
+/// as a tooltip where there is one.
 class Label extends StatelessWidget {
-  const Label(this.text, {super.key});
+  const Label(this.text, {super.key, this.help});
   final String text;
 
+  /// Key of the explanation in [statHelp] when [text] carries a number.
+  final String? help;
+
   @override
-  Widget build(BuildContext context) => Text(
-    text.toUpperCase(),
-    style: const TextStyle(
-      fontSize: 11,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 1,
-      color: TeamColors.muted,
+  Widget build(BuildContext context) => withHelp(
+    help ?? text,
+    Text(
+      text.toUpperCase(),
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 1,
+        color: TeamColors.muted,
+      ),
     ),
   );
 }
@@ -90,8 +97,13 @@ class Col<T> {
     this.cell, {
     this.numeric = false,
     this.sortKey,
+    this.help,
   });
   final String title;
+
+  /// Key of the explanation in [statHelp] when it is not the title; an
+  /// empty key shows none, for a title that means something else here.
+  final String? help;
   final double width;
   final Widget Function(T row, int index) cell;
   final bool numeric;
@@ -262,7 +274,7 @@ class _DenseTableState<T> extends State<DenseTable<T>> implements _TableKeys {
             child: SizedBox(
               height: 28,
               child: withHelp(
-                widget.columns[i].title,
+                widget.columns[i].help ?? widget.columns[i].title,
                 cellBox(
                   widget.columns[i],
                   // A long title shrinks rather than breaking over two lines.

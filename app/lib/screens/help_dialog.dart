@@ -40,10 +40,11 @@ const _steps = <(String, String)>[
 /// @returns A future that completes when the dialog is closed.
 Future<void> showHelpDialog(BuildContext context, AppState state) {
   final c = state.colors;
-  final terms = statHelp.entries.toList()
-    ..sort(
-      (a, b) => tr(a.key).toLowerCase().compareTo(tr(b.key).toLowerCase()),
-    );
+  final terms =
+      statHelp.entries.where((e) => !helpInPlaceOnly.contains(e.key)).toList()
+        ..sort(
+          (a, b) => tr(a.key).toLowerCase().compareTo(tr(b.key).toLowerCase()),
+        );
   return showDialog<void>(
     context: context,
     builder: (context) => Dialog(

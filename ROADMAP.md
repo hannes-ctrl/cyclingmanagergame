@@ -1,6 +1,6 @@
 # Roadmap
 
-Where the game goes after 0.6.0 alpha, and what it has to be before it is called a beta.
+Where the game goes after 0.6.1 alpha, and what it has to be before it is called a beta.
 
 Nothing here is promised; priorities are set version by version. Ideas come from *Football Manager* (FM), *Pro Cycling Manager* (PCM) and the dev blogs of *Velo Victory* (VV), and from what their players ask for in the forums. Each item names its source in brackets; the links are at the end.
 
@@ -8,11 +8,12 @@ Nothing here is promised; priorities are set version by version. Ideas come from
 
 The working list, in order. It is rewritten whenever something on it is done; the sections below hold the full plan.
 
-1. **The race shape, fourth step, in the model.** After the calibration of 17 and 18 October the largest gaps are: bunch sprints on flat days end in groups of 25 instead of 35; breakaways win 21 % of mountain stages instead of 36 %; 35 % of the sprinters finish outside the time limit on mountain stages instead of 17 %; on hilly days the tenth is 0:54 behind instead of 0:19; the leaders of a stage race lose 0:28 a stage instead of 0:17. Four tuning values sit at the edge of their range (power per point, drafting in large groups and in the peloton, attacks on flat ground), so the search alone cannot close these gaps.
-2. **Speed.** Measured: two thirds of the time go into the step of each rider through each segment. A real gain needs a change of structure, such as longer segments where nothing happens.
-3. **Weather, third step:** real compass headings, once a source for the routes' directions is found; the WorldDB has none.
+1. **The beta test among friends** with the 0.6.1 zip: where strangers get stuck, what they do not understand, what breaks. It decides what the beta still needs.
+2. **The race shape, in the model, as ongoing work.** It is good enough for the beta. The largest gaps after the calibration of 17 and 18 October: bunch sprints on flat days end in groups of 25 instead of 35; breakaways win 21 % of mountain stages instead of 36 %; 35 % of the sprinters finish outside the time limit on mountain stages instead of 17 %; on hilly days the tenth is 0:54 behind instead of 0:19; the leaders of a stage race lose 0:28 a stage instead of 0:17. Four tuning values sit at the edge of their range, so the search alone cannot close these gaps.
+3. **Speed** beyond the beta condition: two thirds of the time go into the step of each rider through each segment; a real gain needs longer segments where nothing happens.
+4. **Weather, third step:** real compass headings, once a source for the routes' directions is found; the WorldDB has none.
 
-Done since the last version of this list: the save format with a version and a migration, the release zip, balance bands, render tests of every page in both languages, a money sink for the player, less text, rider profiles and the licence rules when founding a team, the intake of ordinary riders that the first hundred-season run asked for, every tool in English, the calibration from 2021 (see the CHANGELOG), the balance bands on three seeds. The calibration now measures a real race on the riders the simulation has: the middle of the field and the favourite wins had been measured against riders the simulation does not have.
+Done since the last version of this list: explanations for every figure and choice, the owners' skim removed, the save format with a version and a migration, the release zip, balance bands, render tests of every page in both languages, a money sink for the player, less text, rider profiles and the licence rules when founding a team, the intake of ordinary riders that the first hundred-season run asked for, every tool in English, the calibration from 2021 (see the CHANGELOG), the balance bands on three seeds. The calibration now measures a real race on the riders the simulation has: the middle of the field and the favourite wins had been measured against riders the simulation does not have.
 
 ## Principles
 
@@ -169,9 +170,13 @@ Each phase is one version. Every item stands under the version that brought it, 
 - **The race shape and speed:** see "Next up".
 - **Real compass headings** for the routes, once there is a source for them.
 
+### 0.6.1 For the test among friends
+
+*Released as 0.6.1 alpha on 18 October 2026. Every figure and choice explained in a tooltip, the owners no longer take the player's savings. With it every condition for the beta below is met.*
+
 ### 0.7.0 Beta
 
-*Last: no new systems. See below.*
+*Last: no new systems. What the test among friends with 0.6.1 brings up, then the beta. See below.*
 
 ## Quality of life
 
@@ -214,11 +219,11 @@ These are spread over the versions above rather than saved for the end; each nam
 
 **Reading**
 
-- Text scaling and layouts for wide and high-resolution screens. *0.3.0* as a scale; a check at 4K and 21:9 is open. [7]
+- Text scaling and layouts for wide and high-resolution screens. *0.3.0* as a scale; *0.6.0:* every page tested at 4K, at 21:9 and in the smallest window. [7]
 - A clearer form display than the scale from −3 % to +4 %: steps with an arrow for the trend. *0.4.0.*
 - Notes on a rider, written by the player. *0.3.0.*
 - A glossary behind the tooltips, and a short introduction for new careers. *0.3.0:* the help page and a welcome message.
-- English as the source language of all texts of the game, German as a translation table. *0.3.0.* Singular and plural in English and dates in the format of the language are open.
+- English as the source language of all texts of the game, German as a translation table. *0.3.0.* *0.6.0:* singular and plural, and dates in the format of the language.
 
 **Open data**
 
@@ -248,11 +253,11 @@ The beta is the point from which a stranger can play ten seasons without help, w
 
 - **Stability.** A hundred seasons simulated without a player end without an error; a save game loads to exactly the same state at every point. *Done: a hundred seasons (2026–2125) without an error, every yearly save identical, the world at about 4,230 riders throughout, WorldTeams at 77.3–78.0, squads at 28.8. The player's team, which nobody signs riders for in such a run, drops down the ranking; that is the rule, not a fault.*
 - **Compatibility.** The save format has a version and a migration; saves from the first beta open in every later one. *Done.*
-- **Speed.** A day without the player's race takes under a second, a season without watching under five minutes. *About three minutes a season for the whole world.*
+- **Speed.** A day without the player's race takes under a second, a season without watching under five minutes. *Done: about three minutes a season for the whole world, half a second a day on average.*
 - **Balance.** The figures of the multi-season test lie in bands written down beforehand, on three different seeds. *Done: seeds 3, 5 and 7 hold every band over ten seasons with the new tuning. Over a hundred seasons seed 3 left one band in three seasons after 2050 (30 or 31 riders from 80 instead of at most 28).*
 - **Tests.** Every page has a rendering test in both languages; every system has a test of its rules. *Done.*
 - **Installation.** An installer or a zip that runs on a clean Windows without the toolchain, with a way to supply the world database. *Done with `release.ps1`.*
-- **No placeholders.** No value in the interface that has no effect, and no effect that is not explained in a tooltip. *A first pass: the home page, the staff, the facilities, the founding of a team.*
+- **No placeholders.** No value in the interface that has no effect, and no effect that is not explained in a tooltip. *Done: every value shown has an effect (checked for the rider, staff and personality values); every figure and choice that has one explains it in a tooltip.*
 
 ### Deliberately not in the beta
 
@@ -265,7 +270,7 @@ The beta is the point from which a stranger can play ten seasons without help, w
 
 ### Open question before a public beta
 
-The world database is built from the WorldDB for Pro Cycling Manager, and rider photos, jerseys and logos are not ours. A beta among friends can use them as today, supplied by each player. A public one needs either a database of its own with real names from open sources, or generated names with an import for community databases. This decision should be taken before the beta, because scouting and generated riders depend on it.
+The world database is built from the WorldDB for Pro Cycling Manager, and rider photos, jerseys and logos are not ours. A beta among friends can use them as today, supplied by each player. A public one needs either a database of its own with real names from open sources, or generated names with an import for community databases. This decision should be taken before a public beta, because scouting and generated riders depend on it. For the beta among friends the WorldDB stays as it is (decided 18 October 2026).
 
 ## Versions at a glance
 
@@ -276,6 +281,7 @@ The world database is built from the WorldDB for Pro Cycling Manager, and rider 
 | 0.4.0 | A world that lasts *(released 17 October 2026)* | 0.3.0 | Timeline planner, templates, saved filters and columns, history, our stages live |
 | 0.5.0 | The rider, the market and race day, the organisation *(released 17 October 2026)* | 0.4.0 | Comparison table, job offers in the inbox, vacation mode, multi-select, bookmarks, the winter plan |
 | 0.6.0 | What is left, and the way to the beta *(released 18 October 2026)* | 0.5.0 | Less text, profiles when founding, a zip for friends |
+| 0.6.1 | For the test among friends *(released 18 October 2026)* | 0.6.0 | A tooltip for every figure and choice |
 | 0.7.0 | Beta | All | Introduction, glossary |
 
 ## Sources

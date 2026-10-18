@@ -242,7 +242,13 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
                   onChanged: (v) => setState(() => _roles[r.id] = v!),
                   items: [
                     for (final role in Role.values)
-                      DropdownMenuItem(value: role, child: Text(role.label)),
+                      DropdownMenuItem(
+                        value: role,
+                        child: Tooltip(
+                          message: role.help,
+                          child: Text(role.label),
+                        ),
+                      ),
                   ],
                 ),
               ],

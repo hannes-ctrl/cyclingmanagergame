@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.1 alpha (2026-10-18)
+
+Every condition for the beta is met; this is the version for the test among friends.
+
+- Every figure and every choice that has an effect explains it in a tooltip: column headings, panel labels, the rider page, race roles, the race approach and the break of the day. The glossary grows with them.
+- The owners no longer take the player's savings at the turn of the year.
+
 ## 0.6.0 alpha (2026-10-18)
 
 On the way to the beta: a world that lasts a hundred seasons, saves that stay valid, less text, a zip for friends.

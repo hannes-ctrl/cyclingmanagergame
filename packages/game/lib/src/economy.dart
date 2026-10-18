@@ -1597,15 +1597,6 @@ class Economy {
     confidence = projectedConfidence();
     final oldBudget = budget;
     _settleSponsors(lines);
-    // The owners do not leave a fortune in the account: what is saved
-    // beyond half the new budget goes to them, as for every other team
-    // beyond a third.
-    final cap = ownerShare * budget;
-    if (balance > cap) {
-      lines.add(tr('The owners take {0} of the savings beyond half the budget',
-          [_euro(balance - cap)]));
-      balance = cap;
-    }
 
     final free = _freeTeam;
     // A game saved before the intake moved to November gets it here, before
@@ -1991,10 +1982,6 @@ class Economy {
   ///
   /// @returns The place, 1 for the strongest.
   int strengthRank() => _strengthRank();
-
-  /// Share of the budget the player's team may keep in the account over the
-  /// turn of the year; the owners take the rest.
-  static const ownerShare = 0.5;
 
   /// Starts a season: the balance stays, counters and goals start over.
   void openSeason() {

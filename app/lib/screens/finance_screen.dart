@@ -97,7 +97,10 @@ class FinanceScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Label(tr('Season goals {0}', [career.year])),
+                        Label(
+                          tr('Season goals {0}', [career.year]),
+                          help: 'Board goals',
+                        ),
                         const SizedBox(height: 8),
                         for (final g in eco.goals)
                           Padding(

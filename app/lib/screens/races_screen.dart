@@ -690,6 +690,8 @@ class _ReportState extends State<_Report> {
             70,
             (e, _) => cellText('${e.points}'),
             numeric: true,
+            // Points of the classification, not UCI points.
+            help: '',
           ),
         ],
       ),
