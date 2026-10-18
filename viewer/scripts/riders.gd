@@ -536,6 +536,7 @@ func place(clock: float, eye: Vector3 = Vector3.ZERO) -> void:
 		var members: Array = g["members"]
 		for j in members.size():
 			_choose(members[j], clock, j)
+	_bottle_runs(clock)
 	if absf(clock - _last_clock) > 5.0:
 		for i in order:
 			_stance[i] = _aim[i]
@@ -696,6 +697,67 @@ func _fill(mm: MultiMesh, riders: Array[int]) -> void:
 		k += 1
 	mm.buffer = buf
 	mm.visible_instance_count = k
+
+
+## Metres behind the last rider of a group at which its first team car
+## follows, and the room behind a group the cars need (see vehicles.gd).
+const CAR_BACK := 32.0
+const CAR_ROOM := 140.0
+## Seconds between two runs to the car in a group, and how long one takes.
+const BOTTLE_EVERY := 240.0
+const BOTTLE_RUN := 60.0
+
+
+## Now and then a helper drops back to his team car for bottles and rides
+## up to his group again: only in the picture, the race knows nothing of
+## it. Each group keeps its last rider before that in "tail", which the
+## cars follow.
+##
+## @param clock Race clock.
+func _bottle_runs(clock: float) -> void:
+	for gi in groups.size():
+		var g: Dictionary = groups[gi]
+		var members: Array = g["members"]
+		var tail := INF
+		for i in members:
+			tail = minf(tail, dist[i])
+		g["tail"] = tail
+		if race.kind != "road" or members.size() < 10:
+			continue
+		var head: float = g["head"]
+		# Not in the finale, on a climb or a fast descent, nor with another
+		# group close behind, where the cars have pulled out.
+		if race.race_km * 1000.0 - head < 30000.0:
+			continue
+		var grade: float = race.seg_grade[race.segment_at(head)]
+		if grade > 0.04 or grade < -0.03:
+			continue
+		if gi + 1 < groups.size() and tail - float(groups[gi + 1]["head"]) < CAR_ROOM:
+			continue
+		# The team with the most riders in the group has the first car.
+		var count := {}
+		for i in members:
+			var t := int(race.riders[i]["team"])
+			count[t] = count.get(t, 0) + 1
+		var team := -1
+		for t in count:
+			if team < 0 or count[t] > count[team] or (count[t] == count[team] and t < team):
+				team = t
+		var since := fposmod(clock + team * 37.0, BOTTLE_EVERY)
+		if since >= BOTTLE_RUN:
+			continue
+		# One of its riders from the back half of the group, another each time.
+		var mates: Array = []
+		for j in range(members.size() / 2, members.size()):
+			if int(race.riders[members[j]]["team"]) == team:
+				mates.append(members[j])
+		if mates.is_empty():
+			continue
+		var run := int(floorf((clock + team * 37.0) / BOTTLE_EVERY))
+		var who: int = mates[posmod(run, mates.size())]
+		var back := smoothstep(0.0, 18.0, since) * (1.0 - smoothstep(42.0, BOTTLE_RUN, since))
+		dist[who] = lerpf(dist[who], tail - CAR_BACK + 2.0, back)
+		lateral[who] = lerpf(lateral[who], -0.1, back)
 
 
 func _arrange(g: Dictionary, clock: float) -> void:

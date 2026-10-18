@@ -205,7 +205,7 @@ class _CampsScreenState extends State<CampsScreen> {
                         Col(
                           'Pot.',
                           50,
-                          (r, _) => cellText(r.potential.toStringAsFixed(1)),
+                          (r, _) => cellText(dec(r.potential, 1)),
                           numeric: true,
                           sortKey: (r) => r.potential,
                         ),

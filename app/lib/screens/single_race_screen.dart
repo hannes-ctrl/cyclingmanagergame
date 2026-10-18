@@ -439,7 +439,7 @@ class _SingleRacePanelState extends State<SingleRacePanel> {
                               SizedBox(
                                 width: 66,
                                 child: Text(
-                                  'km ${e.km.toStringAsFixed(1)}',
+                                  'km ${dec(e.km, 1)}',
                                   style: const TextStyle(
                                     color: TeamColors.muted,
                                   ),

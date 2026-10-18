@@ -251,9 +251,8 @@ class _TransfersScreenState extends State<TransfersScreen> {
       Col(
         'Pot',
         44,
-        (r, _) => cellText(
-          book.knowledge(r.id) < 0.6 ? '?' : r.potential.toStringAsFixed(1),
-        ),
+        (r, _) =>
+            cellText(book.knowledge(r.id) < 0.6 ? '?' : dec(r.potential, 1)),
         numeric: true,
         sortKey: (r) => r.potential,
       ),

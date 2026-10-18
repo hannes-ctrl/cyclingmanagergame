@@ -73,7 +73,7 @@ class _LiveView extends StatelessWidget {
                                 ? tr('Live · {0} km', [route.raceKm.round()])
                                 : result != null
                                 ? tr('Finish · {0}', [_clock(stage.clock)])
-                                : '${tr('{0} km to go', [toGo.toStringAsFixed(1)])} · '
+                                : '${tr('{0} km to go', [dec(toGo, 1)])} · '
                                       '${_clock(stage.clock)}',
                             style: const TextStyle(color: TeamColors.muted),
                           ),
@@ -626,7 +626,7 @@ class _LiveView extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      tr('{0} km to go', [call.remainingKm.toStringAsFixed(1)]),
+                      tr('{0} km to go', [dec(call.remainingKm, 1)]),
                       style: const TextStyle(color: TeamColors.muted),
                     ),
                   ],

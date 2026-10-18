@@ -73,7 +73,7 @@ class FinanceScreen extends StatelessWidget {
                   tr('Wages {0}', [career.year]),
                   '${euro(wages)} €',
                   note: tr('{0} % of the sponsor money', [
-                    (100 * wages / eco.budget).round(),
+                    eco.budget > 0 ? (100 * wages / eco.budget).round() : 0,
                   ]),
                 ),
                 const SizedBox(width: 12),

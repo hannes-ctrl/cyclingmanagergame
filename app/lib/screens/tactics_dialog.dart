@@ -208,7 +208,7 @@ class _TacticsDialogState extends State<_TacticsDialog> {
               ),
               Text(
                 '${p.race.info.name} · ${_next.name} · '
-                '${_next.raceKm.toStringAsFixed(1)} km',
+                '${dec(_next.raceKm, 1)} km',
                 style: const TextStyle(color: TeamColors.muted),
               ),
               const SizedBox(height: 4),

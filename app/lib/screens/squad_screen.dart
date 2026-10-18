@@ -168,7 +168,7 @@ class _SquadScreenState extends State<SquadScreen> {
           'Pot',
           44,
           (r, _) => cellText(
-            r.potential.toStringAsFixed(1),
+            dec(r.potential, 1),
             color: r.potential >= 5.5 ? TeamColors.gold : TeamColors.text,
           ),
           numeric: true,
@@ -404,9 +404,11 @@ class _SquadScreenState extends State<SquadScreen> {
             tr('{0} riders · wages {1} € · avg. age {2}', [
               squad.length,
               euro(eco.wageBill(state.team.id)),
-              (squad.fold(0, (sum, r) => sum + year - r.born ~/ 10000) /
-                      (squad.isEmpty ? 1 : squad.length))
-                  .toStringAsFixed(1),
+              dec(
+                squad.fold(0, (sum, r) => sum + year - r.born ~/ 10000) /
+                    (squad.isEmpty ? 1 : squad.length),
+                1,
+              ),
             ]),
             style: const TextStyle(color: TeamColors.muted),
           ),

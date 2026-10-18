@@ -651,9 +651,7 @@ class RiderPage extends StatelessWidget {
                 ),
                 tile(
                   tr('Potential'),
-                  book.knowledge(r.id) < 0.6
-                      ? '?'
-                      : r.potential.toStringAsFixed(1),
+                  book.knowledge(r.id) < 0.6 ? '?' : dec(r.potential, 1),
                 ),
                 if (own)
                   tile(
@@ -799,7 +797,7 @@ class RiderPage extends StatelessWidget {
                           tr('Development per year (best attribute)'),
                           dec(outlook, 2),
                         ),
-                        fact(tr('Form factor'), shape.form.toStringAsFixed(4)),
+                        fact(tr('Form factor'), dec(shape.form, 4)),
                         fact(
                           tr('Fitness / fatigue'),
                           '${dec(shape.fitness)} / ${dec(shape.fatigue)}',
@@ -1017,9 +1015,7 @@ class RiderPage extends StatelessWidget {
                       const SizedBox(height: 4),
                       fact(
                         tr('Potential'),
-                        book.knowledge(r.id) < 0.6
-                            ? '?'
-                            : r.potential.toStringAsFixed(1),
+                        book.knowledge(r.id) < 0.6 ? '?' : dec(r.potential, 1),
                       ),
                       if (own && k != null)
                         fact(tr('Wage'), tr('{0} € a year', [euro(k.wage)])),

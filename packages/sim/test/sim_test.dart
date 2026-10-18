@@ -372,6 +372,28 @@ void main() {
       expect(mean(false), lessThan(before * 0.8));
     });
 
+    test('a team with fewer than three riders leaves the team classification',
+        () {
+      final run = StageRaceRun(field,
+          seed: 3, tuning: SimTuning({'crashRate': 0, 'punctureRate': 0}));
+      final teams = {for (final r in field) r.teamId}.toList();
+      final small = teams[0], gone = teams[1];
+      run.nextStage(flatStage());
+      List<int> ranked() =>
+          [for (final e in run.standings.last.teams) e.teamId];
+      expect(ranked(), containsAll([small, gone]));
+      for (final r in field.where((r) => r.teamId == small).skip(2)) {
+        run.withdraw(r.id);
+      }
+      for (final r in field.where((r) => r.teamId == gone)) {
+        run.withdraw(r.id);
+      }
+      run.nextStage(flatStage());
+      expect(ranked(), isNot(contains(small)));
+      expect(ranked(), isNot(contains(gone)));
+      expect(ranked(), hasLength(teams.length - 2));
+    });
+
     test('riders far outside the time limit leave the race', () {
       SimRider weak(SimRider r) =>
           r.withAttributes(r.attributes.adjusted((_, v) => v - 25));

@@ -350,7 +350,7 @@ class _FoundScreenState extends State<FoundScreen> {
                                   'Pot.',
                                   44,
                                   (r, _) => cellText(
-                                    r.potential.toStringAsFixed(1),
+                                    dec(r.potential, 1),
                                     color: r.potential >= 5.5
                                         ? TeamColors.gold
                                         : TeamColors.muted,

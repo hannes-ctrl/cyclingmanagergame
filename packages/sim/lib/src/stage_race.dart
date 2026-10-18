@@ -146,6 +146,10 @@ class StageRaceRun {
   final points = <int, int>{};
   final mountain = <int, int>{};
   final teamTime = <int, double>{};
+
+  /// Teams that have had fewer than three riders at the line of a stage:
+  /// they are out of the team classification for good.
+  final _teamsOut = <int>{};
   final debt = <int, double>{};
   final form = <int, double>{};
   final young = <int>{};
@@ -500,7 +504,17 @@ class StageRaceRun {
           .putIfAbsent(p.rider.teamId, () => [])
           .add(p.timeS.roundToDouble());
     }
+    // The team classification counts the three best of each team; a team
+    // with fewer than three at the line, or none, drops out of it.
+    for (final id in [...teamTime.keys]) {
+      if ((perTeam[id]?.length ?? 0) < 3) _teamsOut.add(id);
+    }
     for (final e in perTeam.entries) {
+      if (e.value.length < 3) _teamsOut.add(e.key);
+      if (_teamsOut.contains(e.key)) {
+        teamTime.remove(e.key);
+        continue;
+      }
       final best = e.value.take(3).reduce((a, b) => a + b);
       teamTime[e.key] = (teamTime[e.key] ?? 0) + best;
     }

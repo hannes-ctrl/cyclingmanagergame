@@ -138,7 +138,7 @@ class _WhatIfDialogState extends State<_WhatIfDialog> {
               Text(
                 '${p.race.info.name}'
                 '${p.race.isStageRace ? tr(' · stage {0}', [widget.stageIndex + 1]) : ''}'
-                ' · ${route.name} · ${route.raceKm.toStringAsFixed(1)} km',
+                ' · ${route.name} · ${dec(route.raceKm, 1)} km',
                 style: const TextStyle(color: TeamColors.muted),
               ),
               const SizedBox(height: 10),

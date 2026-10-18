@@ -270,8 +270,8 @@ double suitability(SimRoute route, Attributes a) {
 }
 
 /// Time limit of a stage as a share of the winner's time, simplified after
-/// the rules of the Grand Tours: the faster and the flatter the stage, the
-/// tighter the limit.
+/// the rules of the Grand Tours: the flatter the stage, the tighter the
+/// limit, and the faster it is ridden, the more room it leaves.
 ///
 /// @param route The stage.
 /// @param winnerKmh Average speed of the winner.
@@ -1099,10 +1099,6 @@ class _RoadRace {
     for (final s in states) {
       s.thr = _computeThreshold(s);
     }
-    seg = 0;
-    for (final s in states) {
-      s.thr = _computeThreshold(s);
-    }
     final n = segments.length;
     _head = Float64List(n + 1)..fillRange(0, n + 1, double.nan);
     _mainAt = Float64List(n + 1)..fillRange(0, n + 1, double.nan);
@@ -1553,8 +1549,9 @@ class _RoadRace {
       if (last < point && count < 15) break;
       _points.removeAt(0);
       if (seen.isNotEmpty) {
+        final passed = [...seen]..sort((a, b) => a.clock.compareTo(b.clock));
         _awardPoints(
-            p, [for (final g in seen) _Group(g.members, g.clock, point)]);
+            p, [for (final g in passed) _Group(g.members, g.clock, point)]);
       }
     }
     while (_nextSample < _sampleAt.length && last >= _sampleAt[_nextSample]) {
@@ -2073,7 +2070,7 @@ class _RoadRace {
               tr('{0} ({1}) attacks {2} km from the finish{3}. {4} {5}.', [
                 best.rider.name,
                 best.rider.team,
-                (route.raceKm - s.km).toStringAsFixed(1),
+                dec(route.raceKm - s.km, 1),
                 followers.isEmpty
                     ? tr(', nobody follows')
                     : tr(', followed by {0}', [_names(followers, 4)]),
@@ -2107,9 +2104,9 @@ class _RoadRace {
         EventType.attack,
         followers.isEmpty
             ? tr('{0} attacks {1} km from the finish, nobody follows',
-                [best.rider.name, rest.toStringAsFixed(1)])
+                [best.rider.name, dec(rest, 1)])
             : tr('{0} attacks {1} km from the finish, followed by: {2}',
-                [best.rider.name, rest.toStringAsFixed(1), _names(followers)]),
+                [best.rider.name, dec(rest, 1), _names(followers)]),
         [best.rider.id, for (final f in followers) f.rider.id]));
   }
 
@@ -3244,7 +3241,7 @@ class _RoadRace {
               s.km,
               EventType.caught,
               tr('The break is caught {0} km from the finish',
-                  [(route.raceKm - s.km).toStringAsFixed(1)])));
+                  [dec(route.raceKm - s.km, 1)])));
           for (final m in ahead.members) {
             m.inBreak = false;
           }
@@ -3282,8 +3279,9 @@ class _RoadRace {
         3 * _gauss(rng);
     final order = <_State>[];
     for (final g in groups) {
-      order
-          .addAll([...g.members]..sort((a, b) => score(b).compareTo(score(a))));
+      final scored = {for (final m in g.members) m: score(m)};
+      order.addAll(
+          [...g.members]..sort((a, b) => scored[b]!.compareTo(scored[a]!)));
       if (order.length >= 15) break;
     }
     final top = order.take(15).toList();

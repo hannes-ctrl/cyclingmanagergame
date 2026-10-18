@@ -862,7 +862,7 @@ class StaffBook {
               a.sprint.round(),
               a.cobble.round(),
               a.flat.round(),
-              r.potential.toStringAsFixed(1),
+              dec(r.potential, 1),
               r.potential >= 5.5 && c.year - r.born ~/ 10000 < 24
                   ? tr('A talent worth getting to early.')
                   : tr('His values are now exact in the market list.')

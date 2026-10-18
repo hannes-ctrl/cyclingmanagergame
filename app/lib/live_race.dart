@@ -200,7 +200,9 @@ class LiveRace extends ChangeNotifier {
     switch (m['type']) {
       case 'order':
         final o = RiderOrder.values.asNameMap()[m['order']];
-        final ids = (m['riders'] as List?)?.cast<int>() ?? const [];
+        final ids = [
+          for (final x in m['riders'] as List? ?? const []) (x as num).toInt(),
+        ];
         if (o != null) order(o, ids);
       case 'speed':
         setSpeed((m['value'] as num).toDouble());
@@ -208,7 +210,7 @@ class LiveRace extends ChangeNotifier {
         paused = m['on'] as bool? ?? !paused;
         notifyListeners();
       case 'answer':
-        answer(m['choice'] as int);
+        answer((m['choice'] as num).toInt());
     }
   }
 

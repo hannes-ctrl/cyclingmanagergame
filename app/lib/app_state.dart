@@ -621,6 +621,14 @@ class AppState extends ChangeNotifier {
     bool answerTalks = false,
   }) async {
     if (busy || career.seasonOver || !target.isAfter(career.today)) return;
+    // A stage being watched is finished first; one opened to watch but not
+    // started yet is simulated with the days.
+    final live = liveRace;
+    if (live != null) {
+      if (live.started) return;
+      live.dispose();
+      liveRace = null;
+    }
     final d = career.delegation;
     if (auto || vacation) {
       career.heldDelegation = d.toJson();
@@ -1060,6 +1068,8 @@ class AppState extends ChangeNotifier {
     radio = null;
     liveRace?.dispose();
     liveRace = null;
+    _liveSeen.clear();
+    _liveDay = null;
     _decisions.clear();
     _raceCache.clear();
     // The sports director plans the season before the first day; a loaded

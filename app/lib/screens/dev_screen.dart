@@ -150,7 +150,7 @@ class _DevScreenState extends State<DevScreen> {
                           'Pot.',
                           50,
                           (r, _) => cellText(
-                            r.potential.toStringAsFixed(1),
+                            dec(r.potential, 1),
                             color: r.potential >= 5.5
                                 ? TeamColors.gold
                                 : TeamColors.text,

@@ -992,7 +992,10 @@ class _ShellState extends State<Shell> {
                           Tooltip(
                             message: tr('Simulate to a date'),
                             child: InkWell(
-                              onTap: s.busy || career.seasonOver
+                              onTap:
+                                  s.busy ||
+                                      career.seasonOver ||
+                                      (s.liveRace?.started ?? false)
                                   ? null
                                   : () => showSimulateDialog(context, s),
                               child: Container(

@@ -861,7 +861,7 @@ class _PrepScreenState extends State<PrepScreen> {
                                 ),
                                 Text(
                                   tr('{0} km · {1} m climbing', [
-                                    _first.raceKm.toStringAsFixed(1),
+                                    dec(_first.raceKm, 1),
                                     meters.round(),
                                   ]),
                                   style: const TextStyle(
@@ -1284,7 +1284,7 @@ class _PrepScreenState extends State<PrepScreen> {
                                               'Ø',
                                               44,
                                               (row, _) => cellText(
-                                                row.meanRank.toStringAsFixed(1),
+                                                dec(row.meanRank, 1),
                                               ),
                                               numeric: true,
                                             ),

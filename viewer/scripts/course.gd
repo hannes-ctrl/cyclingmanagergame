@@ -628,7 +628,7 @@ func _arch(d: float, color: Color, scale_h: float, color2: Color = Color.WHITE) 
 	var height := 5.5 * scale_h
 	var root := Node3D.new()
 	add_child(root)
-	root.global_position = p
+	root.position = p
 	root.basis = Basis.looking_at(dir, Vector3.UP)
 	for side in [-1.0, 1.0]:
 		var post := _box(Vector3(0.35, height, 0.35), Color(0.9, 0.9, 0.9))
@@ -662,11 +662,11 @@ func _banner(d: float, color: Color) -> void:
 	var right := Vector3(-dir.z, 0.0, dir.x)
 	var sign := _box(Vector3(0.1, 1.2, 1.8), color)
 	add_child(sign)
-	sign.global_position = p + right * (width_at(d) * 0.5 + 1.5) + Vector3(0.0, 2.2, 0.0)
+	sign.position = p + right * (width_at(d) * 0.5 + 1.5) + Vector3(0.0, 2.2, 0.0)
 	sign.basis = Basis.looking_at(dir, Vector3.UP)
 	var post := _box(Vector3(0.12, 1.8, 0.12), Color(0.5, 0.5, 0.5))
 	add_child(post)
-	post.global_position = p + right * (width_at(d) * 0.5 + 1.5) + Vector3(0.0, 0.9, 0.0)
+	post.position = p + right * (width_at(d) * 0.5 + 1.5) + Vector3(0.0, 0.9, 0.0)
 
 
 ## Barriers along both sides of the road, every 2.5 m: boards with the

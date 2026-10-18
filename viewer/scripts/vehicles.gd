@@ -79,9 +79,12 @@ func place(clock: float, eye: Vector3 = Vector3(INF, INF, INF)) -> void:
 		for gi in groups.size():
 			var g: Dictionary = groups[gi]
 			var members: Array = g["members"]
-			var tail := INF
-			for i in members:
-				tail = minf(tail, riders.dist[i])
+			# Behind the last rider, not behind one who has dropped back to
+			# the car for bottles.
+			var tail: float = g.get("tail", INF)
+			if tail == INF:
+				for i in members:
+					tail = minf(tail, riders.dist[i])
 			var room := INF
 			if gi + 1 < groups.size():
 				room = tail - float(groups[gi + 1]["head"])

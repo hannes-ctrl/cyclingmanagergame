@@ -477,7 +477,7 @@ class _RaceDetail extends StatelessWidget {
                     ),
                     Text(
                       tr('{0} km · {1} m climbing · {2}', [
-                        route.raceKm.toStringAsFixed(1),
+                        dec(route.raceKm, 1),
                         meters.round(),
                         switch (route.kind) {
                           StageKind.road =>
@@ -843,7 +843,7 @@ class _ReportState extends State<_Report> {
                                 SizedBox(
                                   width: 66,
                                   child: Text(
-                                    'km ${e.km.toStringAsFixed(1)}',
+                                    'km ${dec(e.km, 1)}',
                                     style: const TextStyle(
                                       color: TeamColors.muted,
                                       fontFeatures: [
