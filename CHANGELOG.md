@@ -15,7 +15,8 @@
 - Live races: the stages of the player's team run live by default in the 3D viewer, in race time from real time to fast motion; **Simulate** rides one as before without the viewer, and a switch makes that the rule.
 - Orders to the own riders during a stage, in the game and in the viewer, for one rider or several: attack, follow the moves, ride tempo, save energy, help the leader. Orders and radio answers are saved with the day.
 - The simulation rides a stage in the order of the race clock, so it can stop at any moment and go on; a stage ridden in one go comes out as before.
-- In the viewer: now and then a helper drops back to his team car for bottles and rides up to his group again.
+- Power figures nearer reality: the drag areas of pros (0.28 m² alone, 0.21 m² in a time trial instead of 0.32 and 0.24), two new tuning values (more effort on climbs, the pace of time trials); the threshold a power meter shows is what a rider holds in a time trial. Needs an overnight calibration.
+- In the viewer: now and then a helper drops back to his team car for bottles and rides up to his group again; rivers wind downhill through the country.
 - Fixed: a team with fewer than three riders at the line (or none) stayed in the team classification with the sum of one or two times and could lead it; it now drops out, as in the rules.
 - Fixed: at sprints and mountain prizes the riders' chance was drawn anew at every comparison of the sort, and the groups were taken in the order they were computed rather than the order they passed.
 - Fixed: numbers with a decimal point in the German interface (kilometres, potential, average age, race events) now use the comma.

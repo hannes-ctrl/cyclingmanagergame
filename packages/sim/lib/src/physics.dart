@@ -16,8 +16,8 @@ const _gravity = 9.81;
 const seaLevelAirDensity = 1.2;
 
 /// Drag area of a rider of reference build alone in the wind (m²).
-const soloCda = 0.32;
-const timeTrialCda = 0.24;
+const soloCda = 0.28;
+const timeTrialCda = 0.21;
 const _asphaltCrr = 0.004;
 
 /// Rolling resistance coefficient of a segment.

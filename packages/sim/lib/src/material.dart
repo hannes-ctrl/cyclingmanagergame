@@ -191,4 +191,4 @@ bool suggestTimeTrialBike(SimRoute route) {
 const timeTrialBikeExtraKg = 1.2;
 
 /// Drag area on a road bike in a time trial, low on the drops.
-const roadBikeTimeTrialCda = 0.29;
+const roadBikeTimeTrialCda = 0.255;

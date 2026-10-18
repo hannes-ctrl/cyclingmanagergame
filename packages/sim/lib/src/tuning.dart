@@ -61,7 +61,7 @@ class SimTuning {
       };
 
   static const params = <TuningParam>[
-    TuningParam('thresholdWkg', 5.4, 5.0, 6.0,
+    TuningParam('thresholdWkg', 5.4, 4.6, 5.9,
         'Threshold power in W/kg at a rider value of 70'),
     TuningParam('gainPerPoint', 0.012, 0.008, 0.016,
         'Gain in power per point of rider value'),
@@ -160,6 +160,10 @@ class SimTuning {
         'Chance per place behind the start of the splits that the line of a big group breaks in the sprint'),
     TuningParam('bunchSplitFrom', 30, 10, 80,
         'Place in a big group from which its line may break in the sprint'),
+    TuningParam('climbEffort', 0.0, 0.0, 0.3,
+        'Extra effort of the pace-setters on climbs from 2 % (full from 6 %)'),
+    TuningParam('timeTrialPace', 1.0, 0.85, 1.05,
+        'Factor on the pace at which time trials are ridden'),
   ];
 
   /// Threshold power in W/kg at attribute 70.
@@ -319,6 +323,13 @@ class SimTuning {
 
   /// Place in a big group from which its line may break in the sprint.
   double get bunchSplitFrom => _a[52];
+
+  /// Extra effort of the riders who set the pace on a climb, in full from a
+  /// gradient of 6 %: climbs are ridden closer to threshold than the flat.
+  double get climbEffort => _a[53];
+
+  /// Factor on the pace of time trials relative to the threshold.
+  double get timeTrialPace => _a[54];
 
   /// Effort of the front on cobbled sectors while the race is on.
   double get cobbleEffort => _a[34];

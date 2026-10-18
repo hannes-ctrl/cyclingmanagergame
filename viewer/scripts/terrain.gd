@@ -8,7 +8,8 @@ extends Node3D
 ## the slope stays smooth. Along the road a finer strip of its own lies on
 ## the ground: the shoulder, a ditch, then a cutting or an embankment that
 ## meets the ground, so the road does not run on a bench. Here and there a
-## lake lies in a hollow away from the road.
+## lake lies in a hollow away from the road, and rivers wind down the
+## valleys.
 
 const WATER_SHADER := preload("res://shaders/water.gdshader")
 
@@ -31,6 +32,13 @@ const RADIUS := 4
 const COARSE := 500.0
 ## Metres of the cells of the country of which some hold a lake.
 const LAKE_CELL := 2400.0
+## Metres of the cells of the country in some of which a river rises, the
+## step along a river, the bank beyond its water and the cells of the index
+## of its stretches.
+const RIVER_CELL := 7000.0
+const RIVER_STEP := 40.0
+const RIVER_BANK := 40.0
+const RIVER_HASH := 250.0
 
 var course
 ## Whether near woods throw shadows.
@@ -61,6 +69,14 @@ var _road_far := PackedFloat32Array()
 ## Lakes by cell of LAKE_CELL: x and z of the middle, radius, level of the
 ## water, depth, and two phases of the winding shore.
 var _lakes := {}
+## The rivers: their points (x, level of the water, z), the width at each,
+## and per point whether the river goes on to the next one.
+var _river_pts := PackedVector3Array()
+var _river_w := PackedFloat32Array()
+var _river_on := PackedByteArray()
+## Stretches of the rivers (index of their first point) by cell of
+## RIVER_HASH, for the ground and the water of a tile.
+var _river_cells := {}
 
 
 ## @param c The course.
@@ -90,6 +106,7 @@ func setup(c) -> void:
 	_water_mat.shader = WATER_SHADER
 	_coarse_grid()
 	_place_lakes()
+	_place_rivers()
 	print("lakes: %d" % _lakes.size())
 
 
@@ -230,11 +247,14 @@ func _coarse_at(arr: PackedFloat32Array, x: float, z: float) -> float:
 	return lerpf(a, b, tz)
 
 
-## Height of the ground away from the road, with the lakes in it.
+## Height of the ground away from the road, with the lakes and the rivers
+## in it.
 func _far(x: float, z: float) -> float:
 	var h := _country(x, z)
 	var lake = _lakes.get(Vector2i(floori(x / LAKE_CELL), floori(z / LAKE_CELL)))
-	return h if lake == null else _lake_ground(lake, x, z, h)
+	if lake != null:
+		h = _lake_ground(lake, x, z, h)
+	return _river_ground(x, z, h)
 
 
 ## Height of the country away from the road. It rises evenly with the
@@ -297,6 +317,142 @@ func _place_lakes() -> void:
 			lake[3] = lo - 0.6
 			lake[4] = clampf(r * 0.03, 3.0, 9.0)
 			_lakes[Vector2i(cx, cz)] = lake
+
+
+## Rivers that rise in some cells of the country and wind downhill for a
+## few kilometres, always well away from the road: the water falls with the
+## lowest ground so far along it, so it never runs uphill, and a river that
+## would have to cut deep into a hill is left out. Made once, like the lakes.
+func _place_rivers() -> void:
+	var b: AABB = course.bounds
+	var rng := RandomNumberGenerator.new()
+	rng.seed = course.data.seed + 53
+	var c0 := Vector2i(floori((b.position.x - 6000.0) / RIVER_CELL), floori((b.position.z - 6000.0) / RIVER_CELL))
+	var c1 := Vector2i(floori((b.end.x + 6000.0) / RIVER_CELL), floori((b.end.z + 6000.0) / RIVER_CELL))
+	var pts: PackedVector3Array = course.points
+	for cz in range(c0.y, c1.y + 1):
+		for cx in range(c0.x, c1.x + 1):
+			# Every cell draws the same numbers, river or not.
+			var chance := rng.randf()
+			var x := (cx + rng.randf()) * RIVER_CELL
+			var z := (cz + rng.randf()) * RIVER_CELL
+			var heading := rng.randf() * TAU
+			var steps := int(rng.randf_range(2500.0, 7000.0) / RIVER_STEP)
+			var width := rng.randf_range(45.0, 80.0)
+			var p1 := rng.randf() * TAU
+			var p2 := rng.randf() * TAU
+			if chance > 0.35:
+				continue
+			var clear := REACH + width * 0.5 + RIVER_BANK + 30.0
+			var line: Array[Vector2] = []
+			for k in steps:
+				var free := true
+				for j in course.points_near(Rect2(x - clear, z - clear, 2.0 * clear, 2.0 * clear), 0.0):
+					if Vector2(pts[j].x - x, pts[j].z - z).length() < clear:
+						free = false
+						break
+				if not free:
+					break
+				line.append(Vector2(x, z))
+				# It winds in long and short bends.
+				var a := heading + 0.7 * sin(k * RIVER_STEP / 900.0 + p1) + 0.3 * sin(k * RIVER_STEP / 320.0 + p2)
+				x += cos(a) * RIVER_STEP
+				z += sin(a) * RIVER_STEP
+			if line.size() < 40:
+				continue
+			var heights := PackedFloat32Array()
+			for p in line:
+				heights.append(_country(p.x, p.y))
+			# It flows from its higher end to its lower one.
+			if heights[heights.size() - 1] > heights[0]:
+				line.reverse()
+				heights.reverse()
+			var level := PackedFloat32Array()
+			var low := INF
+			var cut := 0.0
+			for k in line.size():
+				low = minf(low, heights[k])
+				level.append(low - 1.2)
+				cut = maxf(cut, heights[k] - level[k])
+			var fall := (level[0] - level[level.size() - 1]) / (line.size() * RIVER_STEP)
+			if cut > 9.0 or fall > 0.04 or heights[0] > 2300.0:
+				continue
+			var first := _river_pts.size()
+			for k in line.size():
+				_river_pts.append(Vector3(line[k].x, level[k], line[k].y))
+				_river_w.append(width)
+				_river_on.append(1 if k < line.size() - 1 else 0)
+			# The index of the stretches, with their banks.
+			var reach := width * 0.5 + RIVER_BANK + 4.0
+			for k in range(first, _river_pts.size() - 1):
+				var a3 := _river_pts[k]
+				var b3 := _river_pts[k + 1]
+				var h0 := Vector2i(floori((minf(a3.x, b3.x) - reach) / RIVER_HASH), floori((minf(a3.z, b3.z) - reach) / RIVER_HASH))
+				var h1 := Vector2i(floori((maxf(a3.x, b3.x) + reach) / RIVER_HASH), floori((maxf(a3.z, b3.z) + reach) / RIVER_HASH))
+				for hz in range(h0.y, h1.y + 1):
+					for hx in range(h0.x, h1.x + 1):
+						var key := Vector2i(hx, hz)
+						# Packed arrays come out of a dictionary as copies.
+						var list: PackedInt32Array = _river_cells.get(key, PackedInt32Array())
+						list.append(k)
+						_river_cells[key] = list
+	print("rivers: %d points" % _river_pts.size())
+
+
+## The nearest stretch of a river to a point.
+##
+## @returns [distance, level of the water there, width], or an empty array
+##   away from all rivers.
+func _river_near(x: float, z: float) -> Array:
+	var list = _river_cells.get(Vector2i(floori(x / RIVER_HASH), floori(z / RIVER_HASH)))
+	if list == null:
+		return []
+	var best := INF
+	var out: Array = []
+	var q := Vector2(x, z)
+	for k: int in list:
+		var a := _river_pts[k]
+		var b := _river_pts[k + 1]
+		var a2 := Vector2(a.x, a.z)
+		var ab := Vector2(b.x, b.z) - a2
+		var f := clampf((q - a2).dot(ab) / maxf(ab.length_squared(), 1.0), 0.0, 1.0)
+		var d := q.distance_to(a2 + ab * f)
+		if d < best:
+			best = d
+			out = [d, lerpf(a.y, b.y, f), lerpf(_river_w[k], _river_w[k + 1], f)]
+	return out
+
+
+## The ground at a river: its bed below the water, a low bank beside it,
+## then a slope back to the country.
+##
+## @param x A point, x.
+## @param z The point, z.
+## @param h The ground there so far.
+## @returns The height of the ground.
+func _river_ground(x: float, z: float, h: float) -> float:
+	var near := _river_near(x, z)
+	if near.is_empty():
+		return h
+	var d: float = near[0]
+	var level: float = near[1]
+	var half: float = near[2] * 0.5
+	if d < half:
+		var u := d / half
+		return minf(h, level - 0.3 - 1.8 * (1.0 - u * u))
+	if d > half + RIVER_BANK:
+		return h
+	var bank := level + 0.4 + (h - level - 0.4) * smoothstep(half, half + RIVER_BANK, d)
+	var ground := minf(h, bank)
+	# Right by the water the bank stays above it, whatever the country does.
+	return maxf(ground, level + 0.4) if d < half + 8.0 else ground
+
+
+## How far a point lies from the water of a river, in metres; negative in
+## it, INF away from all rivers.
+func _off_river(x: float, z: float) -> float:
+	var near := _river_near(x, z)
+	return INF if near.is_empty() else float(near[0]) - float(near[2]) * 0.5
 
 
 ## Radius of the shore of a lake in a direction: the shore winds.
@@ -376,6 +532,28 @@ func _water(x0: float, z0: float) -> PackedVector3Array:
 			for piece: PackedVector2Array in Geometry2D.intersect_polygons(outline, rect):
 				for j in Geometry2D.triangulate_polygon(piece):
 					tris.append(Vector3(piece[j].x, lake[3], piece[j].y))
+	# The rivers: a strip over each stretch whose start lies in the tile, a
+	# little wider than the water and overlapping the next one; the bank
+	# hides its edges.
+	for k in _river_pts.size() - 1:
+		if _river_on[k] == 0:
+			continue
+		var a := _river_pts[k]
+		if a.x < x0 or a.x >= x0 + TILE or a.z < z0 or a.z >= z0 + TILE:
+			continue
+		var b := _river_pts[k + 1]
+		var dir := Vector3(b.x - a.x, 0.0, b.z - a.z).normalized()
+		var side := Vector3(-dir.z, 0.0, dir.x)
+		var wa := _river_w[k] * 0.5 + 3.0
+		var wb := _river_w[k + 1] * 0.5 + 3.0
+		# At its ends the water reaches as far as the round hollow it lies in.
+		var first := k == 0 or _river_on[k - 1] == 0
+		var last := _river_on[k + 1] == 0
+		var a0 := a - dir * (wa if first else 3.0)
+		var b0 := b + dir * (wb if last else 3.0)
+		var q := [a0 - side * wa, a0 + side * wa, b0 + side * wb, b0 - side * wb]
+		for v in [q[0], q[1], q[2], q[0], q[2], q[3]]:
+			tris.append(v)
 	return tris
 
 
@@ -677,8 +855,8 @@ func _tile_arrays(x0: float, z0: float, heights: PackedFloat32Array, road_d: Pac
 			normals[i] = nrm
 			var slope := 1.0 - nrm.y
 			colors[i] = _ground_color(x, z, h, slope, road_d[i])
-			# Reeds and mud along the shore of a lake.
-			if _in_lake(x, z) < 1.15:
+			# Reeds and mud along the shore of a lake or a river.
+			if _in_lake(x, z) < 1.15 or _off_river(x, z) < 12.0:
 				colors[i] = colors[i].lerp(Color(0.25, 0.27, 0.14), 0.7)
 			# Woods in patches, single trees between them; below the tree line,
 			# on gentle slopes and off the road.
@@ -691,7 +869,7 @@ func _tile_arrays(x0: float, z0: float, heights: PackedFloat32Array, road_d: Pac
 					var tz := z + (f * 61.0 - floorf(f * 61.0) - 0.5) * RES
 					# Moved off its vertex, a tree may come near the road: it
 					# stays beyond the verge strip.
-					var dry := _in_lake(tx, tz) > 1.06
+					var dry := _in_lake(tx, tz) > 1.06 and _off_river(tx, tz) > 6.0
 					if dry and (road_d[i] > 70.0 or _off_road(Vector2(tx, tz), line) > 45.0):
 						trees.append(Vector3(tx, _height_in(heights, x0, z0, tx, tz) - 0.3, tz))
 	var idx := PackedInt32Array()

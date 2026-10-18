@@ -92,7 +92,7 @@ void main() {
 
     test('ranges of the tuning are physical', () {
       final t = SimTuning({'thresholdWkg': 6.6, 'draftPeloton': 0.7}).clamped();
-      expect(t.thresholdWkg, 6.0);
+      expect(t.thresholdWkg, 5.9);
       expect(t.draftPeloton, 0.5);
     });
   });

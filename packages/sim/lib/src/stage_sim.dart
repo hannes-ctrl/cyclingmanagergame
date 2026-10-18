@@ -1054,7 +1054,11 @@ class _RoadRace {
     for (final s in states) {
       s.fit = suitability(route, s.rider.attributes);
       final sorted = [...s.basePower]..sort();
-      s.ftp = sorted.isEmpty ? 0 : sorted[sorted.length ~/ 2] * s.form;
+      // The threshold a power meter would show: what he holds in a time
+      // trial, for the intensity and the zones of the power figures.
+      s.ftp = sorted.isEmpty
+          ? 0
+          : sorted[sorted.length ~/ 2] * s.form * t.timeTrialPace;
     }
     _climbOf = climbSegments(route);
     final ranked = states.where((s) => s.role.ridesForHimself).toList()
@@ -2268,6 +2272,8 @@ class _RoadRace {
     final rho = _rho[seg];
     final headwind = wind.head[seg];
     final cross = wind.cross[seg];
+    // Climbs are ridden closer to threshold than the flat.
+    final climbing = t.climbEffort * ((s.grade - 0.02) / 0.04).clamp(0.0, 1.0);
     // On cobbles everyone rides his own line; the slipstream hardly helps.
     // A crosswind blows some of the shelter away.
     var draft = 1 -
@@ -2330,7 +2336,7 @@ class _RoadRace {
               order.any((o) => o.favorite && o.rider.teamId == m.rider.teamId))
           : n > 8;
       effort = hard
-          ? (rough >= 2 ? t.cobbleEffort : 1.0)
+          ? (rough >= 2 ? t.cobbleEffort : 1.0 + climbing)
           : isFront
               ? (sectorRace && n <= 6
                   ? max(0.95, t.finaleEaseEffort)
@@ -2395,7 +2401,7 @@ class _RoadRace {
       if (workers.isEmpty) workers = order.take(6).toSet();
     } else if (aheadOfMain) {
       ref = order[n ~/ 2];
-      effort = inFinale ? 0.96 : t.breakEffort;
+      effort = (inFinale ? 0.96 : t.breakEffort) + climbing;
       // Whoever sits on does no work, nor whoever was told to save himself.
       final idle = {
         for (final m in order)
@@ -2408,7 +2414,7 @@ class _RoadRace {
       // Attack after attack until a group goes clear: the field rides hard
       // and the strongest are in the wind.
       ref = order[(n * 0.25).floor()];
-      effort = t.fightEffort * dayMood;
+      effort = (t.fightEffort + climbing) * dayMood;
       workers = order.take(max(8, n * 3 ~/ 10)).toSet();
     } else if (isMain) {
       // In the field the helpers of the teams with something to win do the
@@ -2455,7 +2461,7 @@ class _RoadRace {
               ? t.easeEffort + (t.controlEffort - t.easeEffort) * pressure / 0.6
               : t.controlEffort +
                   (t.chaseEffort - t.controlEffort) * (pressure - 0.6) / 0.4;
-      effort = (base + (s.climbKm >= 5 ? 0.05 : 0)) *
+      effort = (base + (s.climbKm >= 5 ? 0.05 : 0) + climbing) *
           interest *
           (sprintStage ? 1 : t.selectiveStageChase) *
           dayMood;
@@ -3510,7 +3516,8 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
     final a = m.rider.attributes;
     m.ftp = thresholdPower(route.raceKm < 8 ? a.prologue : a.timeTrial, t) *
         bodyScale(m.rider, 0) *
-        m.form;
+        m.form *
+        t.timeTrialPace;
   }
   void record(_State m, int i, double watts, double dt) {
     final s = segments[i];
@@ -3622,7 +3629,7 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
     for (final m in order) {
       final windScale = windAt(startIndex[m]!);
       // How well he judges his effort on the day.
-      final pace = pacing * (1 + 0.01 * _gauss(rng));
+      final pace = pacing * t.timeTrialPace * (1 + 0.01 * _gauss(rng));
       final cda = ttCda(m);
       var time = 0.0;
       for (var i = 0; i < segments.length; i++) {
@@ -3651,7 +3658,7 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
       // The time is taken on the fifth rider of a team of seven or more,
       // otherwise on the fourth.
       final needed = min(members.length, members.length >= 7 ? 5 : 4);
-      final pace = pacing * (1 + 0.01 * _gauss(rng));
+      final pace = pacing * t.timeTrialPace * (1 + 0.01 * _gauss(rng));
       var line = [...members];
       final alone = <_State, double>{};
       bool waitedFor(_State m) => m.plan.waitForLeader && m.role == Role.leader;

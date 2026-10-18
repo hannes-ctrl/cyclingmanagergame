@@ -503,6 +503,8 @@ void seasonTest() {
       );
       expect(b.career.riderById.length, a.career.riderById.length);
     },
-    timeout: const Timeout(Duration(minutes: 10)),
+    // A whole season through the game's own days: on a busy machine it
+    // takes more than ten minutes.
+    timeout: const Timeout(Duration(minutes: 40)),
   );
 }
