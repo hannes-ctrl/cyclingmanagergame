@@ -70,6 +70,8 @@ func _ready() -> void:
 		link = Link.new()
 		add_child(link)
 		link.race_received.connect(show_race)
+		link.live_received.connect(_on_live)
+		link.screenshot_asked.connect(_save_picture)
 		link.connect_to(int(args["port"]), str(args.get("token", "")))
 		hud.status(tr_text("Waiting for the game …"))
 	else:
@@ -138,14 +140,46 @@ func show_race(message: Dictionary) -> void:
 		playing = false
 
 
+## Saves what the viewer shows, when the game asks for it in a check.
+func _save_picture(path: String) -> void:
+	if path.is_empty():
+		return
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(path)
+
+
+## An update of the stage watched live.
+func _on_live(m: Dictionary) -> void:
+	if race == null:
+		return
+	race.apply_live(m)
+	speed = race.live_speed
+	playing = not race.live_paused
+
+
 func _process(delta: float) -> void:
 	if race == null:
 		return
-	if playing:
+	if race.clock_from_game():
+		# The game's clock, a little behind it so that every rider's next
+		# point is known; between the updates it runs on at the game's
+		# speed.
+		var since: float = (Time.get_ticks_msec() - race.live_at) / 1000.0
+		var target: float = race.live_clock - 0.15 * race.live_speed
+		if not race.live_paused:
+			target += minf(since, 0.15) * race.live_speed
+		target = minf(target, race.live_clock)
+		if absf(target - clock) > 60.0 * maxf(race.live_speed, 1.0) / 30.0 + 60.0:
+			# A jump (the first update, a stage ridden to the end at once):
+			# everything moves there at once.
+			_jump_to(maxf(target, 0.0))
+		elif target > clock:
+			clock = target
+	elif playing:
 		clock = minf(clock + delta * speed, race.end_time + 30.0)
 	var t0 := Time.get_ticks_usec()
 	riders.place(clock, rig.camera.global_position)
-	vehicles.place(clock)
+	vehicles.place(clock, rig.camera.global_position)
 	riders.pedal(delta, speed if playing else 0.0)
 	var t1 := Time.get_ticks_usec()
 	rig.follow(delta, clock)
@@ -178,7 +212,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
 			KEY_SPACE:
-				playing = not playing
+				toggle_play()
 			KEY_PLUS, KEY_KP_ADD, KEY_EQUAL:
 				set_speed(speed * 2.0)
 			KEY_MINUS, KEY_KP_SUBTRACT:
@@ -187,19 +221,50 @@ func _unhandled_input(event: InputEvent) -> void:
 				get_tree().quit()
 
 
-## @param s New playback speed, 1 = real time.
+## @param s New playback speed, 1 = real time; live the game's clock.
 func set_speed(s: float) -> void:
 	speed = clampf(s, 1.0, 512.0)
+	if race != null and race.clock_from_game() and link != null:
+		link.send({"type": "speed", "value": speed})
+
+
+## Stops or starts the clock; live the game's.
+func toggle_play() -> void:
+	if race != null and race.clock_from_game() and link != null:
+		link.send({"type": "pause", "on": not race.live_paused})
+		return
+	playing = not playing
+
+
+## Sends an order for riders of the player's team to the game.
+##
+## @param order Name of the order.
+## @param ids Rider ids.
+func send_order(order: String, ids: Array) -> void:
+	if link != null and not ids.is_empty():
+		link.send({"type": "order", "order": order, "riders": ids})
+
+
+## Sends the answer to the radio question to the game.
+func send_answer(choice: int) -> void:
+	if link != null:
+		link.send({"type": "answer", "choice": choice})
 
 
 ## @param c New race clock in seconds.
 func seek(c: float) -> void:
-	if race == null:
+	if race == null or race.clock_from_game():
 		return
-	clock = clampf(c, 0.0, race.end_time + 30.0)
+	_jump_to(clampf(c, 0.0, race.end_time + 30.0))
+
+
+## Puts riders, cars and camera at a moment of the race at once.
+func _jump_to(c: float) -> void:
+	clock = c
 	riders.place(clock)
 	vehicles.place(clock)
 	rig.jump()
+	terrain.fill(rig.focus_point(), 2)
 
 
 ## @param key A text of the viewer.

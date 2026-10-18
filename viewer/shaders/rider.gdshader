@@ -6,10 +6,11 @@
 //
 // Per rider: COLOR is the first team colour, its alpha the design of the
 // jersey (whole: 0..5 painted in the team colours, from 8 on the layer of
-// the real kit from the WorldDB plus 8) plus the rider's own number for skin
-// and lenses (fraction);
+// the real kit from the WorldDB plus 8); its fraction times 16384 holds the
+// race number times 16 plus the rider's own number for skin and lenses;
 // INSTANCE_CUSTOM is the second team colour, its alpha the stance times 16
-// (whole) plus the position of the cranks in turns (fraction).
+// plus 128 times the glance back over the shoulder (1 to 15, 8 straight
+// ahead) (whole) plus the position of the cranks in turns (fraction).
 //
 // CUSTOM0: x = region of the mesh (0 the body), y = part (1 front wheel,
 // 2 rear wheel). CUSTOM1: for the body, where the point lies on the body
@@ -23,6 +24,8 @@ uniform int frames = 16;
 uniform int vat_width = 4096;
 uniform int rows_per_frame = 3;
 uniform int stances = 6;
+// Two points either side of the neck: the head turns round their middle.
+uniform ivec2 neck_points = ivec2(0, 0);
 // Turn of the wheels, in radians.
 uniform float wheel = 0.0;
 uniform sampler2D skin_albedo : source_color, filter_linear_mipmap_anisotropic;
@@ -32,6 +35,8 @@ uniform sampler2D skin_normal : hint_normal, filter_linear_mipmap_anisotropic;
 // two main colours of the jersey (rows 5 and 6), for helmet and bike.
 uniform sampler2DArray kits : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform sampler2D kit_colours : source_color, filter_nearest, repeat_disable;
+// The digits 0 to 9 side by side, white, for the race numbers.
+uniform sampler2D digits : filter_linear_mipmap, repeat_disable;
 
 // Parts of the kit on the body.
 const int SKIN = 0;
@@ -54,16 +59,29 @@ varying vec4 team2;
 varying flat float stance;
 varying flat float seed;
 varying float rest_front;
+varying flat float bib;
 
 vec3 fetch(int v, int st, int frame, int block) {
 	ivec2 at = ivec2(v % vat_width, ((st * 2 + block) * frames + frame) * rows_per_frame + v / vat_width);
 	return texelFetch(vat, at, 0).xyz;
 }
 
+// Where a point is in the pose of the moment.
+vec3 posed(int v, int s0, int s1, int f0, int f1, float t, float w) {
+	vec3 p = mix(fetch(v, s0, f0, 0), fetch(v, s0, f1, 0), t);
+	if (w > 0.001) {
+		p = mix(p, mix(fetch(v, s1, f0, 0), fetch(v, s1, f1, 0), t), w);
+	}
+	return p;
+}
+
 void vertex() {
 	float packed = INSTANCE_CUSTOM.a;
 	float whole = floor(packed);
 	float turn = packed - whole;
+	float glance = floor(whole / 128.0);
+	whole -= glance * 128.0;
+	float look = glance > 0.5 ? (glance - 8.0) / 7.0 : 0.0;
 	float pose = whole / 16.0;
 	int s0 = clamp(int(floor(pose)), 0, stances - 1);
 	int s1 = min(s0 + 1, stances - 1);
@@ -80,7 +98,24 @@ void vertex() {
 		n = mix(n, mix(fetch(v, s1, f0, 1), fetch(v, s1, f1, 1), t), w);
 	}
 	n = normalize(n);
-	float own = fract(COLOR.a + 0.001);
+	// A glance back: the head, its helmet and glasses turn round the neck.
+	int reg = int(CUSTOM0.x + 0.5);
+	if (abs(look) > 0.01 && (reg == 0 || reg == 7 || reg == 8 || reg == 17 || reg == 18)) {
+		float head = reg == 0
+			? smoothstep(1.5, 1.66, CUSTOM1.y) * (1.0 - smoothstep(0.08, 0.13, abs(CUSTOM1.x)))
+			: 1.0;
+		if (head > 0.0) {
+			vec3 pivot = 0.5 * (posed(neck_points.x, s0, s1, f0, f1, t, w) + posed(neck_points.y, s0, s1, f0, f1, t, w));
+			float a = look * 0.75 * head;
+			float c = cos(a);
+			float s = sin(a);
+			vec3 q = p - pivot;
+			p = pivot + vec3(q.x * c + q.z * s, q.y, -q.x * s + q.z * c);
+			n = vec3(n.x * c + n.z * s, n.y, -n.x * s + n.z * c);
+		}
+	}
+	float tail = floor(fract(COLOR.a) * 16384.0 + 0.5);
+	float own = mod(tail, 16.0) / 16.0;
 	int part = int(CUSTOM0.y + 0.5);
 	if (part > 0) {
 		vec3 axle = part == 1 ? vec3(0.0, 0.336, 0.585) : vec3(0.0, 0.336, -0.405);
@@ -110,6 +145,7 @@ void vertex() {
 	team2 = INSTANCE_CUSTOM;
 	stance = pose;
 	seed = own;
+	bib = floor(tail / 16.0);
 }
 
 float hash(float x) {
@@ -165,6 +201,24 @@ vec2 kit_uv(vec3 r, float front) {
 		u = ahead ? 300.0 + r.x * 930.0 : 905.0 - r.x * 1250.0;
 	}
 	return vec2(u / 1200.0, clamp(v, 1.0, 825.0) / 826.0);
+}
+
+// How much of a race number's ink covers a point of it.
+//
+// number: the race number.
+// uv: where the point lies on the number cloth, 0..1 left to right and top
+// to bottom as read.
+float ink(float number, vec2 uv) {
+	float n = number < 10.0 ? 1.0 : (number < 100.0 ? 2.0 : 3.0);
+	float cell = 0.27;
+	float left = 0.5 - n * cell * 0.5;
+	float k = floor((uv.x - left) / cell);
+	if (k < 0.0 || k >= n || uv.y < 0.12 || uv.y > 0.9) {
+		return 0.0;
+	}
+	float d = mod(floor(number / pow(10.0, n - 1.0 - k) + 0.001), 10.0);
+	vec2 g = vec2((uv.x - left - k * cell) / cell, (uv.y - 0.12) / 0.78);
+	return texture(digits, vec2((d + clamp(g.x, 0.02, 0.98)) / 10.0, g.y)).a;
 }
 
 void fragment() {
@@ -300,7 +354,8 @@ void fragment() {
 	} else if (region == 9) {
 		albedo = c1 * 0.92;
 		rough = 0.22;
-	} else if (region == 10) {
+	} else if (region == 10 || region == 18) {
+		// Black parts, among them the helmet's strap (18).
 		albedo = vec3(0.03);
 		rough = 0.4;
 	} else if (region == 11) {
@@ -322,6 +377,18 @@ void fragment() {
 	} else {
 		albedo = real ? texelFetch(kit_colours, ivec2(layer, 4), 0).rgb : c2;
 		rough = 0.35;
+	}
+	// The race number, pinned in the middle of the lower back and read from
+	// behind; far away the digits blur into the cloth.
+	if (region == 0 && bib > 0.0 && rest_front < -0.15 && kit(rest) == JERSEY) {
+		if (rest.y > 1.06 && rest.y < 1.19 && abs(rest.x) < 0.085) {
+			vec2 uv = vec2((0.085 - rest.x) / 0.17, (1.19 - rest.y) / 0.13);
+			float edge = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+			float digit = ink(bib, uv) * (1.0 - smoothstep(0.004, 0.012, blur));
+			albedo = mix(vec3(0.93), vec3(0.03), max(digit, edge < 0.03 ? 0.25 : 0.0));
+			rough = 0.75;
+			normal_depth = 0.05;
+		}
 	}
 	ALBEDO = albedo;
 	ROUGHNESS = rough;

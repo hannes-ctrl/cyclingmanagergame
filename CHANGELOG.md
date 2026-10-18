@@ -12,6 +12,10 @@
 - The real kits from the game in the 3D viewer (`worlddb kits`): every team in its jersey and shorts, socks, shoes, gloves, bar tape and bottle, the leaders of a stage race in their jerseys; helmets and bikes in the colours of the kit.
 - Beside the road a verge, a ditch and an embankment or a cutting to the land, instead of a bench.
 - Team cars behind the groups and behind every rider in a time trial, motorbikes with cameramen ahead; spectators who cheer by the road; the race's logo on the finish arch and the barriers.
+- Live races: the stages of the player's team run live by default in the 3D viewer, in race time from real time to fast motion; **Simulate** rides one as before without the viewer, and a switch makes that the rule.
+- Orders to the own riders during a stage, in the game and in the viewer, for one rider or several: attack, follow the moves, ride tempo, save energy, help the leader. Orders and radio answers are saved with the day.
+- The simulation rides a stage in the order of the race clock, so it can stop at any moment and go on; a stage ridden in one go comes out as before.
+- In the viewer: race numbers on the riders' backs, glances back over the shoulder, towns at the start and the finish and villages on the way, lakes, a team car behind a rider who punctured or crashed and its mechanic at a puncture; no more ground rising over the road between the legs of a hairpin, darker rock.
 
 ## 0.6.1 alpha (2026-10-18)
 

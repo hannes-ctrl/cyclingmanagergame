@@ -297,6 +297,11 @@ class _DayStage {
   final StageJob job;
 }
 
+/// A stage of the player's team that can be watched live: the race, the
+/// stage and the job with everything decided but the answers and orders the
+/// player gives while he watches.
+typedef LiveJob = ({RaceProgress race, int stageIndex, StageJob job});
+
 /// A question of the team car: race, stage, the question, and the stage as
 /// far as it has been ridden when the question comes.
 typedef RadioPrompt = ({
@@ -1645,6 +1650,10 @@ class Career {
   /// The player's answers for today's stage per race id.
   final _radio = <int, Map<RadioKind, int>>{};
 
+  /// The player's orders to his riders in today's stage per race id, as he
+  /// gave them while he watched it live.
+  final _orders = <int, List<TimedOrder>>{};
+
   /// The player's tactics for the next stage of a race: his complete plan,
   /// or his wishes laid over what the sports director plans for that stage.
   ///
@@ -1754,9 +1763,57 @@ class Career {
           askRadio: true,
           kits: _kitsFor(p, route),
           track: true,
+          orders: _orders[id] ?? const [],
         ),
       );
     }
+  }
+
+  /// Today's stages of the player's team, to be watched live. The sports
+  /// director asks over the radio as he would otherwise.
+  ///
+  /// @returns Race, stage and job of each.
+  List<LiveJob> liveJobs() {
+    final out = <LiveJob>[];
+    for (final race in racesOn(today)) {
+      final id = race.info.id;
+      final p = progress[id];
+      if (p == null || p.finished) continue;
+      if (!p.run.riders.any((r) => r.teamId == teamId)) continue;
+      final asks = race.tier != RaceTier.championship &&
+          (delegation.radio == RadioMode.all ||
+              delegation.radio == RadioMode.important && race.tier.factor >= 5);
+      final route = world.route(race.stages[p.stagesDone].id);
+      out.add((
+        race: p,
+        stageIndex: p.stagesDone,
+        job: p.run.previewJob(
+          route,
+          plans: _plansFor(id, route),
+          directorSkills: p.directorSkills,
+          radioTeam: teamId,
+          radio: _radio[id] ?? const {},
+          askRadio: asks,
+          kits: _kitsFor(p, route),
+          track: true,
+          orders: _orders[id] ?? const [],
+        ),
+      ));
+    }
+    return out;
+  }
+
+  /// Takes what the player did while he watched today's stage of a race
+  /// live: his answers to the radio and his orders. The stage is ridden
+  /// with them when the day is played.
+  ///
+  /// @param raceId Id of the race.
+  /// @param answers Answers per question.
+  /// @param orders Orders, each with the race clock at which it was given.
+  void watched(
+      int raceId, Map<RadioKind, int> answers, List<TimedOrder> orders) {
+    _radio.putIfAbsent(raceId, () => {}).addAll(answers);
+    _orders[raceId] = [...orders];
   }
 
   /// Like [nextRadioCall], with the trial run of the stage on another
@@ -1920,6 +1977,7 @@ class Career {
           directorSkills: p.directorSkills,
           radioTeam: teamId,
           radio: _radio.remove(id) ?? const {},
+          orders: _orders.remove(id) ?? const [],
           kits: _kitsFor(p, route),
           // Where every rider was, for the 3D view of the player's races.
           track: p.run.riders.any((r) => r.teamId == teamId),
@@ -3310,6 +3368,8 @@ class Career {
       'strength': ints(_strength),
       'radio': ints<Map<RadioKind, int>>(
           _radio, (m) => {for (final e in m.entries) e.key.name: e.value}),
+      'orders': ints<List<TimedOrder>>(
+          _orders, (l) => [for (final o in l) o.toJson()]),
       'delegation': delegation.toJson(),
       if (heldDelegation case final held?) 'heldDelegation': held,
       'titles': [
@@ -3525,6 +3585,14 @@ class Career {
                 for (final e in (v as Map<String, dynamic>).entries)
                   RadioKind.values.byName(e.key): e.value as int,
               }));
+    _orders.clear();
+    if (j['orders'] != null) {
+      _orders.addAll(ints(
+          'orders',
+          (v) => [
+                for (final o in v as List) TimedOrder.fromJson(o as List),
+              ]));
+    }
     delegation.load(j['delegation'] as Map<String, dynamic>);
     // A save made while the staff were in charge for a while: the run
     // ended with the load, so the player's own settings apply again.

@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:game/game.dart';
 import 'package:radmanager/app_state.dart';
+import 'package:radmanager/live_race.dart';
 import 'package:radmanager/main.dart';
 import 'package:radmanager/screens/found_screen.dart';
 import 'package:radmanager/settings.dart';
@@ -713,17 +714,33 @@ void main() {
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/zeitraffer.png'),
     );
-    // The same stage live, as after "continue" on a day of our race.
-    state
-      ..live = (race: tour, stageIndex: 19)
-      ..setWatchLive(true);
-    await tester.pump(const Duration(seconds: 3));
+    // The same stage live, a good way into it, a rider told to ride tempo.
+    final run = state.runOf(tour)!;
+    final live = LiveRace(
+      state,
+      info: tour,
+      stageIndex: 19,
+      stageNumber: run.stages[19].number,
+      riders: run.riders,
+      standings: run.result.standings,
+      stage: liveStage(
+        run.routes[19],
+        run.riders,
+        seed: 7,
+        radioTeam: state.team.id,
+      ),
+    )..started = true;
+    live.stage.advanceTo(3 * 3600);
+    live.toggle(live.own.first.id);
+    live.order(RiderOrder.tempo);
+    live.stage.advanceTo(3 * 3600 + 30);
+    state.showLive(live);
+    await tester.pump(const Duration(seconds: 1));
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/live.png'),
     );
-    state.closeLive();
-    state.watchLive = false;
+    state.showLive(null);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Berg'));

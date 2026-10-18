@@ -2190,4 +2190,43 @@ const german = <String, String>{
   'Helicopter': 'Hubschrauber',
   'Finish': 'Ziel',
   '{0} km to go': 'noch {0} km',
+  'Finish · {0}': 'Ziel · {0}',
+  'Show the race in the 3D viewer': 'Das Rennen im 3D-Viewer zeigen',
+  'To the finish': 'Bis ins Ziel',
+  'Go on': 'Weiter',
+  'Our riders: {0}': 'Unsere Fahrer: {0}',
+  'Watch live': 'Live verfolgen',
+  'Live, the stage is ridden as you watch it, in the 3D viewer too. Your riders take orders: attack, follow the attacks, ride tempo, save energy, wait for the leader. Simulated, it is ridden at once as before, with the sports director asking over the radio.':
+      'Live wird die Etappe gefahren, während du zusiehst, auch im 3D-Viewer. Deine Fahrer nehmen Befehle an: angreifen, Attacken folgen, Tempo machen, Kräfte sparen, auf den Kapitän warten. Simuliert wird sie wie bisher auf einmal gefahren, und der Sportliche Leiter fragt über Funk.',
+  'Head': 'Spitze',
+  'Our riders': 'Unsere Fahrer',
+  'Pick riders, then give an order.':
+      'Fahrer auswählen, dann einen Befehl geben.',
+  '{0} picked': '{0} ausgewählt',
+  'In a time trial every rider rides his own race.':
+      'Im Zeitfahren fährt jeder sein eigenes Rennen.',
+  'out of the race': 'ausgeschieden',
+  'at the head': 'an der Spitze',
+  'Energy': 'Kraft',
+  'Legs': 'Beine',
+  'Attack': 'Angreifen',
+  'Follow': 'Folgen',
+  'Tempo': 'Tempo machen',
+  'Save energy': 'Kräfte sparen',
+  'Wait for the leader': 'Auf den Kapitän warten',
+  'Back to the plan': 'Zurück zum Plan',
+  'He attacks at once; before the break has gone, he goes with it.':
+      'Er greift sofort an; solange die Fluchtgruppe noch nicht weg ist, geht er mit ihr.',
+  'He goes with every attack out of his group, as long as he can.':
+      'Er geht mit jeder Attacke aus seiner Gruppe mit, solange er kann.',
+  'He rides on the front of his group, at least at his threshold, until he is empty.':
+      'Er fährt vorn in seiner Gruppe, mindestens an seiner Schwelle, bis er leer ist.',
+  'He sits in the wheels and does no work.':
+      'Er bleibt im Windschatten und arbeitet nicht mit.',
+  'He waits for the team\'s leader in a group behind and rides with him.':
+      'Er wartet auf den Kapitän des Teams in einer Gruppe dahinter und fährt mit ihm.',
+  'He rides as the plan of the day says.':
+      'Er fährt, wie es der Plan des Tages vorsieht.',
+  'Orders for': 'Befehle für',
+  'recommended': 'empfohlen',
 };

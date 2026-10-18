@@ -20,6 +20,18 @@ const ROAD_SHADER := preload("res://shaders/road.gdshader")
 const RiderModel := preload("res://scripts/rider_model.gd")
 const SPECTATOR_SHADER := preload("res://shaders/spectator.gdshader")
 const BOARD_SHADER := preload("res://shaders/board.gdshader")
+const HOUSE_SHADER := preload("res://shaders/house.gdshader")
+
+## Colours of walls and roofs in the towns along the road.
+const WALLS := [
+	Color(0.82, 0.8, 0.74), Color(0.84, 0.76, 0.6), Color(0.76, 0.67, 0.52),
+	Color(0.68, 0.68, 0.66), Color(0.55, 0.51, 0.45), Color(0.86, 0.78, 0.5),
+	Color(0.8, 0.7, 0.62),
+]
+const ROOFS := [
+	Color(0.5, 0.2, 0.12), Color(0.38, 0.15, 0.1), Color(0.22, 0.23, 0.27),
+	Color(0.3, 0.22, 0.17), Color(0.55, 0.3, 0.18),
+]
 
 var data
 ## Road centre every [STEP] metres, at road height.
@@ -34,6 +46,10 @@ var bounds := AABB()
 ## Road points by cell of [CELL] metres, for the terrain.
 var _cells := {}
 var road_material: ShaderMaterial
+## The spectators' people in three poses and their material, also for the
+## mechanic at a puncture.
+var spectator_meshes: Array[ArrayMesh] = []
+var spectator_material: ShaderMaterial
 
 
 ## Lays out the road and builds everything along it.
@@ -425,6 +441,126 @@ func _build_markers() -> void:
 		var dense := 1.0 if cat <= 1 else (0.6 if cat == 2 else 0.3)
 		crowds.append(Vector3(maxf(0.0, top - (3000.0 if cat <= 2 else 1200.0)), top, dense))
 	_spectators(crowds)
+	var started := Time.get_ticks_msec()
+	var houses := _towns()
+	print("towns: %d houses in %d ms" % [houses, Time.get_ticks_msec() - started])
+
+
+## Towns and villages along the road: the start and the finish lie in a
+## town, and every 20 to 40 km the road runs through a village, not on steep
+## climbs. Houses stand in rows facing the road behind the verge, two rows
+## deep in a town, and never where another stretch of the road passes. They
+## are drawn in pieces near the camera only.
+##
+## @returns The number of houses.
+func _towns() -> int:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = data.seed + 11
+	var spans: Array = [[-150.0, 1100.0, true], [length_m - 1700.0, length_m + 200.0, true]]
+	var d := 15000.0 + rng.randf() * 15000.0
+	while d < length_m - 6000.0:
+		var steep := false
+		for k in 5:
+			var seg: int = data.segment_at(d + k * 200.0)
+			if absf(float(data.seg_grade[seg])) > 0.055:
+				steep = true
+		if not steep:
+			spans.append([d, d + 450.0 + rng.randf() * 650.0, false])
+		d += 20000.0 + rng.randf() * 20000.0
+	var mesh := _house_mesh()
+	var mat := ShaderMaterial.new()
+	mat.shader = HOUSE_SHADER
+	# Per piece of 400 m: transforms, walls, roofs.
+	var pieces := {}
+	var count := 0
+	for span in spans:
+		var town: bool = span[2]
+		for side in [-1.0, 1.0]:
+			for row in (2 if town else 1):
+				var at: float = float(span[0]) + rng.randf() * 12.0
+				while at < float(span[1]):
+					var w := rng.randf_range(7.0, 12.0)
+					var depth := rng.randf_range(8.0, 12.0)
+					var h := rng.randf_range(6.0, 11.0) if town else rng.randf_range(5.0, 7.5)
+					var dd := at + w * 0.5
+					var p := pos_at(dd)
+					var dir := dir_at(dd)
+					var right := Vector3(-dir.z, 0.0, dir.x)
+					var back := width_at(dd) * 0.5 + 7.5 + row * 18.0 + rng.randf_range(0.0, 4.0) + depth * 0.5
+					var c: Vector3 = p + right * side * back
+					var radius := 0.5 * sqrt(w * w + depth * depth)
+					if _clear(c, radius):
+						c.y = p.y + LIFT - 0.35
+						var face := Basis.looking_at(-right * side, Vector3.UP)
+						var key := int(dd / 400.0)
+						if not pieces.has(key):
+							pieces[key] = [[], [], []]
+						pieces[key][0].append(Transform3D(face.scaled(Vector3(w, h, depth)), c))
+						pieces[key][1].append(WALLS[rng.randi() % WALLS.size()])
+						pieces[key][2].append(ROOFS[rng.randi() % ROOFS.size()])
+						count += 1
+					at += w + (rng.randf_range(1.5, 6.0) if town else rng.randf_range(5.0, 30.0))
+	for key in pieces:
+		var xs: Array = pieces[key][0]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.use_custom_data = true
+		mm.mesh = mesh
+		mm.instance_count = xs.size()
+		for i in xs.size():
+			mm.set_instance_transform(i, xs[i])
+			mm.set_instance_color(i, pieces[key][1][i])
+			mm.set_instance_custom_data(i, pieces[key][2][i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.material_override = mat
+		mmi.visibility_range_end = 1800.0
+		mmi.visibility_range_end_margin = 200.0
+		mmi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+		add_child(mmi)
+	return count
+
+
+## Whether no stretch of the road passes within a distance of a point.
+func _clear(c: Vector3, radius: float) -> bool:
+	for j in points_near(Rect2(c.x - radius, c.z - radius, 2.0 * radius, 2.0 * radius), 12.0):
+		var q: Vector3 = points[j]
+		if Vector2(q.x - c.x, q.z - c.z).length() < radius + widths[j] * 0.5 + 3.0:
+			return false
+	return true
+
+
+## A unit house: walls from 0 to 1 with a plinth down to -0.5, a pitched
+## roof above with its ridge along x, the front at z = -0.5.
+func _house_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# Godot takes clockwise faces as the front: the corners go round
+	# clockwise as seen from outside, the normal points out.
+	var quad := func(a: Vector3, b: Vector3, c: Vector3, e: Vector3) -> void:
+		var n := (b - a).cross(c - a).normalized()
+		for v in [a, c, b, a, e, c]:
+			st.set_normal(n)
+			st.add_vertex(v)
+	var tri := func(a: Vector3, b: Vector3, c: Vector3) -> void:
+		var n := (b - a).cross(c - a).normalized()
+		for v in [a, c, b]:
+			st.set_normal(n)
+			st.add_vertex(v)
+	var lo := -0.5
+	# Walls, wound so that their fronts face outwards.
+	quad.call(Vector3(-0.5, lo, -0.5), Vector3(-0.5, 1.0, -0.5), Vector3(0.5, 1.0, -0.5), Vector3(0.5, lo, -0.5))
+	quad.call(Vector3(0.5, lo, 0.5), Vector3(0.5, 1.0, 0.5), Vector3(-0.5, 1.0, 0.5), Vector3(-0.5, lo, 0.5))
+	quad.call(Vector3(-0.5, lo, 0.5), Vector3(-0.5, 1.0, 0.5), Vector3(-0.5, 1.0, -0.5), Vector3(-0.5, lo, -0.5))
+	quad.call(Vector3(0.5, lo, -0.5), Vector3(0.5, 1.0, -0.5), Vector3(0.5, 1.0, 0.5), Vector3(0.5, lo, 0.5))
+	# Gable ends and the two slopes of the roof, a little over the walls.
+	var ridge := 1.42
+	tri.call(Vector3(-0.5, 1.0, -0.5), Vector3(-0.5, ridge, 0.0), Vector3(-0.5, 1.0, 0.5))
+	tri.call(Vector3(0.5, 1.0, 0.5), Vector3(0.5, ridge, 0.0), Vector3(0.5, 1.0, -0.5))
+	quad.call(Vector3(-0.53, 0.985, -0.56), Vector3(-0.53, ridge + 0.005, 0.0), Vector3(0.53, ridge + 0.005, 0.0), Vector3(0.53, 0.985, -0.56))
+	quad.call(Vector3(0.53, 0.985, 0.56), Vector3(0.53, ridge + 0.005, 0.0), Vector3(-0.53, ridge + 0.005, 0.0), Vector3(-0.53, 0.985, 0.56))
+	return st.commit()
 
 
 func _box(size: Vector3, color: Color) -> MeshInstance3D:
@@ -580,6 +716,8 @@ func _spectators(stretches: Array) -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = SPECTATOR_SHADER
 	mat.set_shader_parameter("skin_albedo", load("res://assets/rider/T_Superhero_Male_Light.png"))
+	spectator_meshes = meshes
+	spectator_material = mat
 	# Per piece of 250 m and pose: transforms, shirts, trousers.
 	var pieces := {}
 	for s in stretches:

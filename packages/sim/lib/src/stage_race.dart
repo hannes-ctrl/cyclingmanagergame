@@ -199,9 +199,11 @@ class StageRaceRun {
   /// @param directors Quality of the sports director per team.
   /// @param radio Radio answers of the player's team.
   /// @param kits Material and staff per team.
+  /// @param orders The player's orders to his riders, as given live.
   /// @returns The snapshot.
   _Snapshot _snapshot(Map<int, TeamPlan> plans, Map<int, double> directors,
-          Map<RadioKind, int> radio, Map<int, TeamKit> kits) =>
+          Map<RadioKind, int> radio, Map<int, TeamKit> kits,
+          [List<TimedOrder> orders = const []]) =>
       _Snapshot(
         [...riders],
         _nextSeed,
@@ -217,6 +219,7 @@ class StageRaceRun {
         radio,
         kits,
         _mountainLeaders(),
+        orders,
       );
 
   /// Riders in the running for the mountains jersey: the leader of the
@@ -265,6 +268,7 @@ class StageRaceRun {
         kits: s.kits,
         mountainLeaders: s.mountainLeaders,
         track: track,
+        orders: s.orders,
       );
 
   /// Packs a stage into a job.
@@ -284,6 +288,7 @@ class StageRaceRun {
   /// @param askRadio Whether to pause at the first unanswered question.
   /// @param kits Material and staff per team.
   /// @param track Whether to record where every rider was, for the 3D view.
+  /// @param orders Orders to riders of the radio team, as given live.
   /// @returns The job; its result is not to be passed to [finish].
   StageJob previewJob(SimRoute route,
           {Map<int, TeamPlan> plans = const {},
@@ -292,8 +297,9 @@ class StageRaceRun {
           Map<RadioKind, int> radio = const {},
           bool askRadio = false,
           Map<int, TeamKit> kits = const {},
-          bool track = false}) =>
-      _job(route, _snapshot(plans, directorSkills, radio, kits),
+          bool track = false,
+          List<TimedOrder> orders = const []}) =>
+      _job(route, _snapshot(plans, directorSkills, radio, kits, orders),
           radioTeam: radioTeam, askRadio: askRadio, track: track);
 
   /// Starts the next stage: fixes everything that decides it and returns it
@@ -307,6 +313,7 @@ class StageRaceRun {
   /// @param radio Radio answers of that team.
   /// @param kits Material and staff per team.
   /// @param track Whether to record where every rider was, for the 3D view.
+  /// @param orders Orders to riders of the radio team, as given live.
   /// @returns The job.
   StageJob begin(SimRoute route,
       {Map<int, TeamPlan> plans = const {},
@@ -314,8 +321,9 @@ class StageRaceRun {
       int? radioTeam,
       Map<RadioKind, int> radio = const {},
       Map<int, TeamKit> kits = const {},
-      bool track = false}) {
-    final snapshot = _snapshot(plans, directorSkills, radio, kits);
+      bool track = false,
+      List<TimedOrder> orders = const []}) {
+    final snapshot = _snapshot(plans, directorSkills, radio, kits, orders);
     _before.add(snapshot);
     return _job(route, snapshot, radioTeam: radioTeam, track: track);
   }
@@ -939,6 +947,34 @@ class StageJob {
       kits: _s.kits,
       mountainLeaders: _s.mountainLeaders,
       track: _track,
+      orders: _s.orders,
+    );
+  }
+
+  /// The stage to be ridden while it is watched, with the radio answers
+  /// and orders the player gives on the way; see [LiveStage]. Ridden with
+  /// them, [run] gives the same stage.
+  ///
+  /// @returns The stage at its start.
+  LiveStage live() {
+    I18n.lang = _lang;
+    return liveStage(
+      route,
+      _s.riders,
+      seed: _s.seed,
+      tuning: _tuning,
+      plans: _s.plans,
+      directorSkills: _s.directors,
+      gcGaps: _s.gcGaps,
+      conditions: _s.conditions,
+      radioTeam: _radioTeam,
+      radio: _s.radio,
+      askRadio: _askRadio,
+      month: _month,
+      country: _country,
+      illness: _illness,
+      kits: _s.kits,
+      mountainLeaders: _s.mountainLeaders,
     );
   }
 }
@@ -947,7 +983,9 @@ class StageJob {
 class _Snapshot {
   _Snapshot(this.riders, this.seed, this.gcGaps, this.conditions, this.plans,
       this.directors, this.radio,
-      [this.kits = const {}, this.mountainLeaders = const {}]);
+      [this.kits = const {},
+      this.mountainLeaders = const {},
+      this.orders = const []]);
   final List<SimRider> riders;
   final int seed;
   final Map<int, double> gcGaps;
@@ -957,6 +995,9 @@ class _Snapshot {
   final Map<RadioKind, int> radio;
   final Map<int, TeamKit> kits;
   final Set<int> mountainLeaders;
+
+  /// The player's orders to his riders, as given live.
+  final List<TimedOrder> orders;
 }
 
 /// Simulates a whole stage race in one go.

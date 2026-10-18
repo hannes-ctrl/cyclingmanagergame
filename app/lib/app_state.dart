@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:game/game.dart';
 import 'package:sim/sim.dart';
 
+import 'live_race.dart';
 import 'settings.dart';
 import 'viewer_link.dart';
 import 'zip.dart';
@@ -1057,6 +1058,8 @@ class AppState extends ChangeNotifier {
     );
     _days = 0;
     radio = null;
+    liveRace?.dispose();
+    liveRace = null;
     _decisions.clear();
     _raceCache.clear();
     // The sports director plans the season before the first day; a loaded
@@ -1343,8 +1346,9 @@ class AppState extends ChangeNotifier {
     return day;
   }
 
-  /// Whether a stage of the player's team is shown live, in fast motion,
-  /// before its result. Remembered beyond the career.
+  /// Whether the stages of the player's team are watched live, in race
+  /// time with the 3D viewer, rather than simulated. Remembered beyond the
+  /// career.
   late bool watchLive = viewOf('live')?['on'] as bool? ?? true;
 
   /// Switches the live stages on or off and remembers it.
@@ -1357,26 +1361,72 @@ class AppState extends ChangeNotifier {
   }
 
   /// The stage of the player's team being watched live, or null.
-  ({RaceInfo race, int stageIndex})? live;
+  LiveRace? liveRace;
 
-  /// Finds the stage of the day to watch live: one with the player's team
-  /// and a course to show, the most important if there are several.
+  /// Races of today whose stage the player has watched live or chose to
+  /// have simulated, and the day they belong to.
+  final _liveSeen = <int>{};
+  DateTime? _liveDay;
+
+  /// Opens today's next stage of the player's team to watch live, if the
+  /// stages are watched live.
   ///
-  /// @param day The day just simulated.
-  /// @returns The stage, or null.
-  ({RaceInfo race, int stageIndex})? _liveOf(DayReport day) {
-    if (!watchLive) return null;
-    final own = [
-      for (final x in day.stages)
-        if (x.result.timeline.length > 1 &&
-            x.result.placings.any((p) => p.rider.teamId == team.id))
-          x,
-    ];
-    if (own.isEmpty) return null;
-    final best = own.reduce(
-      (a, b) => b.race.race.tier.factor > a.race.race.tier.factor ? b : a,
-    );
-    return (race: best.race.race.info, stageIndex: best.stageIndex);
+  /// @returns Whether one was opened.
+  bool _openLive() {
+    if (!watchLive) return false;
+    if (_liveDay != career.today) {
+      _liveSeen.clear();
+      _liveDay = career.today;
+    }
+    for (final job in career.liveJobs()) {
+      if (_liveSeen.contains(job.race.race.info.id)) continue;
+      liveRace = LiveRace.of(this, job);
+      return true;
+    }
+    return false;
+  }
+
+  /// Shows a live race set up elsewhere, or none.
+  ///
+  /// @param live The race; the one shown before is closed.
+  void showLive(LiveRace? live) {
+    if (!identical(liveRace, live)) liveRace?.dispose();
+    liveRace = live;
+    notifyListeners();
+  }
+
+  /// Ends the stage watched live, and the day goes on.
+  ///
+  /// @param watched Whether the player watched it, so that his orders and
+  ///   answers count; otherwise it is simulated as before, the radio asking
+  ///   as it would.
+  /// @returns A future that completes when the days have stopped again.
+  Future<void> endLive({bool watched = true}) async {
+    final l = liveRace;
+    if (l == null || busy) return;
+    final id = l.info.id;
+    if (watched) {
+      if (!l.stage.finished) l.finishNow();
+      _record({
+        'type': 'live',
+        'race': id,
+        'answers': {
+          for (final e in l.stage.answers.entries) e.key.name: e.value,
+        },
+        'orders': [for (final o in l.stage.orders) o.toJson()],
+      });
+    }
+    l.dispose();
+    liveRace = null;
+    _liveSeen.add(id);
+    notifyListeners();
+    await next();
+    // The stage is ridden: its result.
+    if (watched && radio == null && pending == null && liveRace == null) {
+      focusRace = id;
+      jumpToRace = true;
+      notifyListeners();
+    }
   }
 
   /// Shows a stage in the 3D viewer, which runs as a program of its own.
@@ -1409,17 +1459,6 @@ class AppState extends ChangeNotifier {
             : null,
       ),
     );
-  }
-
-  /// Ends the live view and shows the result of the race.
-  void closeLive() {
-    final l = live;
-    live = null;
-    if (l != null) {
-      focusRace = l.race.id;
-      jumpToRace = true;
-    }
-    notifyListeners();
   }
 
   /// What is being simulated at the moment, for the header: the name of the
@@ -1526,7 +1565,7 @@ class AppState extends ChangeNotifier {
   ///
   /// @returns A future that completes when the days have stopped.
   Future<void> next() async {
-    if (busy || career.seasonOver) return;
+    if (busy || career.seasonOver || liveRace != null) return;
     busy = true;
     stopRequested = false;
     notifyListeners();
@@ -1539,15 +1578,18 @@ class AppState extends ChangeNotifier {
       } else if (career.needsDecision != null) {
         break;
       }
+      // A stage of ours: watched live, unless the stages are simulated.
+      if (_openLive()) break;
+      final watched = _liveDay == career.today && _liveSeen.isNotEmpty;
       // The sports director asks from the race.
       radio = await career.nextRadioCallAsync();
       if (radio != null) break;
-      final day = await _playDay();
+      await _playDay();
       _days++;
       _autoSave();
-      live = _liveOf(day);
       notifyListeners();
-      if (live != null) break;
+      // After a stage watched live its result comes first.
+      if (watched) break;
       // Give the user interface room so that the date keeps moving.
       await Future<void>.delayed(Duration.zero);
       if (career.inbox.length > before) break;
@@ -1659,6 +1701,15 @@ class AppState extends ChangeNotifier {
           e['race'] as int,
           RadioKind.values.byName(e['kind'] as String),
           e['choice'] as int,
+        );
+      case 'live':
+        career.watched(
+          e['race'] as int,
+          {
+            for (final a in (e['answers'] as Map<String, dynamic>).entries)
+              RadioKind.values.byName(a.key): a.value as int,
+          },
+          [for (final o in e['orders'] as List) TimedOrder.fromJson(o as List)],
         );
       case 'delegate':
         final d = career.delegation;
@@ -2045,7 +2096,7 @@ class AppState extends ChangeNotifier {
     await next();
     // All questions of the day are answered and the stage is ridden: show
     // the result of the race the last question came from.
-    if (radio == null && pending == null && live == null) {
+    if (radio == null && pending == null && liveRace == null) {
       focusRace = r.race.race.info.id;
       jumpToRace = true;
       notifyListeners();

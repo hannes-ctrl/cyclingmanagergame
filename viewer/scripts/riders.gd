@@ -16,6 +16,8 @@ const ROW := 1.95
 const LANE := 0.74
 ## Riders within this distance of the camera get the full model.
 const NEAR := 35.0
+## Metres from the camera up to which the player's riders are named.
+const LABEL_RANGE := 60.0
 const MAX_NEAR := 30
 ## Beyond this distance riders get the coarsest model.
 const DISTANT := 90.0
@@ -81,6 +83,19 @@ var _speed := PackedFloat32Array()
 var _prev := PackedFloat32Array()
 ## His own number in [0, 1), for skin, lenses and rhythm.
 var _own := PackedFloat32Array()
+## Per rider: his race number.
+var _bib := PackedInt32Array()
+## Per rider: how far he looks back over his shoulder (-1 to the left, 1 to
+## the right), and when his glance began and to which side.
+var _look := PackedFloat32Array()
+var _glance := PackedFloat32Array()
+var _glance_side := PackedFloat32Array()
+## Clock of the animations, faster in fast motion like the pedalling.
+var _visual := 0.0
+## Per rider: whether he leads or attacks, so that he looks back more often.
+var _alert := PackedByteArray()
+## Seconds of the animation clock a glance back takes.
+const GLANCE := 1.6
 ## Per rider index: metres where he attacked or went clear.
 var _bursts: Array = []
 ## Per rider index: where crashes and punctures stopped him ([_stop_window]).
@@ -128,6 +143,23 @@ func setup(r, c) -> void:
 	_stops.resize(n)
 	_now.resize(n)
 	var time_trial: bool = race.kind != "road"
+	# Race numbers as in a real race: the teams in the order of the start
+	# list, ten numbers each, the first rider of a team the one ending in 1.
+	_bib.resize(n)
+	_look.resize(n)
+	_glance.resize(n)
+	_glance.fill(-100.0)
+	_glance_side.resize(n)
+	_alert.resize(n)
+	var team_index := {}
+	var in_team := {}
+	for i in n:
+		var t := int(race.riders[i]["team"])
+		if not team_index.has(t):
+			team_index[t] = team_index.size()
+		var k: int = in_team.get(t, 0)
+		in_team[t] = k + 1
+		_bib[i] = int(team_index[t]) * 10 + mini(k, 8) + 1
 	var rng := RandomNumberGenerator.new()
 	rng.seed = race.seed + 3
 	for i in n:
@@ -143,9 +175,9 @@ func setup(r, c) -> void:
 		var team: Dictionary = race.teams.get(team_id, {})
 		var c1: Color = team.get("color", Color(0.7, 0.7, 0.7))
 		var c2: Color = team.get("color2", Color(0.2, 0.2, 0.2))
-		# The design of the jersey follows the team, the fraction is the
-		# rider's own number.
-		c1.a = float(posmod(team_id * 7 + 3, 6)) + _own[i]
+		# The design of the jersey follows the team; the fraction holds the
+		# rider's own number and his race number.
+		c1.a = float(posmod(team_id * 7 + 3, 6)) + _tail(i)
 		_colour1[i] = c1
 		_colour2[i] = c2
 		# Tall riders on big bikes, small ones on small bikes; heavy riders a
@@ -167,7 +199,7 @@ func setup(r, c) -> void:
 		for i in n:
 			var layer: int = kits.layer_of(i, int(race.riders[i]["team"]))
 			if layer >= 0:
-				_colour1[i].a = 8.0 + layer + _own[i]
+				_colour1[i].a = 8.0 + layer + _tail(i)
 		print("kits: %d layers in %d ms" % [kits.array.get_layers(), Time.get_ticks_msec() - kit_start])
 	else:
 		kits = null
@@ -178,6 +210,7 @@ func setup(r, c) -> void:
 	_material = ShaderMaterial.new()
 	_material.shader = RIDER_SHADER
 	_material.set_shader_parameter("vat", model.vat)
+	_material.set_shader_parameter("neck_points", model.neck)
 	_material.set_shader_parameter("frames", RiderModel.FRAMES)
 	_material.set_shader_parameter("vat_width", RiderModel.VAT_WIDTH)
 	_material.set_shader_parameter("rows_per_frame", model.rows_per_frame)
@@ -187,6 +220,7 @@ func setup(r, c) -> void:
 	if kits != null:
 		_material.set_shader_parameter("kits", kits.array)
 		_material.set_shader_parameter("kit_colours", kits.colours)
+	_draw_digits()
 	_near = _multimesh(model.mesh_near, n)
 	_far = _multimesh(model.mesh_far, n)
 	_distant = _multimesh(model.mesh_distant, n)
@@ -205,9 +239,67 @@ func setup(r, c) -> void:
 			_labels[i] = l
 
 
+## The fraction of the first colour's alpha: the rider's own number (16
+## steps, for skin, lenses and wheels) and his race number, in 1/16384.
+func _tail(i: int) -> float:
+	return float(_bib[i] * 16 + int(_own[i] * 16.0)) / 16384.0
+
+
+## Draws the digits 0 to 9 once with the default font, for the race numbers,
+## and hands them to the shader when they are drawn.
+func _draw_digits() -> void:
+	var view := SubViewport.new()
+	view.size = Vector2i(400, 64)
+	view.transparent_bg = true
+	view.render_target_update_mode = SubViewport.UPDATE_ONCE
+	add_child(view)
+	var font := FontVariation.new()
+	font.base_font = ThemeDB.fallback_font
+	font.variation_embolden = 1.0
+	for d in 10:
+		var l := Label.new()
+		l.text = str(d)
+		l.position = Vector2(d * 40, -6)
+		l.size = Vector2(40, 76)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		l.add_theme_font_override("font", font)
+		l.add_theme_font_size_override("font_size", 58)
+		l.add_theme_color_override("font_color", Color.WHITE)
+		view.add_child(l)
+	await RenderingServer.frame_post_draw
+	if not is_instance_valid(view):
+		return
+	var img := view.get_texture().get_image()
+	view.queue_free()
+	if img == null or img.is_empty():
+		return
+	img.convert(Image.FORMAT_RGBA8)
+	img.generate_mipmaps()
+	_material.set_shader_parameter("digits", ImageTexture.create_from_image(img))
+
+
+## Events read so far; live they come as the race goes.
+var _events_read := 0
+## Whether the events of a stage watched live have been read in their order
+## at the finish.
+var _events_final := false
+
+
 ## Who attacked, went clear, crashed or punctured where; who won, and how.
+## Live only the new events are read; at the finish, when they come in order
+## once more, all of them anew.
 func _read_events() -> void:
-	for e in race.events:
+	if race.live_finished and not _events_final:
+		_events_final = true
+		_events_read = 0
+		for i in race.riders.size():
+			_stops[i] = []
+			_bursts[i] = PackedFloat32Array()
+	if _events_read >= race.events.size() and _events_read > 0:
+		return
+	for k in range(_events_read, race.events.size()):
+		var e = race.events[k]
 		if not (e is Array) or e.size() < 4 or not (e[3] is Array):
 			continue
 		var km := float(e[0])
@@ -224,6 +316,7 @@ func _read_events() -> void:
 				var w := _stop_window(i, km, kind)
 				if not w.is_empty():
 					(_stops[i] as Array).append(w)
+	_events_read = race.events.size()
 	if not race.placings.is_empty():
 		_winner = race.index_of.get(int(race.placings[0][0]), -1)
 		_solo = race.placings.size() > 1 and float(race.placings[1][1]) - float(race.placings[0][1]) > 2.0
@@ -375,6 +468,18 @@ func pedal(delta: float, speed: float) -> void:
 		_stance[i] = move_toward(_stance[i], target, dt * SHIFT)
 		_rhythm[i] += dt * TAU / (26.0 + 16.0 * _own[i])
 		_lean[i] = lerpf(_lean[i], _lean_aim[i], clampf(dt * 4.0, 0.0, 1.0))
+		# Now and then a glance back over the shoulder: often for a rider who
+		# has attacked or leads a small group, seldom in the bunch; never in a
+		# tuck, a sprint or the salute.
+		var since := _visual - _glance[i]
+		if since > GLANCE * 2.0 and (aim == RiderModel.SEATED or aim == RiderModel.STANDING):
+			var rate := 0.12 if _alert[i] == 2 else (0.05 if _alert[i] == 1 else 0.006)
+			if randf() < rate * dt:
+				_glance[i] = _visual
+				_glance_side[i] = -1.0 if randf() < 0.5 else 1.0
+				since = 0.0
+		_look[i] = _glance_side[i] * sin(PI * clampf(since / GLANCE, 0.0, 1.0))
+	_visual += dt
 
 
 ## Puts every rider where he is at a moment of the race.
@@ -382,6 +487,8 @@ func pedal(delta: float, speed: float) -> void:
 ## @param clock Seconds since the first start.
 ## @param eye Where the camera is, for the detail of the models.
 func place(clock: float, eye: Vector3 = Vector3.ZERO) -> void:
+	if race.live:
+		_read_events()
 	var n: int = race.riders.size()
 	var order: Array[int] = []
 	# Speeds from the last placing; after a jump from a second before.
@@ -470,7 +577,8 @@ func place(clock: float, eye: Vector3 = Vector3.ZERO) -> void:
 		else:
 			distant.append(i)
 		if _labels.has(i):
-			_labels[i].visible = true
+			# Names only near the camera, where they do not pile up.
+			_labels[i].visible = to_eye < LABEL_RANGE
 			_labels[i].global_position = p + Vector3(0.0, 2.1 * _size[i].y, 0.0)
 	for i in n:
 		if shown[i] == 0 and _labels.has(i):
@@ -581,8 +689,10 @@ func _fill(mm: MultiMesh, riders: Array[int]) -> void:
 		buf[o + 16] = c2.r
 		buf[o + 17] = c2.g
 		buf[o + 18] = c2.b
-		# Stance times 16 in the whole part, the cranks in the fraction.
-		buf[o + 19] = floorf(_stance[i] * 16.0 + 0.5) + minf(_turn[i], 0.9995)
+		# Stance times 16 and 128 times the glance back (1 to 15, 8 straight
+		# ahead) in the whole part, the cranks in the fraction.
+		var look := clampi(roundi(_look[i] * 7.0), -7, 7) + 8
+		buf[o + 19] = floorf(_stance[i] * 16.0 + 0.5) + 128.0 * look + minf(_turn[i], 0.9995)
 		k += 1
 	mm.buffer = buf
 	mm.visible_instance_count = k
@@ -610,6 +720,8 @@ func _arrange(g: Dictionary, clock: float) -> void:
 	per_row = mini(per_row, int(width / LANE))
 	for j in size:
 		var i: int = members[j]
+		# Who leads a small group or has just attacked looks back more often.
+		_alert[i] = 2 if _bursting(i, float(dist[i])) else (1 if size <= 12 and j < 2 else 0)
 		var row := j / per_row
 		var col := j % per_row
 		# Nobody rides in a perfect grid: each rider keeps a little off his slot.

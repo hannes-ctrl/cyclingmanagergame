@@ -198,24 +198,28 @@ void main() {
     });
 
     test('a gale splits the field in echelons', () {
-      var calm = 0, gale = 0, echelons = 0;
-      for (var seed = 0; seed < 4; seed++) {
-        // The leading part of the field, without the break of the day.
-        int first(StageResult r) {
-          final field =
-              r.placings.where((p) => !r.traces[p.rider.id]!.inBreak).toList();
-          return field.where((p) => p.timeS - field.first.timeS <= 1).length;
+      // Share of the riders outside the biggest group, over the race.
+      double split(StageResult r) {
+        var sum = 0.0;
+        for (final s in r.timeline) {
+          final total = s.groups.fold(0, (n, g) => n + g.size);
+          final biggest = s.groups.fold(0, (n, g) => max(n, g.size));
+          if (total > 0) sum += 1 - biggest / total;
         }
+        return r.timeline.isEmpty ? 0 : sum / r.timeline.length;
+      }
 
-        calm += first(simulateStage(flatStage(), field,
+      var calm = 0.0, gale = 0.0, echelons = 0;
+      for (var seed = 0; seed < 4; seed++) {
+        calm += split(simulateStage(flatStage(), field,
             seed: seed, weather: const Weather()));
         final g = simulateStage(flatStage(), field,
             seed: seed, weather: const Weather(windMs: 14, windFrom: 1.3));
-        gale += first(g);
+        gale += split(g);
         echelons += g.events.where((e) => e.type == EventType.echelon).length;
       }
       expect(echelons, greaterThan(0));
-      expect(gale, lessThan(calm * 0.8));
+      expect(gale, greaterThan(calm * 2));
     });
 
     test('the track for the 3D view changes nothing and reaches the finish',
@@ -623,6 +627,110 @@ void materialTests() {
       }
 
       expect(points(Role.mountainHunter), greaterThan(points(Role.domestique)));
+    });
+  });
+
+  group('live', () {
+    // The team whose riders take orders, and its strongest rider.
+    final team = field.first.teamId;
+    final mine = field.where((r) => r.teamId == team).toList();
+    final leader = mine.reduce((a, b) =>
+        a.attributes.hill + a.attributes.mountain >=
+                b.attributes.hill + b.attributes.mountain
+            ? a
+            : b);
+    final helpers = mine.where((r) => r != leader).toList();
+
+    /// Rides a stage live in uneven steps and gives orders on the way.
+    LiveStage watch(
+        SimRoute route, int seed, Map<double, List<(int, RiderOrder)>> orders,
+        {bool askRadio = false, int answer = 1}) {
+      final live = liveStage(route, field,
+          seed: seed, radioTeam: team, askRadio: askRadio);
+      final due = orders.keys.toList()..sort();
+      var t = 0.0;
+      while (!live.finished) {
+        if (live.openCall != null) {
+          live.answer(answer);
+          continue;
+        }
+        t += 23.7;
+        live.advanceTo(t);
+        while (due.isNotEmpty && due.first <= live.clock) {
+          for (final (id, o) in orders[due.removeAt(0)]!) {
+            live.order(id, o);
+          }
+        }
+      }
+      return live;
+    }
+
+    List<(int, double)> placings(StageResult r) =>
+        [for (final p in r.placings) (p.rider.id, p.timeS)];
+
+    test('a stage watched live is the stage simulated with its orders', () {
+      final route = hillyClassic();
+      final live = watch(route, 4, {
+        1800: [
+          (helpers[0].id, RiderOrder.tempo),
+          (helpers[1].id, RiderOrder.tempo)
+        ],
+        5400: [
+          (leader.id, RiderOrder.follow),
+          (helpers[2].id, RiderOrder.save)
+        ],
+        7200: [(leader.id, RiderOrder.attack)],
+        7800: [(helpers[0].id, RiderOrder.none)],
+      });
+      expect(live.orders, hasLength(6));
+      final again = simulateStage(route, field,
+          seed: 4, radioTeam: team, orders: live.orders);
+      expect(placings(live.result!), placings(again));
+      // Without the orders it is another race.
+      final plain = simulateStage(route, field, seed: 4, radioTeam: team);
+      expect(placings(plain), isNot(placings(again)));
+    });
+
+    test('the radio answered live is the radio answered before', () {
+      final route = mountainStage();
+      final live = watch(route, 2, const {}, askRadio: true);
+      expect(live.answers, isNotEmpty);
+      final again = simulateStage(route, field,
+          seed: 2, radioTeam: team, radio: live.answers);
+      expect(placings(live.result!), placings(again));
+    });
+
+    test('an attack order sends the rider off at once', () {
+      final route = hillyClassic();
+      final live = liveStage(route, field, seed: 6, radioTeam: team);
+      live.advanceTo(3 * 3600);
+      final before = live.groups();
+      expect(before, isNotEmpty);
+      live.order(leader.id, RiderOrder.attack);
+      live.advanceTo(3 * 3600 + 60);
+      final attack = live.events.where((e) =>
+          (e.type == EventType.attack || e.type == EventType.breakaway) &&
+          e.riders.contains(leader.id));
+      final ahead =
+          live.groups().indexWhere((g) => g.riders.contains(leader.id));
+      final main = live.groups().indexWhere(
+          (g) => g.riders.length > 20 && !g.riders.contains(leader.id));
+      expect(attack.isNotEmpty || ahead < main, isTrue);
+    });
+
+    test('a time trial is shown as it goes and takes no orders', () {
+      final live = liveStage(timeTrial(), field, seed: 3, radioTeam: team);
+      expect(live.timeTrial, isTrue);
+      live.order(leader.id, RiderOrder.attack);
+      expect(live.orders, isEmpty);
+      live.advanceTo(120);
+      expect(live.groups(), isNotEmpty);
+      live.advanceTo(1e6);
+      expect(live.finished, isTrue);
+      expect(
+          placings(live.result!),
+          placings(
+              simulateStage(timeTrial(), field, seed: 3, radioTeam: team)));
     });
   });
 }

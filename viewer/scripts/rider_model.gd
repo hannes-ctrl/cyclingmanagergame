@@ -56,6 +56,8 @@ const TAPE := 14
 const BOTTLE := 15
 const SHOE := 16
 const FOAM := 17
+## The helmet's strap and buckle, black like BLACK, but they turn with the head.
+const STRAP := 18
 
 # Parts that turn in the shader.
 const STILL := 0
@@ -108,6 +110,9 @@ var vat: ImageTexture
 var skin_albedo: Texture2D
 var skin_normal: Texture2D
 var vertex_count := 0
+## Indices of two points of the body either side of the neck: the head turns
+## round the middle of them when a rider looks back.
+var neck := Vector2i(0, 0)
 ## How far the torso leans forward when he sits, in radians.
 var torso_pitch := 0.0
 ## The stances as [_stance] makes them, with the torso fitted.
@@ -198,6 +203,14 @@ func build(host: Node) -> void:
 		# Whether the point faces forward at rest, for the front and back of a
 		# kit texture.
 		at_rest[i * 4 + 3] = rest_normals[i].z
+	var best := [INF, INF]
+	for i in body_count:
+		for side in 2:
+			var aim := Vector3(0.055 if side == 0 else -0.055, 1.54, -0.035)
+			var dist := rest[i].distance_squared_to(aim)
+			if dist < best[side]:
+				best[side] = dist
+				neck[side] = i
 	for i in extra_count:
 		for c in 4:
 			custom[(body_count + i) * 4 + c] = extra_custom[i * 4 + c]
@@ -936,9 +949,9 @@ func _helmet(g: Geo, head: Transform3D, aero: bool) -> void:
 		var jaw := bone + Vector3(0.073 * side, -0.012, 0.038)
 		for lon in [68.0, 128.0]:
 			var anchor := _helmet_point(centre, _helmet_dir(deg_to_rad(lon) * side, 0.97, aero), 0.006, aero)
-			g.path(PackedVector3Array([head * anchor, head * join]), 0.0028, BLACK, STILL, 4)
-		g.path(PackedVector3Array([head * join, head * jaw, head * chin]), 0.0028, BLACK, STILL, 4)
-	g.box(head * (chin + Vector3(-0.012, 0.0, 0.0)), head * (chin + Vector3(0.012, 0.0, 0.0)), 0.008, 0.012, BLACK)
+			g.path(PackedVector3Array([head * anchor, head * join]), 0.0028, STRAP, STILL, 4)
+		g.path(PackedVector3Array([head * join, head * jaw, head * chin]), 0.0028, STRAP, STILL, 4)
+	g.box(head * (chin + Vector3(-0.012, 0.0, 0.0)), head * (chin + Vector3(0.012, 0.0, 0.0)), 0.008, 0.012, STRAP)
 	# Glasses: a shield close round the face, deepest under each eye and
 	# shallow over the nose, and thin arms back over the ears.
 	var eye_y := bone.y + 0.09

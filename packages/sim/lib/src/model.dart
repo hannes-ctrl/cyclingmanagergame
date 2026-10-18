@@ -299,6 +299,53 @@ class PointAward {
 /// occurs at most once per stage.
 enum RadioKind { breakGone, finale, rivalAttack, mishap }
 
+/// What the player tells one of his riders during a stage he watches live.
+/// An order holds until another one replaces it; an attack goes once.
+enum RiderOrder {
+  /// Back to the team's plan.
+  none,
+
+  /// Attack at once; while the field still fights for the break, go with
+  /// it.
+  attack,
+
+  /// Go with every attack out of his group, as long as he can.
+  follow,
+
+  /// Ride on the front of his group, at least at his threshold.
+  tempo,
+
+  /// Sit in the wheels and do no work.
+  save,
+
+  /// Wait for the team's leader in a group behind and ride with him.
+  help,
+}
+
+/// An order to a rider, given at a moment of the stage.
+class TimedOrder {
+  const TimedOrder(this.clock, this.riderId, this.order);
+
+  /// Race clock in seconds at which it was given.
+  final double clock;
+
+  /// Id of the rider.
+  final int riderId;
+
+  /// What he is to do.
+  final RiderOrder order;
+
+  /// @returns The order as a compact list.
+  List<Object> toJson() => [clock, riderId, order.name];
+
+  /// @param j A list written by [toJson].
+  /// @returns The order.
+  static TimedOrder fromJson(List<dynamic> j) => TimedOrder(
+      (j[0] as num).toDouble(),
+      j[1] as int,
+      RiderOrder.values.byName(j[2] as String));
+}
+
 /// A question from the race to the sports director.
 class RadioCall {
   RadioCall(this.kind, this.km, this.remainingKm, this.text, this.options);

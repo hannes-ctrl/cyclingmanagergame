@@ -18,7 +18,9 @@ Future<void> main(List<String> args) async {
   for (var i = 0; i < 60 && !link.connected; i++) {
     await Future<void>.delayed(const Duration(milliseconds: 500));
   }
-  stdout.writeln(link.connected ? 'viewer connected' : 'viewer did not connect');
+  stdout.writeln(
+    link.connected ? 'viewer connected' : 'viewer did not connect',
+  );
   for (var i = 0; i < 40 && link.shown == null; i++) {
     await Future<void>.delayed(const Duration(milliseconds: 500));
   }

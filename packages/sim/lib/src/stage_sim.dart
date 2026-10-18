@@ -1,5 +1,6 @@
 import 'i18n.dart';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'material.dart';
 
@@ -127,6 +128,13 @@ class _State {
   /// Riders of the group he was in when he had a mishap inside the last
   /// three kilometres; he gets their time.
   List<_State>? ruleMates;
+
+  /// What the player told him during the stage.
+  RiderOrder order = RiderOrder.none;
+
+  /// Per point (the start and the end of every segment) the clock at which
+  /// he got there; NaN where he has not been yet.
+  Float64List at = Float64List(0);
 }
 
 /// Sums up a rider's power over a stage.
@@ -192,11 +200,16 @@ class _PowerTally {
 
 /// Riders travelling together, with their shared clock.
 class _Group {
-  _Group(this.members, this.clock);
+  _Group(this.members, this.clock, this.seg);
   List<_State> members;
 
-  /// Riding time in seconds at the current kilometre.
+  /// Riding time in seconds when the group got to the start of segment
+  /// [seg].
   double clock;
+
+  /// Index of the next segment the group rides; the number of segments once
+  /// it has crossed the line.
+  int seg;
   double surgeKm = 0;
   _State? surgeLeader;
 
@@ -205,6 +218,26 @@ class _Group {
 
   /// Riders coming back after a mishap, in the shelter of the team cars.
   bool convoy = false;
+
+  /// Whether it waits where it is for a group behind it.
+  bool waiting = false;
+}
+
+/// A group as it passed a point, for the chart and the classification
+/// points.
+class _Seen {
+  _Seen(this.clock, this.members,
+      {this.breakaway = false, this.gruppetto = false});
+
+  /// Clock at which it passed.
+  final double clock;
+  final List<_State> members;
+
+  /// Whether it was (part of) the break of the day.
+  final bool breakaway;
+
+  /// Whether it rode as a gruppetto.
+  final bool gruppetto;
 }
 
 /// How well a rider suits a route.
@@ -309,6 +342,8 @@ String _names(Iterable<_State> riders, [int limit = 6]) {
 ///   ride on average material.
 /// @param mountainLeaders Riders in the running for the mountains jersey.
 /// @param track Whether to record where every rider was, for the 3D view.
+/// @param orders Orders to riders of the radio team, each at the race clock
+///   at which it was given, as in a stage watched live.
 /// @returns The result, or a paused result with [StageResult.openCall] set.
 StageResult simulateStage(
   SimRoute route,
@@ -329,71 +364,216 @@ StageResult simulateStage(
   Map<int, TeamKit> kits = const {},
   Set<int> mountainLeaders = const {},
   bool track = false,
-}) {
-  final rng = Random(seed);
-  tuning ??= SimTuning.standard;
-  weather ??= Weather.draw(Random(seed * 31 + 7), month, country);
-  final wind = windAlong(route, weather, Random(seed * 17 + 3));
-  final allPlans = {
-    ...autoPlans(route, riders,
-        gcGaps: gcGaps,
-        styles: {for (final e in kits.entries) e.key: e.value.style},
-        crosswindKm: crosswindKm(route, wind),
-        mountainLeaders: mountainLeaders),
-    ...plans,
-  };
-  // Quality of the sports director per team, 0 to 1; without an entry the
-  // value in the plan applies (0.7 as the average).
-  for (final e in directorSkills.entries) {
-    final plan = allPlans[e.key];
-    if (plan != null) allPlans[e.key] = plan.withDirector(e.value);
-  }
-  final states = [
-    for (final r in riders)
-      _State(
-        r,
-        (conditions[r.id]?.form ?? 1) * (1 + tuning.dayFormSigma * _gauss(rng)),
-        conditions[r.id]?.energy ?? 1,
-        kits[r.teamId] ?? TeamKit.average,
-      )
-        ..plan = allPlans[r.teamId]!
-        ..role = allPlans[r.teamId]!.roleOf(r.id)
-        ..gcGap = gcGaps[r.id]
-        ..climate = climateCost(weather.temperatureC, r),
-  ];
-  final recorded = track
-      ? RaceTrack([
-          for (final s in route.segments) s.km + s.lengthM / 1000,
-        ], [
-          for (final r in riders) r.id,
-        ])
-      : null;
-  recorded?.heading = wind.heading;
-  final StageResult result;
-  if (route.kind != StageKind.road) {
-    result = _timeTrial(route, states, rng, tuning, weather, wind, recorded);
-  } else {
-    final race = _RoadRace(route, states, rng, tuning, weather, wind)
+  List<TimedOrder> orders = const [],
+}) =>
+    _Stage(
+            route,
+            riders,
+            seed,
+            conditions,
+            plans,
+            gcGaps,
+            directorSkills,
+            radioTeam,
+            askRadio,
+            tuning,
+            month,
+            country,
+            weather,
+            illness,
+            kits,
+            mountainLeaders,
+            track)
+        .build(radio, orders)
+        .result();
+
+/// Sets up a stage to be ridden while it is watched, see [LiveStage]. The
+/// parameters are those of [simulateStage]; where every rider was is
+/// always recorded.
+///
+/// @returns The stage at its start.
+LiveStage liveStage(
+  SimRoute route,
+  List<SimRider> riders, {
+  required int seed,
+  Map<int, RiderCondition> conditions = const {},
+  Map<int, TeamPlan> plans = const {},
+  Map<int, double> gcGaps = const {},
+  Map<int, double> directorSkills = const {},
+  int? radioTeam,
+  Map<RadioKind, int> radio = const {},
+  bool askRadio = false,
+  SimTuning? tuning,
+  int month = 6,
+  String country = '',
+  Weather? weather,
+  double illness = 0,
+  Map<int, TeamKit> kits = const {},
+  Set<int> mountainLeaders = const {},
+}) =>
+    LiveStage._(
+        _Stage(
+            route,
+            riders,
+            seed,
+            conditions,
+            plans,
+            gcGaps,
+            directorSkills,
+            radioTeam,
+            askRadio,
+            tuning,
+            month,
+            country,
+            weather,
+            illness,
+            kits,
+            mountainLeaders,
+            true),
+        radio);
+
+/// Everything that decides a stage before it is ridden.
+class _Stage {
+  _Stage(
+      this.route,
+      this.riders,
+      this.seed,
+      this.conditions,
+      this.plans,
+      this.gcGaps,
+      this.directorSkills,
+      this.radioTeam,
+      this.askRadio,
+      this.tuning,
+      this.month,
+      this.country,
+      this.weather,
+      this.illness,
+      this.kits,
+      this.mountainLeaders,
+      this.track);
+  final SimRoute route;
+  final List<SimRider> riders;
+  final int seed;
+  final Map<int, RiderCondition> conditions;
+  final Map<int, TeamPlan> plans;
+  final Map<int, double> gcGaps;
+  final Map<int, double> directorSkills;
+  final int? radioTeam;
+  final bool askRadio;
+  final SimTuning? tuning;
+  final int month;
+  final String country;
+  final Weather? weather;
+  final double illness;
+  final Map<int, TeamKit> kits;
+  final Set<int> mountainLeaders;
+  final bool track;
+
+  /// Sets the stage up from the seed on: the same inputs give the same
+  /// stage every time.
+  ///
+  /// @param radio Answers of the radio team.
+  /// @param orders Orders to riders of the radio team.
+  /// @returns The stage, not ridden yet.
+  _Ride build(Map<RadioKind, int> radio, List<TimedOrder> orders) {
+    final rng = Random(seed);
+    final t = tuning ?? SimTuning.standard;
+    final day = weather ?? Weather.draw(Random(seed * 31 + 7), month, country);
+    final wind = windAlong(route, day, Random(seed * 17 + 3));
+    final allPlans = {
+      ...autoPlans(route, riders,
+          gcGaps: gcGaps,
+          styles: {for (final e in kits.entries) e.key: e.value.style},
+          crosswindKm: crosswindKm(route, wind),
+          mountainLeaders: mountainLeaders),
+      ...plans,
+    };
+    // Quality of the sports director per team, 0 to 1; without an entry the
+    // value in the plan applies (0.7 as the average).
+    for (final e in directorSkills.entries) {
+      final plan = allPlans[e.key];
+      if (plan != null) allPlans[e.key] = plan.withDirector(e.value);
+    }
+    final states = [
+      for (final r in riders)
+        _State(
+          r,
+          (conditions[r.id]?.form ?? 1) * (1 + t.dayFormSigma * _gauss(rng)),
+          conditions[r.id]?.energy ?? 1,
+          kits[r.teamId] ?? TeamKit.average,
+        )
+          ..plan = allPlans[r.teamId]!
+          ..role = allPlans[r.teamId]!.roleOf(r.id)
+          ..gcGap = gcGaps[r.id]
+          ..climate = climateCost(day.temperatureC, r),
+    ];
+    final recorded = track
+        ? RaceTrack([
+            for (final s in route.segments) s.km + s.lengthM / 1000,
+          ], [
+            for (final r in riders) r.id,
+          ])
+        : null;
+    recorded?.heading = wind.heading;
+    if (route.kind != StageKind.road) {
+      return _Ride(day, recorded, null,
+          () => _timeTrial(route, states, rng, t, day, wind, recorded));
+    }
+    final race = _RoadRace(route, states, rng, t, day, wind)
       ..track = recorded
       ..kitted = kits.isNotEmpty
       ..radioTeam = radioTeam
       ..radio = radio
       ..askRadio = askRadio
       ..illness = illness;
-    try {
-      result = race.run();
-    } on _RadioStop catch (stop) {
-      // The race so far, for the fast motion up to the question.
-      return StageResult(const [], race.events, false)
-        ..openCall = stop.call
-        ..timeline = race._timeline
-        ..weather = weather
-        ..track = recorded;
-    }
+    race._orders.addAll(_inOrder(orders));
+    return _Ride(day, recorded, race, null);
   }
-  return result
-    ..weather = weather
-    ..track = recorded;
+}
+
+/// Orders by the clock at which they were given, the earlier given first at
+/// the same moment.
+List<TimedOrder> _inOrder(List<TimedOrder> orders) {
+  final indexed = [...orders.indexed]..sort((a, b) {
+      final byClock = a.$2.clock.compareTo(b.$2.clock);
+      return byClock != 0 ? byClock : a.$1.compareTo(b.$1);
+    });
+  return [for (final (_, o) in indexed) o];
+}
+
+/// A stage set up for riding: a road race, or a time trial ridden in one go.
+class _Ride {
+  _Ride(this.weather, this.track, this.race, this.timeTrial);
+  final Weather weather;
+  final RaceTrack? track;
+  final _RoadRace? race;
+  final StageResult Function()? timeTrial;
+
+  /// Rides the whole stage.
+  ///
+  /// @returns The result, or a paused result at an open radio question.
+  StageResult result() {
+    final race = this.race;
+    final StageResult r;
+    if (race == null) {
+      r = timeTrial!();
+    } else {
+      try {
+        r = race.run();
+      } on _RadioStop catch (stop) {
+        // The race so far, for the fast motion up to the question.
+        return StageResult(const [], race.events, false)
+          ..openCall = stop.call
+          ..timeline = race._timeline
+          ..weather = weather
+          ..track = track;
+      }
+    }
+    return r
+      ..weather = weather
+      ..track = track;
+  }
 }
 
 /// Kilometres of open, flat road on which the crosswind blows at 5 m/s or
@@ -462,7 +642,6 @@ class _RoadRace {
   bool _gruppettoReported = false;
   double _nextReassignKm = 5;
   final _timeline = <RaceSample>[];
-  double _nextSampleKm = 2;
 
   /// Where every rider was, for the 3D view; null unless asked for.
   RaceTrack? track;
@@ -670,10 +849,9 @@ class _RoadRace {
   /// Decision point for every team with riders among the favourites: the
   /// finale begins.
   ///
-  /// @param groups All groups, first on the road first.
   /// @param main The group with the favourites.
   /// @param s Current segment.
-  void _finaleDecisions(List<_Group> groups, _Group main, Segment s) {
+  void _finaleDecisions(_Group main, Segment s) {
     if (_finaleDecided) return;
     _finaleDecided = true;
     final flatFinish = route.finishGrade <= 0.035;
@@ -686,7 +864,8 @@ class _RoadRace {
       ..sort((a, b) => speed(b).compareTo(speed(a)));
     final strong = main.members.where((m) => m.role.ridesForHimself).toList()
       ..sort((a, b) => b.fit.compareTo(a.fit));
-    final gap = main.clock - groups.first.clock;
+    final head = _head[main.seg];
+    final gap = head.isNaN ? 0.0 : main.clock - head;
     final teams = {for (final m in main.members) m.rider.teamId}.toList()
       ..sort();
     for (final team in teams) {
@@ -728,7 +907,7 @@ class _RoadRace {
             ? tr(
                 'Up front {0} riders with a lead of {1}, behind them the peloton with {2} riders.',
                 [
-                    groups.first.members.length,
+                    _front().members.length,
                     _clock(gap),
                     main.members.length
                   ])
@@ -804,10 +983,60 @@ class _RoadRace {
       (1 - s.hurt) *
       (1 - t.fatigueLoss * pow(1 - s.energy.clamp(0.0, 1.0), 1.5));
 
-  /// Simulates the stage segment by segment.
+  // --- Riding the stage in race time ------------------------------------------
+  // Every group rides from point to point (the ends of the segments), the one
+  // whose next segment starts earliest first. So all groups are at the same
+  // moment of the race whenever the stage stops, and an order takes effect
+  // where the rider is at that moment.
+
+  /// The groups on the road and those that have crossed the line.
+  var groups = <_Group>[];
+
+  /// Orders still to come, by clock.
+  final _orders = <TimedOrder>[];
+
+  /// Per point the clock at which the head of the race got there.
+  late final Float64List _head;
+
+  /// Per point the clock at which the favourites' group got there.
+  late final Float64List _mainAt;
+
+  /// Clock at the start of the step being ridden.
+  double stepClock = 0;
+  var _inStep = false;
+
+  var _started = false;
+  var _breakFormed = false;
+  var _maxGap = 0.0, _maxGapKm = 0.0;
+
+  /// Riders who are ill, with the kilometre at which they give up.
+  final _sick = <_State, double>{};
+
+  /// Classification points still to award: the point, the point of the
+  /// route at which it is decided, and the groups that have got there.
+  final _points = <(RoutePoint, int, List<_Seen>)>[];
+
+  /// Points of the route at which the chart takes a sample, in order, and
+  /// the groups that have got there.
+  late final List<int> _sampleAt;
+  late final Set<int> _sampleSet;
+  final _sampled = <int, List<_Seen>>{};
+  var _nextSample = 0;
+
+  /// Simulates the stage.
   ///
   /// @returns The stage result.
+  /// @throws _RadioStop At an open question, see [askRadio].
   StageResult run() {
+    advanceTo(double.infinity);
+    return finish();
+  }
+
+  /// Prepares the stage: the riders' power on every segment, the
+  /// favourites, the field at the start.
+  void start() {
+    if (_started) return;
+    _started = true;
     final segments = route.segments;
     _rho = [for (final s in segments) airDensity(s.altitudeM)];
     _crr = [for (final s in segments) rollingResistance(s, wet: _wet)];
@@ -858,11 +1087,10 @@ class _RoadRace {
         0, EventType.weather, tr('Weather: {0}', [weather.describe()])));
 
     // Riders who are ill give up somewhere in the first half.
-    final sick = <_State, double>{};
     if (illness > 0) {
       for (final s in states) {
         if (rng.nextDouble() < illness) {
-          sick[s] = rng.nextDouble() * route.raceKm * 0.5;
+          _sick[s] = rng.nextDouble() * route.raceKm * 0.5;
         }
       }
     }
@@ -871,129 +1099,519 @@ class _RoadRace {
     for (final s in states) {
       s.thr = _computeThreshold(s);
     }
-    var groups = [
-      _Group([...states], 0)
+    seg = 0;
+    for (final s in states) {
+      s.thr = _computeThreshold(s);
+    }
+    final n = segments.length;
+    _head = Float64List(n + 1)..fillRange(0, n + 1, double.nan);
+    _mainAt = Float64List(n + 1)..fillRange(0, n + 1, double.nan);
+    _head[0] = 0;
+    _mainAt[0] = 0;
+    for (final s in states) {
+      s.at = Float64List(n + 1)..fillRange(0, n + 1, double.nan);
+      s.at[0] = 0;
+    }
+    groups = [
+      _Group([...states], 0, 0)
     ];
     _position(groups.first, fresh: true);
-    var breakFormed = false;
-    var maxGap = 0.0, maxGapKm = 0.0;
+    // Each mountain prize and sprint is decided at the end of the segment it
+    // lies in.
     final pending = <RoutePoint>[...route.climbTops, ...route.sprints]
       ..sort((a, b) => a.km.compareTo(b.km));
-
-    for (seg = 0; seg < segments.length; seg++) {
-      final s = segments[seg];
-      final inFinale = s.km >= finaleKm;
-      _inFinale = inFinale;
-      for (final m in states) {
-        if (m.out) continue;
-        m.thr = _computeThreshold(m);
-        if (!_key[seg]) m.extraEffort = 0;
+    for (final p in pending) {
+      var i = 0;
+      while (i < n - 1 && segments[i].km + segments[i].lengthM / 1000 < p.km) {
+        i++;
       }
-      for (final e in sick.entries) {
-        if (!e.key.out && s.km >= e.value) {
-          _abandon(
-              e.key, groups, s.km, AbandonReason.illness, 3 + rng.nextInt(6));
-        }
+      _points.add((p, i + 1, <_Seen>[]));
+    }
+    // A sample for the chart every two kilometres and at the line.
+    final at = <int>[];
+    var target = 2.0;
+    for (var i = 0; i < n; i++) {
+      final km = segments[i].km + segments[i].lengthM / 1000;
+      if (km >= target - 1e-6 || i == n - 1) {
+        target += 2;
+        at.add(i + 1);
       }
-      groups.removeWhere((g) => g.members.isEmpty);
+    }
+    _sampleAt = at;
+    _sampleSet = at.toSet();
+  }
 
-      // The fight for the break: the field rides hard until a move sticks.
-      final fighting = !breakFormed && s.km < finaleKm;
-      if (fighting &&
-          s.km >= 1.5 &&
-          rng.nextDouble() < _stickChance(s, groups)) {
-        breakFormed = true;
-        // The break goes from the field, which is not always the group at
-        // the head of the race: stragglers of an early split may lead.
-        final field = _mainGroup(groups);
-        final escape = _formBreak(field, s);
+  /// Rides every step that starts before a moment of the race and gives the
+  /// orders that are due on the way.
+  ///
+  /// @param until Race clock in seconds.
+  /// @throws _RadioStop At an open question, see [askRadio].
+  void advanceTo(double until) {
+    start();
+    while (true) {
+      final g = _nextGroup();
+      final next = g?.clock ?? double.infinity;
+      while (_orders.isNotEmpty && _orders.first.clock <= min(next, until)) {
+        _give(_orders.removeAt(0));
+      }
+      if (g == null || next >= until) return;
+      _step(g);
+    }
+  }
+
+  /// Whether every group has crossed the line.
+  bool get done =>
+      _started && !groups.any((g) => g.seg < route.segments.length);
+
+  /// The result once every group has crossed the line.
+  StageResult finish() {
+    if (_maxGap > 45) {
+      events.add(RaceEvent(_maxGapKm, EventType.maxGap,
+          tr('Biggest lead of the front: {0}', [_clock(_maxGap)])));
+    }
+    return _finish([...groups]..sort((a, b) => a.clock.compareTo(b.clock)));
+  }
+
+  /// The group whose next segment starts earliest; of two at the same time
+  /// the one further on.
+  _Group? _nextGroup() {
+    final n = route.segments.length;
+    _Group? best;
+    for (final g in groups) {
+      if (g.seg >= n) continue;
+      if (best == null ||
+          g.clock < best.clock ||
+          g.clock == best.clock && g.seg > best.seg) {
+        best = g;
+      }
+    }
+    return best;
+  }
+
+  /// Whether one group is further on the road than another. The groups
+  /// ride in the order of their clocks, so one at a later point is ahead,
+  /// and of two at the same point the one that got there first.
+  static bool _isAhead(_Group a, _Group b) =>
+      a.seg > b.seg || a.seg == b.seg && a.clock < b.clock;
+
+  /// All groups, the head of the race first.
+  List<_Group> _roadOrder() => [...groups]..sort((a, b) =>
+      a.seg != b.seg ? b.seg.compareTo(a.seg) : a.clock.compareTo(b.clock));
+
+  /// The group with the favourites: the most of them, of two alike the one
+  /// further on.
+  _Group _main() {
+    var best = groups.first;
+    var bestScore = -1.0;
+    for (final g in groups) {
+      final score =
+          g.members.where((m) => m.favorite).length + g.members.length / 1000;
+      if (score > bestScore || score == bestScore && _isAhead(g, best)) {
+        best = g;
+        bestScore = score;
+      }
+    }
+    return best;
+  }
+
+  /// The group at the head of the race.
+  _Group _front() => groups.reduce((a, b) => _isAhead(b, a) ? b : a);
+
+  /// Puts a new group on the road; its riders are at its point as early as
+  /// its clock says.
+  void _add(_Group g) {
+    groups.add(g);
+    if (_head[g.seg].isNaN || g.clock < _head[g.seg]) _head[g.seg] = g.clock;
+    for (final m in g.members) {
+      final at = m.at[g.seg];
+      if (at.isNaN || g.clock < at) m.at[g.seg] = g.clock;
+    }
+    // A group that went clear before the group it left rides on rides its
+    // segment at once, so the groups keep the order of their clocks.
+    if (_inStep && g.clock < stepClock) _step(g, nested: true);
+  }
+
+  /// Clock at which the head of a group got to a point; NaN if none of its
+  /// riders has been there.
+  double _clockAt(_Group g, int point) {
+    var best = double.nan;
+    for (final m in g.members) {
+      final c = m.at[point];
+      if (!c.isNaN && (best.isNaN || c < best)) best = c;
+    }
+    return best;
+  }
+
+  /// Seconds a group is behind the favourites' group at its own point,
+  /// negative ahead of it.
+  ///
+  /// @param g The group.
+  /// @param main The favourites' group.
+  /// @returns Seconds.
+  double _gapToMain(_Group g, _Group main) {
+    if (identical(g, main)) return 0;
+    if (_isAhead(main, g)) {
+      final at = _mainAt[g.seg];
+      return at.isNaN ? 0 : g.clock - at;
+    }
+    final at = _clockAt(g, main.seg);
+    return at.isNaN ? -1 : at - main.clock;
+  }
+
+  /// Whether a rider is one his team rides for.
+  static bool _isLeader(_State m) => m.favorite || m.role.ridesForHimself;
+
+  /// Whether a leader of a rider's team rides in a group behind his.
+  bool _leaderBehind(_Group g, _State m) => groups.any((x) =>
+      _isAhead(g, x) &&
+      x.members.any((o) => o.rider.teamId == m.rider.teamId && _isLeader(o)));
+
+  /// Whether every rider of a group waits for a leader of his who rides in
+  /// another group.
+  bool _waitsFor(_Group waiting, _Group behind) =>
+      waiting.members.isNotEmpty &&
+      waiting.members.every((m) => m.order == RiderOrder.help) &&
+      waiting.members.any((m) => behind.members
+          .any((o) => o.rider.teamId == m.rider.teamId && _isLeader(o)));
+
+  /// Whether a group waits where it is for one behind it: a gruppetto for
+  /// another one less than 40 seconds back, riders told to wait for their
+  /// leader as long as he is less than four minutes back.
+  bool _holds(_Group g) {
+    final bus = g.gruppetto;
+    final helpers = g.members.isNotEmpty &&
+        g.members.every((m) => m.order == RiderOrder.help);
+    if (!bus && !helpers) return false;
+    for (final x in groups) {
+      // Only for a group at an earlier point, which rides on towards it.
+      if (x.seg >= g.seg || x.waiting) continue;
+      final at = _clockAt(g, x.seg);
+      if (at.isNaN) continue;
+      final gap = x.clock - at;
+      if (bus && x.gruppetto && gap < 40) return true;
+      if (helpers && _waitsFor(g, x) && gap < 240) return true;
+    }
+    return false;
+  }
+
+  /// Gives an order to a rider of the radio team.
+  void _give(TimedOrder o) {
+    for (final m in states) {
+      if (m.rider.id == o.riderId) {
+        if (_own(m) && !m.out) m.order = o.order;
+        return;
+      }
+    }
+  }
+
+  /// What the player told the riders of a group: an attack goes at once, a
+  /// rider who is to wait for his leader drops back out of the group.
+  ///
+  /// @param g The group.
+  /// @param s Current segment.
+  void _ordersOf(_Group g, Segment s) {
+    for (final m in [...g.members]) {
+      if (m.order == RiderOrder.attack && g.members.contains(m)) {
+        _orderedAttack(g, m, s);
+      }
+    }
+    final waiting = [
+      for (final m in g.members)
+        if (m.order == RiderOrder.help) m,
+    ];
+    if (waiting.isEmpty) return;
+    final back = [
+      for (final m in waiting)
+        if (_leaderBehind(g, m)) m,
+    ];
+    for (final m in waiting) {
+      if (!back.contains(m)) m.order = RiderOrder.none;
+    }
+    if (back.isNotEmpty && back.length < g.members.length) {
+      g.members.removeWhere(back.contains);
+      _add(_Group(back, g.clock + 2, g.seg));
+    }
+  }
+
+  /// One group rides one segment, with every decision it takes there.
+  ///
+  /// @param g The group.
+  /// @param nested Whether it has just gone clear of the group whose step
+  ///   is being ridden.
+  void _step(_Group g, {bool nested = false}) {
+    if (nested) {
+      _ride(g);
+      return;
+    }
+    stepClock = g.clock;
+    _inStep = true;
+    try {
+      _ride(g);
+    } finally {
+      _inStep = false;
+    }
+  }
+
+  void _ride(_Group g) {
+    final segments = route.segments;
+    seg = g.seg;
+    // A gruppetto waits for another one just behind it, and riders told to
+    // wait for their leader do so.
+    g.waiting = _holds(g);
+    if (g.waiting) {
+      g.clock += 5;
+      // Another group may have got here meanwhile.
+      if (seg > 0) _mergeAt(seg, segments[seg - 1]);
+      return;
+    }
+    final s = segments[seg];
+    final inFinale = s.km >= finaleKm;
+    _inFinale = inFinale;
+    for (final m in g.members) {
+      m.thr = _computeThreshold(m);
+      if (!_key[seg]) m.extraEffort = 0;
+    }
+    for (final m in [...g.members]) {
+      final km = _sick[m];
+      if (km != null && !m.out && s.km >= km) {
+        _abandon(m, groups, s.km, AbandonReason.illness, 3 + rng.nextInt(6));
+      }
+    }
+    if (g.members.isEmpty) {
+      groups.remove(g);
+      _settle();
+      return;
+    }
+    _ordersOf(g, s);
+    final main = _main();
+    final isMain = identical(g, main);
+    // The fight for the break: the field rides hard until a move sticks.
+    final fighting = !_breakFormed && s.km < finaleKm;
+    if (isMain) {
+      if (fighting && s.km >= 1.5 && rng.nextDouble() < _stickChance(s, g)) {
+        _breakFormed = true;
+        final escape = _formBreak(g, s);
         if (escape != null) {
-          _breakDecisions(escape, field, s.km);
-          groups.insert(0, escape);
+          _breakDecisions(escape, g, s.km);
+          _add(escape);
         }
-      } else if (!breakFormed && s.km >= finaleKm) {
-        breakFormed = true;
+      } else if (!_breakFormed && s.km >= finaleKm) {
+        _breakFormed = true;
       }
-
       // Every five kilometres: does each team still have someone to ride for?
       if (s.km >= _nextReassignKm) {
         _nextReassignKm = s.km + 5;
-        _reassign(groups);
+        _reassign(g);
       }
-      final main = _mainGroup(groups);
-      if (inFinale) _finaleDecisions(groups, main, s);
       if (inFinale) {
-        _maybeAttack(groups, main, s);
+        _finaleDecisions(g, s);
+        _maybeAttack(g, s);
       } else if (!fighting) {
-        _maybeAttack(groups, main, s, longRange: true);
+        _maybeAttack(g, s, longRange: true);
       }
+    } else if (_isAhead(g, main) && (inFinale || route.raceKm - s.km < 25)) {
       // Up the road the break splits as the finish nears.
-      final remainingKm = route.raceKm - s.km;
-      if (inFinale || remainingKm < 25) {
-        for (final g in [...groups]) {
-          if (!identical(g, main) && g.clock < main.clock) {
-            _maybeAttack(groups, g, s, breakaway: true);
-          }
-        }
-      }
-      // A group is dangerous if someone in it is less than five minutes down in
-      // the general classification.
-      final threat = groups.any((g) =>
-          g.clock < main.clock &&
-          g.members.any((m) => m.gcGap != null && m.gcGap! < 300));
-      final chasing = _chasingTeams(groups, main, s, threat);
-      if (_key[seg]) {
-        final fresh = seg == 0 || !_key[seg - 1];
-        for (final g in groups) {
-          _position(g, fresh: fresh);
-        }
-      }
-
-      final next = <_Group>[];
-      for (var gi = 0; gi < groups.length; gi++) {
-        final g = groups[gi];
-        final dropped = _advance(g, s,
-            isFront: gi == 0,
-            isMain: identical(g, main),
-            aheadOfMain: g.clock < main.clock,
-            gapToFront: g.clock - groups.first.clock,
-            gapToMain: g.clock - main.clock,
-            inFinale: inFinale,
-            fighting: fighting && identical(g, main),
-            chasingTeams: chasing,
-            threatAhead: threat);
-        next.add(g);
-        next.addAll(dropped);
-      }
-      _incidents(next, s);
-      next.removeWhere((g) => g.members.isEmpty);
-      groups = _merge(next, s);
-
-      _record(groups, s);
-      final rec = track;
-      if (rec != null) {
-        for (final g in groups) {
-          for (final m in g.members) {
-            rec.pass(seg, m.rider.id, g.clock, m.rank);
-          }
-        }
-      }
-      final gap = _mainGroup(groups).clock - groups.first.clock;
-      if (gap > maxGap) {
-        maxGap = gap;
-        maxGapKm = s.km;
-      }
-      while (
-          pending.isNotEmpty && pending.first.km <= s.km + s.lengthM / 1000) {
-        _awardPoints(pending.removeAt(0), groups);
+      _maybeAttack(g, s, breakaway: true);
+    }
+    // A group is dangerous if someone in it is less than five minutes down in
+    // the general classification.
+    var threat = false;
+    var chasing = const <int>{};
+    if (isMain) {
+      threat = groups.any((x) =>
+          _isAhead(x, g) &&
+          x.members.any((m) => m.gcGap != null && m.gcGap! < 300));
+      chasing = _chasingTeams(g, s, threat);
+    }
+    if (_key[seg]) _position(g, fresh: seg == 0 || !_key[seg - 1]);
+    // The gaps as the model was tuned with them: a group compares its clock
+    // with the clock the head of the race, and the favourites' group ahead
+    // of it, have at the end of the segment it is about to ride.
+    final head = _head[seg];
+    final isFront = !(g.clock > head);
+    final headEnd = _head[seg + 1];
+    var ahead = !isMain && _isAhead(g, main);
+    var gapToMain = _gapToMain(g, main);
+    if (!isMain && !ahead) {
+      final mainEnd = _mainAt[seg + 1];
+      if (!mainEnd.isNaN) {
+        ahead = g.clock < mainEnd;
+        gapToMain = g.clock - mainEnd;
       }
     }
-
-    if (maxGap > 45) {
-      events.add(RaceEvent(maxGapKm, EventType.maxGap,
-          tr('Biggest lead of the front: {0}', [_clock(maxGap)])));
+    final dropped = _advance(g, s,
+        isFront: isFront,
+        isMain: isMain,
+        aheadOfMain: ahead,
+        gapToFront: isFront
+            ? 0
+            : headEnd.isNaN
+                ? g.clock - head
+                : g.clock - headEnd,
+        gapToMain: gapToMain,
+        inFinale: inFinale,
+        fighting: fighting && isMain,
+        chasingTeams: chasing,
+        threatAhead: threat);
+    final here = [g, ...dropped];
+    _incidents(here, s);
+    for (final x in here) {
+      if (x.members.isNotEmpty && !groups.contains(x)) groups.add(x);
     }
-    return _finish(groups);
+    groups.removeWhere((x) => x.members.isEmpty);
+    _arrive(seg + 1, here, s);
+  }
+
+  /// Groups that have just got to a point: those that caught each other ride
+  /// on together, and their times are noted for the chart, the
+  /// classification points and the 3D view.
+  ///
+  /// @param point Index of the point.
+  /// @param here The groups that got there.
+  /// @param s The segment they rode.
+  void _arrive(int point, List<_Group> here, Segment s) {
+    final riders = {
+      for (final x in here) ...x.members,
+    };
+    _mergeAt(point, s);
+    if (groups.isEmpty) {
+      _settle();
+      return;
+    }
+    final main = _main();
+    final km = s.km + s.lengthM / 1000;
+    final rec = track;
+    for (final x in groups) {
+      if (x.seg != point) continue;
+      final mine = [
+        for (final m in x.members)
+          if (riders.contains(m)) m,
+      ];
+      if (mine.isEmpty) continue;
+      final behind = _isAhead(main, x);
+      for (final m in mine) {
+        m.at[point] = x.clock;
+        if (behind) {
+          m.lostKm ??= km;
+        } else {
+          m.lostKm = null;
+        }
+        rec?.pass(point - 1, m.rider.id, x.clock, m.rank);
+        // A rider who waited for his leader rides with him again.
+        if (m.order == RiderOrder.help &&
+            x.members
+                .any((o) => o.rider.teamId == m.rider.teamId && _isLeader(o))) {
+          m.order = RiderOrder.none;
+        }
+      }
+      if (_head[point].isNaN || x.clock < _head[point]) _head[point] = x.clock;
+      if (identical(x, main)) {
+        _mainAt[point] = x.clock;
+        final gap = x.clock - _head[point];
+        if (gap > _maxGap) {
+          _maxGap = gap;
+          _maxGapKm = s.km;
+        }
+      }
+      final seen = _Seen(x.clock, mine,
+          breakaway: x.members.every((m) => m.inBreak), gruppetto: x.gruppetto);
+      for (final p in _points) {
+        if (p.$2 == point) _join(p.$3, seen);
+      }
+      if (_sampleSet.contains(point)) {
+        _join(_sampled.putIfAbsent(point, () => []), seen);
+      }
+    }
+    _settle();
+  }
+
+  /// Adds a group to those seen at a point; riders who passed within a
+  /// second and a half of the last ones seen ride in their group.
+  void _join(List<_Seen> list, _Seen seen) {
+    final last = list.isEmpty ? null : list.last;
+    if (last != null && (seen.clock - last.clock).abs() < 1.5) {
+      list[list.length - 1] = _Seen(
+          min(last.clock, seen.clock), [...last.members, ...seen.members],
+          breakaway: last.breakaway && seen.breakaway,
+          gruppetto: last.gruppetto);
+    } else {
+      list.add(seen);
+    }
+  }
+
+  /// Awards the classification points and takes the samples for the chart
+  /// at the points every rider has passed; the points also once fifteen
+  /// riders have.
+  void _settle() {
+    var last = route.segments.length;
+    for (final g in groups) {
+      if (g.seg < last) last = g.seg;
+    }
+    while (_points.isNotEmpty) {
+      final (p, point, seen) = _points.first;
+      final count = seen.fold(0, (n, g) => n + g.members.length);
+      if (last < point && count < 15) break;
+      _points.removeAt(0);
+      if (seen.isNotEmpty) {
+        _awardPoints(
+            p, [for (final g in seen) _Group(g.members, g.clock, point)]);
+      }
+    }
+    while (_nextSample < _sampleAt.length && last >= _sampleAt[_nextSample]) {
+      final point = _sampleAt[_nextSample++];
+      _sample(point, _sampled.remove(point) ?? []);
+    }
+  }
+
+  /// A sample of the race at a point for the chart of the race report.
+  ///
+  /// @param point Index of the point.
+  /// @param at The groups as they passed it.
+  void _sample(int point, List<_Seen> at) {
+    if (at.isEmpty) return;
+    at.sort((a, b) => a.clock.compareTo(b.clock));
+    final segs = route.segments;
+    final km = segs[point - 1].km + segs[point - 1].lengthM / 1000;
+    final head = at.first.clock;
+    var main = at.first;
+    var bestScore = -1.0;
+    for (final g in at) {
+      final score =
+          g.members.where((m) => m.favorite).length + g.members.length / 1000;
+      if (score > bestScore) {
+        main = g;
+        bestScore = score;
+      }
+    }
+    final total = at.fold(0, (n, g) => n + g.members.length);
+    var before = 0;
+    var middle = at.last;
+    for (final g in at) {
+      before += g.members.length;
+      if (before * 2 >= total) {
+        middle = g;
+        break;
+      }
+    }
+    _timeline.add(RaceSample(km, main.clock - head, at.first.members.length,
+        main.members.length, max(0.0, middle.clock - main.clock), [
+      for (final g in at)
+        GroupSample(
+          g.clock - head,
+          g.members.length,
+          g.members.where((m) => m.favorite).length,
+          [
+            for (final m in g.members)
+              if (_own(m)) m.rider.id,
+          ],
+          breakaway: g.breakaway,
+          gruppetto: g.gruppetto,
+          stars: [
+            for (final m in g.members)
+              if (m.favorite) m.rider.id,
+          ],
+        ),
+    ]));
   }
 
   /// Marks the segments just before the places where position decides:
@@ -1033,66 +1651,6 @@ class _RoadRace {
     return key;
   }
 
-  /// Notes the state of the race for the report: who has lost contact with
-  /// the favourites, and every two kilometres a sample for the chart.
-  ///
-  /// @param groups All groups after the step.
-  /// @param s The segment just ridden.
-  void _record(List<_Group> groups, Segment s) {
-    final main = _mainGroup(groups);
-    final km = s.km + s.lengthM / 1000;
-    for (final g in groups) {
-      final behind = g.clock > main.clock;
-      for (final m in g.members) {
-        if (behind) {
-          m.lostKm ??= km;
-        } else {
-          m.lostKm = null;
-        }
-      }
-    }
-    final last = seg == route.segments.length - 1;
-    if (km >= _nextSampleKm - 1e-6 || last) {
-      _nextSampleKm += 2;
-      final head = groups.first.clock;
-      _timeline.add(RaceSample(
-          km,
-          main.clock - head,
-          groups.first.members.length,
-          main.members.length,
-          max(0.0, _middle(groups).clock - main.clock), [
-        for (final g in groups)
-          GroupSample(
-            g.clock - head,
-            g.members.length,
-            g.members.where((m) => m.favorite).length,
-            [
-              for (final m in g.members)
-                if (_own(m)) m.rider.id,
-            ],
-            breakaway: g.members.every((m) => m.inBreak),
-            gruppetto: g.gruppetto,
-            stars: [
-              for (final m in g.members)
-                if (m.favorite) m.rider.id,
-            ],
-          ),
-      ]));
-    }
-  }
-
-  /// @param groups All groups, first on the road first.
-  /// @returns The group in which the rider in the middle of the field rides.
-  _Group _middle(List<_Group> groups) {
-    final total = groups.fold(0, (n, g) => n + g.members.length);
-    var before = 0;
-    for (final g in groups) {
-      before += g.members.length;
-      if (before * 2 >= total) return g;
-    }
-    return groups.last;
-  }
-
   /// From here on the race for the win is on: foot of the last big climb,
   /// first hard sector in the second half, otherwise 15 km from the finish.
   /// In a race decided by its sectors without a very hard one, the finale
@@ -1122,21 +1680,6 @@ class _RoadRace {
       }
     }
     return max(start, route.raceKm * 0.3);
-  }
-
-  /// @param groups All groups.
-  /// @returns The group holding most of the favourites.
-  _Group _mainGroup(List<_Group> groups) {
-    var best = groups.first, bestScore = -1.0;
-    for (final g in groups) {
-      final score =
-          g.members.where((m) => m.favorite).length + g.members.length / 1000;
-      if (score > bestScore) {
-        best = g;
-        bestScore = score;
-      }
-    }
-    return best;
   }
 
   /// @param g A group.
@@ -1177,17 +1720,15 @@ class _RoadRace {
   /// chasing, the next teams with a favourite join in, whatever they had
   /// planned.
   ///
-  /// @param groups All groups.
   /// @param main The field.
   /// @param s Current segment.
   /// @param threatAhead Whether a rider dangerous for the general
   ///   classification is up the road.
   /// @returns Ids of the chasing teams.
-  Set<int> _chasingTeams(
-      List<_Group> groups, _Group main, Segment s, bool threatAhead) {
+  Set<int> _chasingTeams(_Group main, Segment s, bool threatAhead) {
     final ahead = <int>{
       for (final g in groups)
-        if (g.clock < main.clock)
+        if (_isAhead(g, main))
           for (final m in g.members) m.rider.teamId,
     };
     final fresh = <int>{
@@ -1204,7 +1745,8 @@ class _RoadRace {
             goals.contains(m.rider.teamId))
           m.rider.teamId,
     };
-    final gap = main.clock - groups.first.clock;
+    final head = _head[main.seg];
+    final gap = head.isNaN ? 0.0 : main.clock - head;
     if (out.length < 2 &&
         gap > 0.8 * _allowedGap(route.raceKm - s.km, threatAhead)) {
       // Best favourite per team that could still chase.
@@ -1236,19 +1778,19 @@ class _RoadRace {
   /// favourites. The best-suited rider it still has there may then ride for
   /// himself.
   ///
-  /// @param groups All groups.
-  void _reassign(List<_Group> groups) {
-    final main = _mainGroup(groups);
+  /// @param main The group with the favourites.
+  void _reassign(_Group main) {
     final front = <int, List<_State>>{};
     final led = <int>{};
     for (final g in groups) {
-      final close = g.clock - main.clock <= 60;
+      final behind = _isAhead(main, g);
+      final close = !behind || _gapToMain(g, main) <= 60;
       for (final m in g.members) {
         // A leader on his way back after a mishap still counts.
         if (m.role.ridesForHimself && (close || g.convoy)) {
           led.add(m.rider.teamId);
         }
-        if (g.clock <= main.clock) {
+        if (!behind) {
           front.putIfAbsent(m.rider.teamId, () => []).add(m);
         }
       }
@@ -1264,10 +1806,9 @@ class _RoadRace {
   /// fight can last for an hour. Moves on a climb stick more easily.
   ///
   /// @param s Current segment.
-  /// @param groups All groups.
+  /// @param field The field.
   /// @returns Probability for this segment.
-  double _stickChance(Segment s, List<_Group> groups) {
-    final field = _mainGroup(groups);
+  double _stickChance(Segment s, _Group field) {
     final wanting = <int>{
       for (final m in field.members)
         if (m.plan.breakPolicy == BreakPolicy.join ||
@@ -1286,8 +1827,9 @@ class _RoadRace {
   ///
   /// @param peloton The field; the chosen riders are removed from it.
   /// @param s The segment where the move sticks.
+  /// @param leader A rider the player sent: he goes, whoever else does.
   /// @returns The breakaway group, or null if fewer than two riders went.
-  _Group? _formBreak(_Group peloton, Segment s) {
+  _Group? _formBreak(_Group peloton, Segment s, {_State? leader}) {
     final size = sprintStage
         ? 2 + rng.nextInt(5)
         : route.selectivity > 2500
@@ -1339,6 +1881,11 @@ class _RoadRace {
         .toList();
     final picked = <_State>[];
     final teams = <int, int>{};
+    if (leader != null && peloton.members.contains(leader)) {
+      candidates.remove(leader);
+      picked.add(leader);
+      teams[leader.rider.teamId] = 1;
+    }
     while (picked.length < size && candidates.isNotEmpty) {
       final weights = [for (final c in candidates) weight(c)];
       var x = rng.nextDouble() * weights.reduce((a, b) => a + b);
@@ -1370,7 +1917,7 @@ class _RoadRace {
         tr('{0} riders go clear: {1}', [picked.length, _names(picked)]),
         [for (final p in picked) p.rider.id]));
     // The group starts with a small cushion; the rest follows from the pace.
-    return _Group(picked, peloton.clock - 20);
+    return _Group(picked, peloton.clock - 20, peloton.seg);
   }
 
   /// Lets a rider attack out of a group if the moment is right.
@@ -1380,12 +1927,11 @@ class _RoadRace {
   /// stronger rider may go from far out on a long climb. Up the road the
   /// riders of the break attack each other as the finish nears.
   ///
-  /// @param groups All groups; a new group is inserted on an attack.
   /// @param lead The group the attack comes from.
   /// @param s Current segment.
   /// @param breakaway Whether [lead] is a group ahead of the favourites.
   /// @param longRange Whether this is an attack before the finale.
-  void _maybeAttack(List<_Group> groups, _Group lead, Segment s,
+  void _maybeAttack(_Group lead, Segment s,
       {bool breakaway = false, bool longRange = false}) {
     if (lead.members.length < 2 || lead.surgeKm > 0 || lead.gruppetto) return;
     final remaining = route.raceKm - s.km;
@@ -1404,14 +1950,7 @@ class _RoadRace {
     }
     final order = [...lead.members]
       ..sort((a, b) => _threshold(b).compareTo(_threshold(a)));
-    // Helpers do not attack; in a break everyone rides for himself unless
-    // he was told to sit on.
-    final goals = _goalTeams(lead);
-    final own = order
-        .where((m) => breakaway
-            ? !m.passenger && !(m.role.works && goals.contains(m.rider.teamId))
-            : m.role.ridesForHimself)
-        .toList();
+    final own = _ownRace(lead, order, breakaway);
     if (own.isEmpty) return;
     // Among the favourites, a team that waits for the finish does not start
     // the attacking itself.
@@ -1457,21 +1996,44 @@ class _RoadRace {
       final chance = (s.lengthM / 1000 * rate).clamp(0.0, 0.8);
       if (rng.nextDouble() > chance) return;
     }
+    _launch(lead, best, order, own, s, breakaway: breakaway);
+  }
 
+  /// Riders of a group who may attack and follow attacks for themselves:
+  /// helpers do not; in a break everyone rides for himself unless he was
+  /// told to sit on. Whom the player told to save himself does neither.
+  ///
+  /// @param lead The group.
+  /// @param order Its riders by strength.
+  /// @param breakaway Whether it is a group ahead of the favourites.
+  /// @returns The riders, strongest first.
+  List<_State> _ownRace(_Group lead, List<_State> order, bool breakaway) {
+    final goals = _goalTeams(lead);
+    return order
+        .where((m) =>
+            m.order != RiderOrder.save &&
+            (breakaway
+                ? !m.passenger &&
+                    !(m.role.works && goals.contains(m.rider.teamId))
+                : m.role.ridesForHimself))
+        .toList();
+  }
+
+  /// An attack goes: who follows, whether the rivals' sports directors send
+  /// someone after it, and the new group ahead.
+  ///
+  /// @param lead The group the attack comes from.
+  /// @param best The attacker.
+  /// @param order The group by strength.
+  /// @param own Riders who ride for themselves, see [_ownRace].
+  /// @param s Current segment.
+  /// @param breakaway Whether [lead] is a group ahead of the favourites.
+  void _launch(
+      _Group lead, _State best, List<_State> order, List<_State> own, Segment s,
+      {required bool breakaway}) {
     final followers = [
       for (final m in order)
-        if (m != best &&
-            own.contains(m) &&
-            _threshold(m) >= _threshold(best) * (1 - t.followMargin) &&
-            m.reserve > 0.35 &&
-            rng.nextDouble() <
-                t.followChance +
-                    0.2 * m.plan.directorSkill +
-                    // Who waits for the sprint must not let anyone go.
-                    (!breakaway && _waiting.contains(m.rider.teamId)
-                        ? 0.15
-                        : 0))
-          m,
+        if (m != best && _follows(m, best, own, breakaway)) m,
     ];
     // A favourite attacks and a team's leader hesitates: its sports director
     // can send him after the move, even if it is beyond his means. Every
@@ -1532,10 +2094,9 @@ class _RoadRace {
     final move = [best, ...followers];
     if (move.length >= lead.members.length) return;
     lead.members.removeWhere(move.contains);
-    final g = _Group(move, lead.clock - 1)
+    _add(_Group(move, lead.clock - 1, lead.seg)
       ..surgeKm = 1.0
-      ..surgeLeader = best;
-    groups.insert(groups.indexOf(lead), g);
+      ..surgeLeader = best);
     // Do not report repeated moves by the same rider every time.
     final previous = _lastAttackKm[best.rider.id];
     _lastAttackKm[best.rider.id] = s.km;
@@ -1550,6 +2111,61 @@ class _RoadRace {
             : tr('{0} attacks {1} km from the finish, followed by: {2}',
                 [best.rider.name, rest.toStringAsFixed(1), _names(followers)]),
         [best.rider.id, for (final f in followers) f.rider.id]));
+  }
+
+  /// Whether a rider goes with an attack out of his group.
+  ///
+  /// @param m The rider.
+  /// @param best The attacker.
+  /// @param own Riders who ride for themselves.
+  /// @param breakaway Whether the group rides ahead of the favourites.
+  bool _follows(_State m, _State best, List<_State> own, bool breakaway) {
+    // Told by the team car to go with the attacks: he goes if he can.
+    if (m.order == RiderOrder.follow) {
+      return _threshold(m) >= _threshold(best) * (1 - 2.5 * t.followMargin) &&
+          m.reserve > 0.15;
+    }
+    return own.contains(m) &&
+        _threshold(m) >= _threshold(best) * (1 - t.followMargin) &&
+        m.reserve > 0.35 &&
+        rng.nextDouble() <
+            t.followChance +
+                0.2 * m.plan.directorSkill +
+                // Who waits for the sprint must not let anyone go.
+                (!breakaway && _waiting.contains(m.rider.teamId) ? 0.15 : 0);
+  }
+
+  /// The player told a rider to attack: he goes at once. While the field
+  /// still fights for the break, he goes with it.
+  ///
+  /// @param g His group.
+  /// @param m The rider.
+  /// @param s Current segment.
+  void _orderedAttack(_Group g, _State m, Segment s) {
+    m.order = RiderOrder.none;
+    if (m.reserve < 0.15) return;
+    final main = _main();
+    if (!_breakFormed && identical(g, main) && s.km < finaleKm) {
+      final escape = _formBreak(g, s, leader: m);
+      if (escape != null) {
+        _breakFormed = true;
+        _breakDecisions(escape, g, s.km);
+        _add(escape);
+        return;
+      }
+    }
+    if (g.members.length < 2) {
+      // Alone he can only press on.
+      g
+        ..surgeKm = 1.0
+        ..surgeLeader = m;
+      return;
+    }
+    final breakaway = _isAhead(g, main);
+    final order = [...g.members]
+      ..sort((a, b) => _threshold(b).compareTo(_threshold(a)));
+    _launch(g, m, order, _ownRace(g, order, breakaway), s,
+        breakaway: breakaway);
   }
 
   /// Fight for position before a key point. Leaders and sprinters want to
@@ -1783,8 +2399,13 @@ class _RoadRace {
     } else if (aheadOfMain) {
       ref = order[n ~/ 2];
       effort = inFinale ? 0.96 : t.breakEffort;
-      workers = order.any((m) => m.passenger)
-          ? order.where((m) => !m.passenger).toSet()
+      // Whoever sits on does no work, nor whoever was told to save himself.
+      final idle = {
+        for (final m in order)
+          if (m.passenger || m.order == RiderOrder.save) m,
+      };
+      workers = idle.isNotEmpty
+          ? order.where((m) => !idle.contains(m)).toSet()
           : order.toSet();
     } else if (fighting) {
       // Attack after attack until a group goes clear: the field rides hard
@@ -1942,6 +2563,28 @@ class _RoadRace {
       }
     }
 
+    // Told by the team car: these riders ride on the front, at least at their
+    // threshold, until they are empty. Whoever was told to save himself does
+    // no work.
+    final pulling = [
+      for (final m in order)
+        if (m.order == RiderOrder.tempo &&
+            m.energy > t.helperEmpty &&
+            m.reserve > 0.05)
+          m,
+    ];
+    if (pulling.isNotEmpty && g.surgeKm <= 0) {
+      final lead = pulling.first;
+      if (_threshold(lead) >= _threshold(ref) * effort) {
+        ref = lead;
+        effort = 1.0;
+      }
+      workers = pulling.toSet();
+    }
+    if (workers.any((m) => m.order == RiderOrder.save)) {
+      workers = workers.where((m) => m.order != RiderOrder.save).toSet();
+    }
+
     final convoyShelter = g.convoy && remainingKm > 3 ? 0.7 : 1.0;
     // Whoever sets the pace takes turns and feels more wind than the rest.
     // Only the riders who work share the front: in a big field a handful of
@@ -2054,6 +2697,7 @@ class _RoadRace {
       _spend(m, gapOpen ? e * 1.08 : e, dt, rough);
     }
     g.clock += dt;
+    g.seg++;
     if (g.surgeKm > 0) g.surgeKm -= lengthKm;
 
     if (dropped.isEmpty) return const [];
@@ -2101,7 +2745,7 @@ class _RoadRace {
     for (final m in dropped) {
       _spend(m, 0.95, ddt, rough);
     }
-    return [_Group(dropped, g.clock - dt + ddt)..convoy = g.convoy];
+    return [_Group(dropped, g.clock - dt + ddt, g.seg)..convoy = g.convoy];
   }
 
   /// Kilometre of the last reported split in the crosswind.
@@ -2442,8 +3086,8 @@ class _RoadRace {
         g.members.addAll(held);
         return;
       }
-      groups.add(
-          _Group(held, g.clock + 4 + 16 * rng.nextDouble())..convoy = true);
+      groups.add(_Group(held, g.clock + 4 + 16 * rng.nextDouble(), g.seg)
+        ..convoy = true);
     }
   }
 
@@ -2498,7 +3142,7 @@ class _RoadRace {
       return;
     }
     g.members.remove(m);
-    final back = _Group([m], g.clock + loss)..convoy = true;
+    final back = _Group([m], g.clock + loss, g.seg)..convoy = true;
     // Helpers wait for their leader and bring him back. Two as a rule; the
     // whole team when a leader of the general classification is at stake.
     if (m.role.sheltered && remaining > 3) {
@@ -2572,20 +3216,23 @@ class _RoadRace {
         [m.rider.id]));
   }
 
-  /// Sorts groups by riding time and merges those that have caught each other.
+  /// Merges the groups at a point that have caught each other.
   ///
-  /// @param groups All groups after the step.
-  /// @param s Current segment, for event texts.
-  /// @returns The merged groups, first on the road first.
-  List<_Group> _merge(List<_Group> groups, Segment s) {
-    groups.sort((a, b) => a.clock.compareTo(b.clock));
-    final out = <_Group>[groups.first];
-    for (final g in groups.skip(1)) {
-      final ahead = out.last;
+  /// @param point Index of the point.
+  /// @param s The segment before it, for event texts.
+  void _mergeAt(int point, Segment s) {
+    final here = [
+      for (final g in groups)
+        if (g.seg == point) g,
+    ]..sort((a, b) => a.clock.compareTo(b.clock));
+    if (here.length < 2) return;
+    var ahead = here.first;
+    for (final g in here.skip(1)) {
       // A gruppetto waits for riders just behind it: the bigger the bus, the
-      // easier the ride to the finish.
-      final waits =
-          ahead.gruppetto && g.gruppetto && g.clock - ahead.clock < 40;
+      // easier the ride to the finish. So does a rider who waits for his
+      // leader.
+      final waits = g.clock - ahead.clock < 40 &&
+          (ahead.gruppetto && g.gruppetto || _waitsFor(ahead, g));
       if (waits) ahead.clock = g.clock;
       if (waits || g.clock - ahead.clock < 1.5) {
         final caught = ahead.members.where((m) => m.inBreak).length;
@@ -2603,6 +3250,7 @@ class _RoadRace {
           }
         }
         ahead.members.addAll(g.members);
+        g.members = [];
         // Riders back from a mishap are in the bunch again.
         ahead.convoy = ahead.convoy && g.convoy;
         if (g.surgeKm > ahead.surgeKm) {
@@ -2610,10 +3258,10 @@ class _RoadRace {
           ahead.surgeLeader = g.surgeLeader;
         }
       } else {
-        out.add(g);
+        ahead = g;
       }
     }
-    return out;
+    groups.removeWhere((g) => g.members.isEmpty);
   }
 
   /// Awards a mountain prize or intermediate sprint. Points go to riders of
@@ -3120,4 +3768,287 @@ StageResult _timeTrial(SimRoute route, List<_State> states, Random rng,
       for (final m in states)
         m.rider.id: m.tally.result(m.ftp, m.rider.massKg, tops),
     };
+}
+
+/// A group on the road at a moment of a stage watched live.
+class LiveGroup {
+  const LiveGroup(this.km, this.gapS, this.riders,
+      {this.breakaway = false,
+      this.gruppetto = false,
+      this.favourites = 0,
+      this.stars = const []});
+
+  /// Race kilometre of its head.
+  final double km;
+
+  /// Seconds behind the head of the race, as at the group's last point.
+  final double gapS;
+
+  /// Ids of its riders.
+  final List<int> riders;
+
+  /// Whether it is (part of) the break of the day.
+  final bool breakaway;
+
+  /// Whether it rides as a gruppetto.
+  final bool gruppetto;
+
+  /// Favourites of the day in it.
+  final int favourites;
+
+  /// Ids of the favourites of the day in it.
+  final List<int> stars;
+}
+
+/// How a rider is doing at a moment of a stage watched live.
+class LiveRider {
+  const LiveRider(this.id, this.energy, this.reserve, this.order,
+      {this.out = false, this.favourite = false});
+
+  /// Id of the rider.
+  final int id;
+
+  /// Endurance reserve, 0 to 1.
+  final double energy;
+
+  /// Short-term reserve for efforts above threshold, 0 to 1.
+  final double reserve;
+
+  /// What the player told him last.
+  final RiderOrder order;
+
+  /// Whether he has left the race.
+  final bool out;
+
+  /// Whether he is one of the favourites of the day.
+  final bool favourite;
+}
+
+/// A stage ridden while it is watched: in race time, one moment after the
+/// other, with the player's orders to his riders and his answers to the
+/// radio as they come. Ridden again with the same orders and answers,
+/// [simulateStage] gives the same stage. A time trial is ridden at once and
+/// only shown as it goes.
+class LiveStage {
+  LiveStage._(this._stage, Map<RadioKind, int> radio) : _answers = {...radio} {
+    _ride = _stage.build(_answers, const []);
+    final race = _ride.race;
+    if (race == null) {
+      final result = _ride.result();
+      _result = result;
+      _end = _lastFinish(result.track);
+    } else {
+      race.start();
+    }
+  }
+
+  final _Stage _stage;
+  final Map<RadioKind, int> _answers;
+  final _given = <TimedOrder>[];
+  late _Ride _ride;
+  StageResult? _result;
+
+  /// Clock at which the last rider of a time trial finishes.
+  double _end = 0;
+
+  /// Race clock in seconds up to which the stage has been ridden.
+  double clock = 0;
+
+  /// The radio question the stage waits for, or null.
+  RadioCall? openCall;
+
+  /// The stage.
+  SimRoute get route => _stage.route;
+
+  /// Weather of the day.
+  Weather get weather => _ride.weather;
+
+  /// The radio answers given so far.
+  Map<RadioKind, int> get answers => Map.unmodifiable(_answers);
+
+  /// The orders given so far, in the order they were given.
+  List<TimedOrder> get orders => List.unmodifiable(_given);
+
+  /// Where every rider was so far; in a time trial the whole day.
+  RaceTrack? get track => _ride.track;
+
+  /// Whether this is a time trial, which takes no orders.
+  bool get timeTrial => _ride.race == null;
+
+  /// Whether the race is over.
+  bool get finished => _ride.race == null ? clock >= _end : _result != null;
+
+  /// The result once the race is over.
+  StageResult? get result => finished ? _result : null;
+
+  /// What happened so far.
+  List<RaceEvent> get events => _ride.race?.events ?? const [];
+
+  /// Each rider's role in his team's plan; empty in a time trial.
+  Map<int, Role> get roles => {
+        for (final m in _ride.race?.states ?? const <_State>[])
+          m.rider.id: m.role,
+      };
+
+  /// Rides on to a moment of the race, or up to the next radio question.
+  ///
+  /// @param until Race clock in seconds.
+  void advanceTo(double until) {
+    if (openCall != null || until <= clock) return;
+    final race = _ride.race;
+    if (race == null) {
+      clock = min(until, _end);
+      return;
+    }
+    if (_result != null) {
+      clock = until;
+      return;
+    }
+    try {
+      race.advanceTo(until);
+      clock = until;
+      if (race.done) {
+        _result = race.finish()
+          ..weather = _ride.weather
+          ..track = _ride.track;
+      }
+    } on _RadioStop catch (stop) {
+      openCall = stop.call;
+      clock = race.stepClock;
+    }
+  }
+
+  /// Answers the open radio question. The stage is set up again with the
+  /// answer and ridden up to the moment of the question.
+  ///
+  /// @param choice Index of the chosen option.
+  void answer(int choice) {
+    final call = openCall;
+    if (call == null) return;
+    _answers[call.kind] = choice.clamp(0, call.options.length - 1);
+    openCall = null;
+    final at = clock;
+    _ride = _stage.build(_answers, _given);
+    final race = _ride.race!..start();
+    try {
+      race.advanceTo(at);
+    } on _RadioStop catch (stop) {
+      openCall = stop.call;
+      clock = race.stepClock;
+    }
+  }
+
+  /// Gives an order to a rider of the player's team, at the current moment.
+  ///
+  /// @param riderId Id of the rider.
+  /// @param order What he is to do.
+  void order(int riderId, RiderOrder order) {
+    final race = _ride.race;
+    if (race == null || finished) return;
+    final o = TimedOrder(clock, riderId, order);
+    _given.add(o);
+    // At an open question the stage is set up again with all orders.
+    if (openCall == null) race._orders.add(o);
+  }
+
+  /// The groups on the road at the current moment, the head of the race
+  /// first; in a time trial every rider on the course on his own.
+  List<LiveGroup> groups() {
+    final race = _ride.race;
+    if (race == null) return _onCourse();
+    if (!race._started) return const [];
+    final segs = race.route.segments;
+    final n = segs.length;
+    double kmAt(int point) => point < n
+        ? segs[point].km
+        : segs[n - 1].km + segs[n - 1].lengthM / 1000;
+    final out = <LiveGroup>[];
+    for (final g in race._roadOrder()) {
+      if (g.members.isEmpty) continue;
+      var km = kmAt(g.seg);
+      // Between the last point and the next one.
+      final riding = g.seg > 0 && g.clock > clock;
+      if (riding) {
+        final from = race._clockAt(g, g.seg - 1);
+        if (!from.isNaN && g.clock > from) {
+          final f = ((clock - from) / (g.clock - from)).clamp(0.0, 1.0);
+          km = kmAt(g.seg - 1) + f * (kmAt(g.seg) - kmAt(g.seg - 1));
+        }
+      }
+      final point = riding ? g.seg - 1 : g.seg;
+      final at = race._clockAt(g, point);
+      final head = race._head[point];
+      out.add(LiveGroup(
+        km,
+        at.isNaN || head.isNaN ? 0 : max(0.0, at - head),
+        [for (final m in g.members) m.rider.id],
+        breakaway: g.members.every((m) => m.inBreak),
+        gruppetto: g.gruppetto,
+        favourites: g.members.where((m) => m.favorite).length,
+        stars: [
+          for (final m in g.members)
+            if (m.favorite) m.rider.id,
+        ],
+      ));
+    }
+    return out;
+  }
+
+  /// How a rider is doing, or null in a time trial.
+  ///
+  /// @param id Id of the rider.
+  /// @returns His state.
+  LiveRider? rider(int id) {
+    final race = _ride.race;
+    if (race == null) return null;
+    for (final m in race.states) {
+      if (m.rider.id == id) {
+        return LiveRider(id, m.energy.clamp(0.0, 1.0), m.reserve, m.order,
+            out: m.out, favourite: m.favorite);
+      }
+    }
+    return null;
+  }
+
+  /// Riders of a time trial on the course at the current moment.
+  List<LiveGroup> _onCourse() {
+    final track = _ride.track;
+    if (track == null) return const [];
+    final out = <(double, int)>[];
+    for (final e in track.times.entries) {
+      final t = clock - (track.starts[e.key] ?? 0);
+      if (t < 0) continue;
+      final times = e.value;
+      var prevKm = 0.0, prevT = 0.0;
+      double? km;
+      for (var p = 0; p < times.length; p++) {
+        final tp = times[p];
+        if (tp.isNaN) break;
+        if (tp >= t) {
+          final f = tp > prevT ? (t - prevT) / (tp - prevT) : 1.0;
+          km = prevKm + f * (track.km[p] - prevKm);
+          break;
+        }
+        prevKm = track.km[p];
+        prevT = tp;
+      }
+      if (km != null) out.add((km, e.key));
+    }
+    out.sort((a, b) => b.$1.compareTo(a.$1));
+    return [
+      for (final (km, id) in out) LiveGroup(km, 0, [id])
+    ];
+  }
+
+  /// Clock at which the last rider of a recorded day finishes.
+  static double _lastFinish(RaceTrack? track) {
+    if (track == null) return 0;
+    var end = 0.0;
+    for (final e in track.times.entries) {
+      final times = e.value;
+      if (times.isEmpty || times.last.isNaN) continue;
+      end = max(end, (track.starts[e.key] ?? 0) + times.last);
+    }
+    return end;
+  }
 }

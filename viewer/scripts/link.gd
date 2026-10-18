@@ -1,9 +1,12 @@
 extends Node
 ## The connection to the game: a WebSocket on the local machine. The game
-## sends the stage to show; the viewer answers when it is ready and, later,
-## with the instructions of the player for his riders.
+## sends the stage to show and, while it is watched live, what happens in it;
+## the viewer answers when it is ready and sends the player's orders, the
+## speed and his answers to the radio.
 
 signal race_received(message: Dictionary)
+signal live_received(message: Dictionary)
+signal screenshot_asked(path: String)
 
 const PROTOCOL := 1
 
@@ -36,6 +39,10 @@ func _process(_delta: float) -> void:
 				match str(m.get("type", "")):
 					"race":
 						race_received.emit(m)
+					"live":
+						live_received.emit(m)
+					"screenshot":
+						screenshot_asked.emit(str(m.get("path", "")))
 					"close":
 						get_tree().quit()
 		WebSocketPeer.STATE_CLOSED:

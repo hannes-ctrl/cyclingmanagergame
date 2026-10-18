@@ -7,7 +7,10 @@ extends Node3D
 ## through. Between two legs of a climb the ground blends their heights, so
 ## the slope stays smooth. Along the road a finer strip of its own lies on
 ## the ground: the shoulder, a ditch, then a cutting or an embankment that
-## meets the ground, so the road does not run on a bench.
+## meets the ground, so the road does not run on a bench. Here and there a
+## lake lies in a hollow away from the road.
+
+const WATER_SHADER := preload("res://shaders/water.gdshader")
 
 const TILE := 640.0
 const RES := 20.0
@@ -26,6 +29,8 @@ const VERGE_DROP := [0.07, 0.16, 0.5, 0.32]
 const RADIUS := 4
 ## Metres of the coarse grid of the height of the country.
 const COARSE := 500.0
+## Metres of the cells of the country of which some hold a lake.
+const LAKE_CELL := 2400.0
 
 var course
 ## Whether near woods throw shadows.
@@ -41,6 +46,7 @@ var _running := {}
 var _done := {}
 var _mutex := Mutex.new()
 var _ground_mat: StandardMaterial3D
+var _water_mat: ShaderMaterial
 var _tree_mesh: ArrayMesh
 var _tree_mat: StandardMaterial3D
 
@@ -52,6 +58,9 @@ var _base := PackedFloat32Array()
 var _rough := PackedFloat32Array()
 ## Distance to the road on the coarse grid, for an even rise of the land.
 var _road_far := PackedFloat32Array()
+## Lakes by cell of LAKE_CELL: x and z of the middle, radius, level of the
+## water, depth, and two phases of the winding shore.
+var _lakes := {}
 
 
 ## @param c The course.
@@ -77,7 +86,11 @@ func setup(c) -> void:
 	_tree_mat.vertex_color_use_as_albedo = true
 	_tree_mat.roughness = 0.95
 	_tree_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_water_mat = ShaderMaterial.new()
+	_water_mat.shader = WATER_SHADER
 	_coarse_grid()
+	_place_lakes()
+	print("lakes: %d" % _lakes.size())
 
 
 ## Keeps the tiles around a point. Missing ones are computed on other
@@ -217,9 +230,16 @@ func _coarse_at(arr: PackedFloat32Array, x: float, z: float) -> float:
 	return lerpf(a, b, tz)
 
 
-## Height of the ground away from the road. It rises evenly with the
-## distance from the road on the coarse grid, so that it has no steps.
+## Height of the ground away from the road, with the lakes in it.
 func _far(x: float, z: float) -> float:
+	var h := _country(x, z)
+	var lake = _lakes.get(Vector2i(floori(x / LAKE_CELL), floori(z / LAKE_CELL)))
+	return h if lake == null else _lake_ground(lake, x, z, h)
+
+
+## Height of the country away from the road. It rises evenly with the
+## distance from the road on the coarse grid, so that it has no steps.
+func _country(x: float, z: float) -> float:
 	var base := _coarse_at(_base, x, z)
 	var rough := _coarse_at(_rough, x, z)
 	# Hills everywhere, real mountains where the road climbs a lot.
@@ -227,6 +247,136 @@ func _far(x: float, z: float) -> float:
 	var n := _noise.get_noise_2d(x, z)
 	var away := clampf((_coarse_at(_road_far, x, z) - 250.0) / 2500.0, 0.0, 1.0)
 	return base + n * amp * (0.35 + 0.65 * away) + away * rough * 0.15 + _detail.get_noise_2d(x, z) * 2.0
+
+
+## Puts lakes into some cells of the country: well away from the road, on
+## gentle ground, with the water as high as the lowest point of the shore.
+## They are made once, so the tiles on other threads only read them.
+func _place_lakes() -> void:
+	var b: AABB = course.bounds
+	var rng := RandomNumberGenerator.new()
+	rng.seed = course.data.seed + 47
+	var c0 := Vector2i(floori((b.position.x - 6000.0) / LAKE_CELL), floori((b.position.z - 6000.0) / LAKE_CELL))
+	var c1 := Vector2i(floori((b.end.x + 6000.0) / LAKE_CELL), floori((b.end.z + 6000.0) / LAKE_CELL))
+	var pts: PackedVector3Array = course.points
+	for cz in range(c0.y, c1.y + 1):
+		for cx in range(c0.x, c1.x + 1):
+			# Every cell draws the same numbers, lake or not. The middle stays
+			# far enough inside the cell for the lake and its slopes.
+			var chance := rng.randf()
+			var lake := PackedFloat32Array([
+				(cx + rng.randf_range(0.3, 0.7)) * LAKE_CELL,
+				(cz + rng.randf_range(0.3, 0.7)) * LAKE_CELL,
+				rng.randf_range(100.0, 330.0), 0.0, 0.0,
+				rng.randf() * TAU, rng.randf() * TAU,
+			])
+			if chance > 0.3:
+				continue
+			var r: float = lake[2]
+			# Its slopes keep clear of the ground the road shapes.
+			var clear := r * 1.25 * 1.5 + 70.0 + REACH + 20.0
+			var free := true
+			for k in course.points_near(Rect2(lake[0] - clear, lake[1] - clear, 2.0 * clear, 2.0 * clear), 0.0):
+				if Vector2(pts[k].x - lake[0], pts[k].z - lake[1]).length() < clear:
+					free = false
+					break
+			if not free:
+				continue
+			# The lowest point a little beyond the shore sets the water; with
+			# too much rise around it the lake would hang on a slope.
+			var lo := INF
+			var hi := -INF
+			for s in 24:
+				var a := TAU * s / 24.0
+				var reach := _shore_radius(lake, cos(a), sin(a)) + 20.0
+				var h := _country(lake[0] + cos(a) * reach, lake[1] + sin(a) * reach)
+				lo = minf(lo, h)
+				hi = maxf(hi, h)
+			if hi - lo > r * 0.15 or lo > 2300.0:
+				continue
+			lake[3] = lo - 0.6
+			lake[4] = clampf(r * 0.03, 3.0, 9.0)
+			_lakes[Vector2i(cx, cz)] = lake
+
+
+## Radius of the shore of a lake in a direction: the shore winds.
+##
+## @param lake The lake.
+## @param dx The direction from its middle, x.
+## @param dz The direction, z.
+## @returns The radius, up to 1.25 times that of the lake.
+static func _shore_radius(lake: PackedFloat32Array, dx: float, dz: float) -> float:
+	var a := atan2(dz, dx)
+	return lake[2] * (1.0 + 0.16 * sin(3.0 * a + lake[5]) + 0.09 * sin(5.0 * a + lake[6]))
+
+
+## The ground in and around a lake: a bed below the water, a low bank along
+## the shore, and further out a slope back to the country.
+##
+## @param lake The lake.
+## @param x A point, x.
+## @param z The point, z.
+## @param h The country there.
+## @returns The height of the ground.
+static func _lake_ground(lake: PackedFloat32Array, x: float, z: float, h: float) -> float:
+	var dx := x - lake[0]
+	var dz := z - lake[1]
+	var d := sqrt(dx * dx + dz * dz)
+	if d > lake[2] * 1.25 * 1.5 + 70.0:
+		return h
+	var rr := _shore_radius(lake, dx, dz)
+	var level: float = lake[3]
+	var depth: float = lake[4]
+	var q := d / rr
+	if q < 1.0:
+		return level - depth + (depth + 0.6) * q * q
+	var bank := level + 0.6 + (d - rr) * 0.03
+	var ground := lerpf(bank, h, smoothstep(rr + 30.0, rr * 1.5 + 70.0, d))
+	# Right by the water it stays above it, whatever the country does.
+	return maxf(ground, level + 0.6) if d < rr + 40.0 else ground
+
+
+## How far a point lies from the middle of a lake, in radii of its shore.
+##
+## @returns INF away from all lakes.
+func _in_lake(x: float, z: float) -> float:
+	var lake = _lakes.get(Vector2i(floori(x / LAKE_CELL), floori(z / LAKE_CELL)))
+	if lake == null:
+		return INF
+	var dx: float = x - lake[0]
+	var dz: float = z - lake[1]
+	return sqrt(dx * dx + dz * dz) / _shore_radius(lake, dx, dz)
+
+
+## The water of the lakes in a tile: triangles at the level of each, out to
+## a little beyond its shore and cut at the edges of the tile. The ground
+## hides it wherever it rises above the water.
+##
+## @param x0 The tile's corner, x.
+## @param z0 Its corner, z.
+## @returns The corners of the triangles.
+func _water(x0: float, z0: float) -> PackedVector3Array:
+	var tris := PackedVector3Array()
+	var c0 := Vector2i(floori(x0 / LAKE_CELL), floori(z0 / LAKE_CELL))
+	var c1 := Vector2i(floori((x0 + TILE) / LAKE_CELL), floori((z0 + TILE) / LAKE_CELL))
+	var rect := PackedVector2Array([Vector2(x0, z0), Vector2(x0 + TILE, z0), Vector2(x0 + TILE, z0 + TILE), Vector2(x0, z0 + TILE)])
+	for cz in range(c0.y, c1.y + 1):
+		for cx in range(c0.x, c1.x + 1):
+			var lake = _lakes.get(Vector2i(cx, cz))
+			if lake == null:
+				continue
+			var reach: float = lake[2] * 1.25 + 4.0
+			if lake[0] + reach < x0 or lake[0] - reach > x0 + TILE or lake[1] + reach < z0 or lake[1] - reach > z0 + TILE:
+				continue
+			var outline := PackedVector2Array()
+			for s in 72:
+				var a := TAU * s / 72.0
+				var rr := _shore_radius(lake, cos(a), sin(a)) + 4.0
+				outline.append(Vector2(lake[0] + cos(a) * rr, lake[1] + sin(a) * rr))
+			for piece: PackedVector2Array in Geometry2D.intersect_polygons(outline, rect):
+				for j in Geometry2D.triangulate_polygon(piece):
+					tris.append(Vector3(piece[j].x, lake[3], piece[j].y))
+	return tris
 
 
 # --- Tiles --------------------------------------------------------------------
@@ -246,6 +396,13 @@ func _compute_tile(key: Vector2i) -> Dictionary:
 	dist.fill(INF)
 	var near_alt := PackedFloat32Array()
 	near_alt.resize(count)
+	# Index of the nearest point of the road, and the lowest point of another
+	# stretch of it close by, as the other leg of a hairpin.
+	var near_k := PackedInt32Array()
+	near_k.resize(count)
+	var low_alt := PackedFloat32Array()
+	low_alt.resize(count)
+	low_alt.fill(INF)
 	var wsum := PackedFloat32Array()
 	wsum.resize(count)
 	var hsum := PackedFloat32Array()
@@ -276,9 +433,34 @@ func _compute_tile(key: Vector2i) -> Dictionary:
 				if d < dist[i]:
 					dist[i] = d
 					near_alt[i] = p.y
+					near_k[i] = k
 				var w := 1.0 / (d2 + 25.0)
 				wsum[i] += w
 				hsum[i] += w * p.y
+	# Another stretch of the road within 50 m of a point, more than 100 m
+	# along the road from the nearest one: the ground there stays below it
+	# too, or the 20 m triangles between two legs of a hairpin rise over the
+	# lower one.
+	var other := int(ceil(50.0 / RES))
+	for k in near:
+		var p := pts[k]
+		var cx := int(round((p.x - ox) / RES))
+		var cz := int(round((p.z - oz) / RES))
+		for dz in range(-other, other + 1):
+			var gz := cz + dz
+			if gz < 0 or gz >= e:
+				continue
+			for dx in range(-other, other + 1):
+				var gx := cx + dx
+				if gx < 0 or gx >= e:
+					continue
+				var i := gz * e + gx
+				if absi(k - near_k[i]) * course.STEP < 100.0 or dist[i] > 30.0:
+					continue
+				var vx := ox + gx * RES - p.x
+				var vz := oz + gz * RES - p.z
+				if vx * vx + vz * vz < 2500.0 and p.y < low_alt[i]:
+					low_alt[i] = p.y
 	# Heights of the vertices, also those around the tile, where the verge
 	# strip of its road may reach.
 	var ext := PackedFloat32Array()
@@ -299,7 +481,7 @@ func _compute_tile(key: Vector2i) -> Dictionary:
 				# 20 m wide and would cover it. The verge strip lies over this
 				# bench and the ramp beyond it.
 				if d < 30.0:
-					h = minf(h, near_alt[i] - 0.8)
+					h = minf(h, minf(near_alt[i], low_alt[i]) - 0.8)
 			ext[i] = h
 	var heights := PackedFloat32Array()
 	heights.resize(N * N)
@@ -321,6 +503,7 @@ func _compute_tile(key: Vector2i) -> Dictionary:
 			line.append(Vector2(b.x, b.z))
 	var t := _tile_arrays(x0, z0, heights, road_d, line)
 	t["verge"] = _verge(x0, z0, near, ext, ox, oz, e)
+	t["water"] = _water(x0, z0)
 	return t
 
 
@@ -437,10 +620,10 @@ func _verge_section(k: int, side: float, near: PackedInt32Array, ext: PackedFloa
 		elif off < 3.0:
 			c = Color(0.24, 0.35, 0.14)
 		else:
-			# Embankments are grown over; only cuttings show rock.
-			var slope := 1.0 - nrm.y
+			# Embankments are grown over; cuttings show rock between the grass.
+			var slope := (1.0 - nrm.y) * 0.75
 			if points[i].y < road:
-				slope *= 0.4
+				slope *= 0.5
 			c = _ground_color(points[i].x, points[i].z, points[i].y, slope, hw + off)
 		colors.append(c)
 	# A skirt below the outer edge hides any gap to the ground.
@@ -494,6 +677,9 @@ func _tile_arrays(x0: float, z0: float, heights: PackedFloat32Array, road_d: Pac
 			normals[i] = nrm
 			var slope := 1.0 - nrm.y
 			colors[i] = _ground_color(x, z, h, slope, road_d[i])
+			# Reeds and mud along the shore of a lake.
+			if _in_lake(x, z) < 1.15:
+				colors[i] = colors[i].lerp(Color(0.25, 0.27, 0.14), 0.7)
 			# Woods in patches, single trees between them; below the tree line,
 			# on gentle slopes and off the road.
 			if road_d[i] > 12.0 and h < 1950.0 and slope < 0.3:
@@ -505,7 +691,8 @@ func _tile_arrays(x0: float, z0: float, heights: PackedFloat32Array, road_d: Pac
 					var tz := z + (f * 61.0 - floorf(f * 61.0) - 0.5) * RES
 					# Moved off its vertex, a tree may come near the road: it
 					# stays beyond the verge strip.
-					if road_d[i] > 70.0 or _off_road(Vector2(tx, tz), line) > 45.0:
+					var dry := _in_lake(tx, tz) > 1.06
+					if dry and (road_d[i] > 70.0 or _off_road(Vector2(tx, tz), line) > 45.0):
 						trees.append(Vector3(tx, _height_in(heights, x0, z0, tx, tz) - 0.3, tz))
 	var idx := PackedInt32Array()
 	idx.resize((N - 1) * (N - 1) * 6)
@@ -544,6 +731,22 @@ func _make_tile(t: Dictionary) -> Node3D:
 	# The ground is shaded by its normals; its own shadows cost too much.
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(mi)
+	var water: PackedVector3Array = t["water"]
+	if not water.is_empty():
+		var wa := []
+		wa.resize(Mesh.ARRAY_MAX)
+		wa[Mesh.ARRAY_VERTEX] = water
+		var up := PackedVector3Array()
+		up.resize(water.size())
+		up.fill(Vector3.UP)
+		wa[Mesh.ARRAY_NORMAL] = up
+		var wm := ArrayMesh.new()
+		wm.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, wa)
+		var wi := MeshInstance3D.new()
+		wi.mesh = wm
+		wi.material_override = _water_mat
+		wi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(wi)
 	var verge: Dictionary = t["verge"]
 	if not (verge["verts"] as PackedVector3Array).is_empty():
 		var va := []
@@ -590,7 +793,8 @@ func _ground_color(x: float, z: float, h: float, slope: float, road: float) -> C
 		elif patch < -0.3:
 			grass = Color(0.17, 0.28, 0.1)
 	var c := grass
-	var rock := Color(0.36, 0.35, 0.33)
+	# Rock, darker and warmer in patches.
+	var rock := Color(0.24, 0.22, 0.2).lerp(Color(0.33, 0.3, 0.26), 0.5 + 0.5 * n)
 	c = c.lerp(rock, clampf((slope - 0.3) * 3.0, 0.0, 1.0))
 	c = c.lerp(rock, clampf((h - 2000.0) / 300.0, 0.0, 1.0))
 	c = c.lerp(Color(0.94, 0.95, 0.97), clampf((h - 2550.0) / 200.0, 0.0, 1.0))

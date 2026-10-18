@@ -7,7 +7,8 @@ import 'package:sim/sim.dart';
 
 /// The 3D viewer: a separate program (made with Godot) that the game starts
 /// and talks to over a WebSocket on this machine. The game sends the stage
-/// to show; later the viewer will send the player's instructions back.
+/// to show, and while a stage is watched live what happens in it; the
+/// viewer sends back the player's orders, the speed and radio answers.
 class ViewerLink {
   ViewerLink._();
 
@@ -23,6 +24,10 @@ class ViewerLink {
   /// Title and stage of the race the viewer last reported as shown.
   String? shown;
 
+  /// Called with every message of the viewer about a stage watched live:
+  /// an order, a new speed, a pause or a radio answer.
+  void Function(Map<String, dynamic> message)? onLive;
+
   /// The texts the viewer shows, in the game's language.
   static Map<String, String> texts() => {
     for (final key in const [
@@ -34,17 +39,36 @@ class ViewerLink {
       'Motorbike',
       'Helicopter',
       'Rider',
+      'Attack',
+      'Follow',
+      'Tempo',
+      'Save energy',
+      'Wait for the leader',
+      'Back to the plan',
+      'Orders for',
+      'RADIO',
+      'recommended',
+      'Live',
     ])
       key: tr(key),
   };
 
-  /// Looks for the viewer: next to the game in a release, as an export in
-  /// the repository, or the Godot editor named in RADMANAGER_GODOT with the
-  /// project in the repository.
+  /// Arguments for the engine that tools add, e.g. the screen to open on.
+  List<String> engineArgs = const [];
+
+  /// Looks for the viewer: the Godot editor named in RADMANAGER_GODOT with
+  /// the project in the repository during development, next to the game in
+  /// a release, or as an export in the repository.
   ///
   /// @param dataDir The game's data folder.
   /// @returns The command and its arguments, or null if there is none.
   static List<String>? findViewer(String dataDir) {
+    final repo = Directory(dataDir).parent;
+    final godot = Platform.environment['RADMANAGER_GODOT'];
+    final project = File('${repo.path}/viewer/project.godot');
+    if (godot != null && File(godot).existsSync() && project.existsSync()) {
+      return [godot, '--path', project.parent.path];
+    }
     final name = Platform.isWindows
         ? 'RadmanagerViewer.exe'
         : Platform.isMacOS
@@ -63,17 +87,11 @@ class ViewerLink {
     ) {
       roots.add(d);
     }
-    final repo = Directory(dataDir).parent;
     for (final root in [...roots, repo]) {
       for (final path in ['viewer/$name', 'viewer/build/$os/$name']) {
         final f = File('${root.path}/$path');
         if (f.existsSync()) return [f.path];
       }
-    }
-    final godot = Platform.environment['RADMANAGER_GODOT'];
-    final project = File('${repo.path}/viewer/project.godot');
-    if (godot != null && File(godot).existsSync() && project.existsSync()) {
-      return [godot, '--path', project.parent.path];
     }
     return null;
   }
@@ -101,6 +119,7 @@ class ViewerLink {
       try {
         final process = await Process.start(command.first, [
           ...command.skip(1),
+          ...engineArgs,
           '--',
           '--port=${_server!.port}',
           '--token=$_token',
@@ -144,6 +163,10 @@ class ViewerLink {
           if (m is Map && m['type'] == 'shown') {
             shown = '${m['title']} ${m['stage']}'.trim();
           }
+          if (m is Map &&
+              const {'order', 'speed', 'pause', 'answer'}.contains(m['type'])) {
+            onLive?.call(m.cast<String, dynamic>());
+          }
           if (m is Map && m['type'] == 'hello') {
             final race = _waiting;
             _waiting = null;
@@ -159,6 +182,19 @@ class ViewerLink {
 
   /// Whether the viewer is connected.
   bool get connected => _socket != null;
+
+  /// Whether the viewer is connected and has the stage last handed over.
+  bool get ready => _socket != null && _waiting == null;
+
+  /// Sends a message to the viewer if it is connected.
+  ///
+  /// @param message A JSON-encodable map.
+  void send(Map<String, Object?> message) {
+    final socket = _socket;
+    if (socket != null && socket.readyState == WebSocket.open) {
+      socket.add(jsonEncode(message));
+    }
+  }
 
   String _newToken() {
     final r = Random.secure();

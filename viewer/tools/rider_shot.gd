@@ -2,7 +2,7 @@ extends SceneTree
 # Renders the rider model alone from six sides into one picture, to check
 # his pose and kit without a race; with --stances all six stances from one
 # side (--view=0..5 picks it).
-# Run: godot --path viewer --script tools/rider_shot.gd -- --out=shot.png [--crank=30] [--design=0] [--stance=1]
+# Run: godot --path viewer --script tools/rider_shot.gd -- --out=shot.png [--crank=30] [--design=0] [--stance=1] [--look=-1..1]
 #   [--kit=<key> --kits=<data/kits folder> [--leader=time|points|mountain|young --race=tour]]
 
 const RiderModel := preload("res://scripts/rider_model.gd")
@@ -66,6 +66,7 @@ func _initialize() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = RIDER_SHADER
 	mat.set_shader_parameter("vat", model.vat)
+	mat.set_shader_parameter("neck_points", model.neck)
 	mat.set_shader_parameter("frames", RiderModel.FRAMES)
 	mat.set_shader_parameter("vat_width", RiderModel.VAT_WIDTH)
 	mat.set_shader_parameter("rows_per_frame", model.rows_per_frame)
@@ -97,7 +98,9 @@ func _initialize() -> void:
 			mat.set_shader_parameter("kit_colours", kits.colours)
 			code = 8.0 + kits.layer_of(0, 1)
 	mm.set_instance_color(0, Color(0.82, 0.12, 0.14, code + 0.25))
-	mm.set_instance_custom_data(0, Color(0.95, 0.95, 0.95, float(args.get("stance", "1")) * 16.0 + _turn))
+	# --look turns the head back over the shoulder, -1 left to 1 right.
+	var look := clampi(roundi(float(args.get("look", "0")) * 7.0), -7, 7) + 8
+	mm.set_instance_custom_data(0, Color(0.95, 0.95, 0.95, float(args.get("stance", "1")) * 16.0 + 128.0 * look + _turn))
 	_mm = mm
 	var node := MultiMeshInstance3D.new()
 	node.multimesh = mm

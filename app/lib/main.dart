@@ -490,7 +490,7 @@ class _ShellState extends State<Shell> {
   /// Bookmarks the place shown, or removes its bookmark.
   void _toggleBookmark() {
     final here = _here;
-    if (here == null || _showPrep || widget.state.live != null) return;
+    if (here == null || _showPrep || widget.state.liveRace != null) return;
     final answer = widget.state.toggleBookmark(_bookmarkOf(here));
     if (answer != null) {
       ScaffoldMessenger.maybeOf(context)
@@ -513,7 +513,8 @@ class _ShellState extends State<Shell> {
   /// What the continue button does at the moment, or null while it is off.
   VoidCallback? get _continue {
     final s = widget.state;
-    if (s.busy || s.radio != null) return null;
+    // A stage watched live has its own controls.
+    if (s.busy || s.radio != null || s.liveRace != null) return null;
     if (s.career.seasonOver) return s.nextSeason;
     if (s.pending != null) return () => setState(() => _showPrep = true);
     return s.next;
@@ -835,7 +836,7 @@ class _ShellState extends State<Shell> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                s.live != null
+                                s.liveRace != null
                                     ? 'Live'
                                     : prep != null
                                     ? tr('Race preparation')
@@ -858,7 +859,9 @@ class _ShellState extends State<Shell> {
                               ),
                             ],
                           ),
-                          if (prep == null && s.live == null && _here != null)
+                          if (prep == null &&
+                              s.liveRace == null &&
+                              _here != null)
                             Builder(
                               builder: (context) {
                                 final marked = s.isBookmarked(
@@ -1075,14 +1078,11 @@ class _ShellState extends State<Shell> {
                       ),
                     ),
                     Expanded(
-                      child: s.live != null && !s.busy
+                      child: s.liveRace != null && !s.busy
                           ? LiveScreen(
-                              key: ValueKey(
-                                '${s.live!.race.id}-${s.live!.stageIndex}',
-                              ),
+                              key: ObjectKey(s.liveRace),
                               state: s,
-                              race: s.live!.race,
-                              index: s.live!.stageIndex,
+                              live: s.liveRace!,
                             )
                           : s.radio != null && !s.busy
                           ? RadioPanel(state: s)

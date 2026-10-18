@@ -4,7 +4,9 @@ extends RefCounted
 ##
 ## The game records for the end of every 200 m segment the time each rider
 ## passed it and his place in his group. Between two points a rider rides
-## at an even speed.
+## at an even speed. A stage watched live comes piece by piece: the points
+## arrive as the riders reach them, up to the next one each is on his way
+## to.
 
 const PROTOCOL := 1
 
@@ -24,6 +26,25 @@ var race_key := ""
 var leaders := {}
 ## Picture of the race's logo, empty if the game has none.
 var logo := ""
+
+## Whether the stage is watched live: the game sets the clock.
+var live := false
+## Race clock of the game's last update, its speed and whether it stands.
+var live_clock := 0.0
+var live_speed := 30.0
+var live_paused := false
+## Whether the stage is over; from then on it plays like a replay.
+var live_finished := false
+## Ticks (msec) when the last update came.
+var live_at := 0
+## Rider indices that have left the race.
+var gone := {}
+## Per rider index of the player's riders: energy, reserve, order, out.
+var own_state := {}
+## The radio question the race waits for: text, options, suggested; or null.
+var radio = null
+## Whether the stage is a time trial, which takes no orders.
+var time_trial := false
 
 # Segments of the route, in order.
 var seg_km := PackedFloat32Array()
@@ -88,6 +109,15 @@ func load_message(m: Dictionary) -> String:
 	race_key = str(m.get("raceKey", ""))
 	leaders = m.get("leaders", {}) if m.get("leaders") is Dictionary else {}
 	logo = str(m.get("logo", ""))
+	live = bool(m.get("live", false))
+	live_clock = 0.0
+	live_paused = false
+	live_finished = false
+	live_at = Time.get_ticks_msec()
+	gone.clear()
+	own_state.clear()
+	radio = null
+	time_trial = kind != "road"
 	var s: Dictionary = m["segments"]
 	seg_km = PackedFloat32Array(s["km"])
 	seg_len = PackedFloat32Array(s["length"])
@@ -130,6 +160,15 @@ func load_message(m: Dictionary) -> String:
 		var key := str(int(riders[i]["id"]))
 		times[i] = Marshalls.base64_to_raw(t_map.get(key, "")).to_float32_array()
 		ranks[i] = Marshalls.base64_to_raw(r_map.get(key, ""))
+		if live and (times[i] as PackedFloat32Array).is_empty():
+			# Live, the points come with the updates.
+			var t := PackedFloat32Array()
+			t.resize(track_km.size())
+			t.fill(NAN)
+			times[i] = t
+			var r := PackedByteArray()
+			r.resize(track_km.size())
+			ranks[i] = r
 		starts[i] = float(s_map.get(key, 0.0))
 		_cursor[i] = 0
 		var last := last_time(i)
@@ -139,7 +178,70 @@ func load_message(m: Dictionary) -> String:
 				first_finish = minf(first_finish, starts[i] + last)
 	events = m.get("events", [])
 	placings = m.get("placings", [])
+	if live:
+		end_time = 1e9
 	return ""
+
+
+## Takes an update of a stage watched live.
+##
+## @param m The update as parsed JSON.
+func apply_live(m: Dictionary) -> void:
+	var passes: Dictionary = m.get("passes", {})
+	for key in passes:
+		var i: int = index_of.get(int(key), -1)
+		if i < 0:
+			continue
+		var t: PackedFloat32Array = times[i]
+		var r: PackedByteArray = ranks[i]
+		var flat: Array = passes[key]
+		var k := 0
+		while k + 2 < flat.size():
+			var p := int(flat[k])
+			if p >= 0 and p < t.size():
+				t[p] = float(flat[k + 1])
+				r[p] = clampi(int(flat[k + 2]), 0, 255)
+				track_len = maxi(track_len, p + 1)
+			k += 3
+		# Packed arrays held in an Array are copies: put them back.
+		times[i] = t
+		ranks[i] = r
+	if m.has("allEvents"):
+		events = m["allEvents"]
+	else:
+		events.append_array(m.get("events", []))
+	for id in m.get("out", []):
+		var i: int = index_of.get(int(id), -1)
+		if i >= 0:
+			gone[i] = true
+	own_state.clear()
+	var own: Dictionary = m.get("own", {})
+	for key in own:
+		var i: int = index_of.get(int(key), -1)
+		if i >= 0:
+			own_state[i] = own[key]
+	radio = m.get("radio")
+	live_clock = float(m.get("clock", live_clock))
+	live_speed = float(m.get("speed", live_speed))
+	live_paused = bool(m.get("paused", false))
+	live_at = Time.get_ticks_msec()
+	if bool(m.get("finished", false)) and not live_finished:
+		live_finished = true
+		placings = m.get("placings", placings)
+		end_time = 0.0
+		first_finish = INF
+		for i in riders.size():
+			_cursor[i] = 0
+			var last := last_time(i)
+			if not is_nan(last):
+				end_time = maxf(end_time, starts[i] + last)
+				if valid_points(i) == track_km.size():
+					first_finish = minf(first_finish, starts[i] + last)
+
+
+## @returns Whether the game sets the clock: live and not over yet.
+func clock_from_game() -> bool:
+	return live and not live_finished
 
 
 func _color(hex: String, fallback: Color) -> Color:
@@ -229,6 +331,10 @@ func rank_at(i: int, clock: float) -> int:
 func in_race(i: int, clock: float) -> bool:
 	var n := valid_points(i)
 	var local := clock - starts[i]
+	if clock_from_game() and n < track_km.size():
+		# Live, a rider waits at his last point until the next one comes;
+		# only the game says when he has left the race.
+		return local >= -20.0 and not gone.has(i)
 	# In a time trial a rider rolls up to the start shortly before his
 	# time.
 	if local < -20.0:

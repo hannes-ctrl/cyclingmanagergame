@@ -2,10 +2,12 @@ extends Node3D
 ## The race convoy: team cars with spare bikes on the roof behind the groups
 ## that have room behind them (in a time trial behind every rider), and the
 ## TV motorbikes ahead of the leading groups. The cars carry the colour of
-## the team they belong to.
+## the team they belong to. A car stops behind a rider who has punctured or
+## crashed; after a puncture its mechanic stands at his back wheel.
 
 const MAX_CARS := 64
 const MAX_MOTOS := 8
+const MAX_STAFF := 8
 ## Metres from the last rider of a group to the first car, and between cars.
 const CAR_BACK := 32.0
 const CAR_SPACING := 13.0
@@ -17,6 +19,7 @@ var course
 var riders
 var _cars: MultiMesh
 var _motos: MultiMesh
+var _staff: MultiMesh
 
 
 ## @param r The race.
@@ -34,12 +37,17 @@ func setup(r, c, rd) -> void:
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_cars = _multimesh(_car_mesh(), MAX_CARS, mat)
 	_motos = _multimesh(_moto_mesh(), MAX_MOTOS, mat)
+	if not course.spectator_meshes.is_empty():
+		_staff = _multimesh(course.spectator_meshes[0], MAX_STAFF, course.spectator_material, true)
 
 
-func _multimesh(mesh: Mesh, n: int, mat: Material) -> MultiMesh:
+## @param custom Whether the instances carry custom data (the trousers of
+##   people).
+func _multimesh(mesh: Mesh, n: int, mat: Material, custom := false) -> MultiMesh:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
+	mm.use_custom_data = custom
 	mm.mesh = mesh
 	mm.instance_count = n
 	mm.visible_instance_count = 0
@@ -53,9 +61,13 @@ func _multimesh(mesh: Mesh, n: int, mat: Material) -> MultiMesh:
 ## Puts the convoy where it is at a moment of the race.
 ##
 ## @param clock Seconds since the first start.
-func place(clock: float) -> void:
+## @param eye Where the camera is: a car or motorbike right at it is left
+##   out, so that the camera never looks out of one.
+func place(clock: float, eye: Vector3 = Vector3(INF, INF, INF)) -> void:
+	_eye = eye
 	var cars: Array = []
 	var motos: Array = []
+	var staff: Array = []
 	var groups: Array = riders.groups
 	if race.kind != "road":
 		# A time trial: each rider on the road has his team car behind him.
@@ -91,8 +103,30 @@ func place(clock: float) -> void:
 				if CAR_BACK + k * CAR_SPACING > room - 30.0:
 					break
 				cars.append([tail - CAR_BACK - k * CAR_SPACING, 1.2 if k % 2 == 0 else -0.2, _team_colour(teams[k])])
+	# A rider stopped by a puncture or a crash: his team car pulls up behind
+	# him, and stays a minute with one who gives up. After a puncture he waits
+	# on the right, and the mechanic changes his back wheel.
+	if race.kind == "road":
+		for i in race.riders.size():
+			if (riders._stops[i] as Array).is_empty():
+				continue
+			var w: Dictionary = riders._window(i, clock)
+			if w.is_empty() or clock < float(w["start"]):
+				continue
+			var go: float = w["go"]
+			if clock > (float(w["start"]) + 60.0 if go == INF else go):
+				continue
+			var at: float = w["at"]
+			var hw: float = course.width_at(at) * 0.5
+			var fall: bool = w["fall"]
+			var colour := _team_colour(int(race.riders[i]["team"]))
+			cars.push_front([at - 7.5, (float(w["side"]) if fall else 1.0) * (hw - 1.3), colour])
+			if not fall and clock > float(w["start"]) + 2.5 and clock < go - 0.5:
+				staff.append([at + 0.4 * float(w["v"]) - 0.8, hw - 1.25, colour, PI * 0.5])
 	_fill(_cars, cars.slice(0, MAX_CARS))
 	_fill(_motos, motos.slice(0, MAX_MOTOS))
+	if _staff != null:
+		_fill(_staff, staff.slice(0, MAX_STAFF))
 
 
 func _team_colour(team_id: int) -> Color:
@@ -101,6 +135,12 @@ func _team_colour(team_id: int) -> Color:
 	return race.teams.get(team_id, {}).get("color", Color(0.8, 0.8, 0.8))
 
 
+## Where the camera is, see [place].
+var _eye := Vector3(INF, INF, INF)
+
+
+## Puts the instances of a list along the road: [metres, metres to the right
+## of the middle, colour, turn to the right from the direction of the road].
 func _fill(mm: MultiMesh, list: Array) -> void:
 	var k := 0
 	for item in list:
@@ -114,8 +154,15 @@ func _fill(mm: MultiMesh, list: Array) -> void:
 		if ahead.length_squared() < 0.01:
 			ahead = dir
 		p += right * float(item[1]) + Vector3(0.0, course.LIFT + course.CROWN * 0.8, 0.0)
-		mm.set_instance_transform(k, Transform3D(Basis.looking_at(ahead.normalized(), Vector3.UP, true), p))
+		if p.distance_squared_to(_eye) < 36.0:
+			continue
+		var face := ahead.normalized()
+		if item.size() > 3:
+			face = face.rotated(Vector3.UP, -float(item[3]))
+		mm.set_instance_transform(k, Transform3D(Basis.looking_at(face, Vector3.UP, true), p))
 		mm.set_instance_color(k, item[2] if item.size() > 2 else Color.WHITE)
+		if mm.use_custom_data:
+			mm.set_instance_custom_data(k, Color(0.1, 0.1, 0.12))
 		k += 1
 	mm.visible_instance_count = k
 
