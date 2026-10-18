@@ -8,11 +8,11 @@ import '../test/synthetic.dart';
 /// Usage: dart run tool/trace_run.dart route seed [tuning.json]
 void main(List<String> args) {
   final routes = {
-    'Flach': flatStage(),
-    'Rampe': puncheurFinish(),
-    'Hügel': hillyClassic(),
-    'Berg': mountainStage(),
-    'Pflaster': cobbledClassic(),
+    'Flat': flatStage(),
+    'Ramp': puncheurFinish(),
+    'Hills': hillyClassic(),
+    'Mountain': mountainStage(),
+    'Cobbles': cobbledClassic(),
   };
   final tuning = args.length > 2 ? SimTuning.load(args[2]) : SimTuning.standard;
   final r = simulateStage(routes[args[0]]!, syntheticField(),
@@ -22,6 +22,6 @@ void main(List<String> args) {
   }
   for (final x in r.timeline) {
     stdout.writeln(
-        'km ${x.km.toStringAsFixed(0).padLeft(4)}  vorn ${x.frontSize.toString().padLeft(3)} +${x.frontGapS.round().toString().padLeft(4)}  Favoriten ${x.mainSize.toString().padLeft(3)}  Mitte +${x.lastGapS.round()}');
+        'km ${x.km.toStringAsFixed(0).padLeft(4)}  front ${x.frontSize.toString().padLeft(3)} +${x.frontGapS.round().toString().padLeft(4)}  favourites ${x.mainSize.toString().padLeft(3)}  middle +${x.lastGapS.round()}');
   }
 }

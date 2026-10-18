@@ -154,6 +154,12 @@ class SimTuning {
         'Effort above which a rider with nothing to ride for lets the group go'),
     TuningParam('aimlessEffort', 0.72, 0.6, 0.88,
         'Effort of a group in which nobody races any more on a hard day'),
+    TuningParam('rollInKm', 1.0, 0.0, 3.0,
+        'Kilometres before the finish from which riders with nothing to ride for let the group go'),
+    TuningParam('bunchSplitRate', 0.05, 0.0, 0.2,
+        'Chance per place behind the start of the splits that the line of a big group breaks in the sprint'),
+    TuningParam('bunchSplitFrom', 30, 10, 80,
+        'Place in a big group from which its line may break in the sprint'),
   ];
 
   /// Threshold power in W/kg at attribute 70.
@@ -302,6 +308,17 @@ class SimTuning {
   /// Effort of a group in which nobody races any more on a hard day: it
   /// rolls to the finish.
   double get aimlessEffort => _a[49];
+
+  /// Kilometres before the finish from which riders with nothing left to
+  /// ride for let the group go and roll in.
+  double get rollInKm => _a[50];
+
+  /// Chance per place behind [bunchSplitFrom] of a big group that its
+  /// line breaks in the sprint, so that a gap of a second or more opens.
+  double get bunchSplitRate => _a[51];
+
+  /// Place in a big group from which its line may break in the sprint.
+  double get bunchSplitFrom => _a[52];
 
   /// Effort of the front on cobbled sectors while the race is on.
   double get cobbleEffort => _a[34];

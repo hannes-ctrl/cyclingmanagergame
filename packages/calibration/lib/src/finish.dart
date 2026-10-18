@@ -1,10 +1,10 @@
 /// How a race was decided at the finish.
 enum FinishKind {
   solo('Solo'),
-  duo('Zu zweit'),
-  smallGroup('Kleine Gruppe'),
-  bunch('Massensprint'),
-  timeTrial('Zeitfahren');
+  duo('Duo'),
+  smallGroup('Small group'),
+  bunch('Bunch sprint'),
+  timeTrial('Time trial');
 
   const FinishKind(this.label);
   final String label;

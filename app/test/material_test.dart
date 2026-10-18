@@ -13,7 +13,7 @@ void main() {
   final dataDir = AppState.findDataDir();
 
   test(
-    'Material, Personal und Teamstile',
+    'Material, staff and team styles',
     skip: dataDir == null,
     timeout: const Timeout(Duration(minutes: 10)),
     () {
@@ -123,7 +123,7 @@ void main() {
   );
 
   test(
-    'Einzelrennen außerhalb der Karriere',
+    'A single race outside the career',
     skip: dataDir == null,
     timeout: const Timeout(Duration(minutes: 10)),
     () {

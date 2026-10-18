@@ -252,19 +252,79 @@ class RadmanagerApp extends StatelessWidget {
         );
       },
       home: state == null
-          ? Scaffold(
-              body: Center(
-                child: Text(
-                  tr(
-                    'The world database data\\world.sqlite was not found.\nIt is created with "worlddb import".',
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            )
+          ? const _MissingWorld()
           : _Root(state: state!, settings: settings, menu: menu),
     );
   }
+}
+
+/// Shown when the world database is missing, as on a fresh installation:
+/// where it belongs, and a button to look again once it is there.
+class _MissingWorld extends StatefulWidget {
+  const _MissingWorld();
+
+  @override
+  State<_MissingWorld> createState() => _MissingWorldState();
+}
+
+class _MissingWorldState extends State<_MissingWorld> {
+  var _tried = false;
+
+  /// The folder the database belongs in: `data` next to the program.
+  String get _expected =>
+      '${File(Platform.resolvedExecutable).parent.path}\\data\\world.sqlite';
+
+  void _retry() {
+    final dir = AppState.findDataDir();
+    if (dir == null) {
+      setState(() => _tried = true);
+      return;
+    }
+    final settings = AppSettings(dir);
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            _Root(state: AppState(dir), settings: settings, menu: true),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(tr('The world database is missing'), style: headStyle(26)),
+            const SizedBox(height: 12),
+            Text(
+              tr(
+                'Radmanager needs the file world.sqlite, built from the WorldDB for Pro Cycling Manager with "worlddb import" (see README). Copy it here:',
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            SelectableText(
+              _expected,
+              style: const TextStyle(color: TeamColors.gold),
+            ),
+            const SizedBox(height: 18),
+            FilledButton(onPressed: _retry, child: Text(tr('Check again'))),
+            if (_tried)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Text(
+                  tr('Still not found.'),
+                  style: const TextStyle(color: TeamColors.red),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 /// Pages of the sidebar with label and icon.
@@ -524,6 +584,16 @@ class _ShellState extends State<Shell> {
         s.riderPage = null;
         s.teamPage = null;
       });
+      return true;
+    }
+    // In the inbox the arrow keys step from message to message.
+    if (_page == _Page.inbox &&
+        s.riderPage == null &&
+        s.teamPage == null &&
+        !_showPrep &&
+        (key == LogicalKeyboardKey.arrowUp ||
+            key == LogicalKeyboardKey.arrowDown)) {
+      s.stepInbox(key == LogicalKeyboardKey.arrowUp ? -1 : 1);
       return true;
     }
     // In a list the arrow keys move the cursor and Enter opens the row.
@@ -1254,31 +1324,34 @@ class _Sidebar extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 4),
-          item(_Page.home),
-          item(_Page.inbox, badge: state.unread > 0 ? '${state.unread}' : null),
-          group('Team'),
-          item(_Page.squad),
-          item(_Page.dev),
-          item(_Page.camps),
-          group(tr('Races')),
-          item(_Page.calendar),
-          item(_Page.planner, badge: open > 0 ? '$open' : null),
-          item(_Page.races),
-          item(_Page.rankings),
-          group(tr('Market')),
-          item(_Page.transfers),
-          item(_Page.search),
-          group(tr('Management')),
-          item(_Page.finance),
-          item(_Page.staff),
-          item(_Page.delegation),
-          item(_Page.history),
-          // The bookmarks take the room that is left and scroll.
+          // The pages and the bookmarks scroll on a low window; head and
+          // foot stay.
           Expanded(
             child: ListView(
-              padding: EdgeInsets.zero,
+              padding: const EdgeInsets.only(top: 4),
               children: [
+                item(_Page.home),
+                item(
+                  _Page.inbox,
+                  badge: state.unread > 0 ? '${state.unread}' : null,
+                ),
+                group('Team'),
+                item(_Page.squad),
+                item(_Page.dev),
+                item(_Page.camps),
+                group(tr('Races')),
+                item(_Page.calendar),
+                item(_Page.planner, badge: open > 0 ? '$open' : null),
+                item(_Page.races),
+                item(_Page.rankings),
+                group(tr('Market')),
+                item(_Page.transfers),
+                item(_Page.search),
+                group(tr('Management')),
+                item(_Page.finance),
+                item(_Page.staff),
+                item(_Page.delegation),
+                item(_Page.history),
                 if (state.bookmarks.isNotEmpty) group(tr('Bookmarks')),
                 for (final b in state.bookmarks)
                   if (_placeOf(b) case final place?) mark(place, b),
@@ -1363,8 +1436,7 @@ class _Badge extends StatelessWidget {
 const _weekdays = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
 String _longDate(DateTime d) =>
-    '${tr(_weekdays[d.weekday - 1])}, ${d.day.toString().padLeft(2, '0')}.'
-    '${d.month.toString().padLeft(2, '0')}.${d.year}';
+    '${tr(_weekdays[d.weekday - 1])}, ${dayText(d, year: true)}';
 
 /// Heading above tables, used by the screens.
 class SectionTitle extends StatelessWidget {

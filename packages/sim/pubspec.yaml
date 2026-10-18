@@ -1,6 +1,6 @@
 name: sim
-description: Rennsimulation des Radmanagers. Läuft ohne Oberfläche.
-version: 0.5.0-alpha
+description: Race simulation of Radmanager. Runs without an interface.
+version: 0.6.0-alpha
 publish_to: none
 
 environment:

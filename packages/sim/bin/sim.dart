@@ -3,11 +3,11 @@ import 'dart:io';
 import 'package:sim/sim.dart';
 
 const _usage = '''
-Aufruf: dart run sim <befehl>
+Usage: dart run sim <command>
 
-  stage "<rennen>" [etappe] [--runs n] [--seed s]   Etappe oder Eintagesrennen
-  race "<rennen>" [--seed s]                        ganze Rundfahrt mit Gesamtwertung
-  check                                             Selbsttest des Sim-Kerns
+  stage "<race>" [stage] [--runs n] [--seed s]   a stage or one-day race
+  race "<race>" [--seed s]                       a whole stage race with its classifications
+  check                                          self-test of the simulation
 ''';
 
 /// Formats a duration for the console.
@@ -22,7 +22,7 @@ String _time(double s) {
       : '$m:${sec.toString().padLeft(2, '0')}';
 }
 
-String _gap(double s) => s.round() == 0 ? 'gl. Zeit' : '+${_time(s)}';
+String _gap(double s) => s.round() == 0 ? 'same time' : '+${_time(s)}';
 
 void main(List<String> argv) {
   final args = [...argv];
@@ -54,7 +54,7 @@ void main(List<String> argv) {
       World(Platform.script.resolve('../../../data/world.sqlite').toFilePath());
   final race = world.findRace(args[1]);
   if (race == null) {
-    stderr.writeln('Kein Rennen mit "${args[1]}" gefunden.');
+    stderr.writeln('No race matching "${args[1]}".');
     exit(2);
   }
   final stages = world.stages(race.id);
@@ -70,10 +70,10 @@ void main(List<String> argv) {
       final stage = stages.firstWhere((s) => s.number == number);
       final route = world.route(stage.id);
       print(
-          '${race.name}${stages.length > 1 ? ', Etappe $number' : ''}: ${route.name}');
-      print('${route.raceKm.toStringAsFixed(1)} km, ${riders.length} Starter, '
-          'Selektivität ${route.selectivity.round()}, '
-          'Zielsteigung ${(route.finishGrade * 100).toStringAsFixed(1)} %');
+          '${race.name}${stages.length > 1 ? ', stage $number' : ''}: ${route.name}');
+      print('${route.raceKm.toStringAsFixed(1)} km, ${riders.length} starters, '
+          'selectivity ${route.selectivity.round()}, '
+          'finish gradient ${(route.finishGrade * 100).toStringAsFixed(1)} %');
       if (runs == 1) {
         _printStage(simulateStage(route, riders, seed: seed, tuning: tuning));
       } else {
@@ -84,7 +84,7 @@ void main(List<String> argv) {
       final watch = Stopwatch()..start();
       final result =
           simulateStageRace(routes, riders, seed: seed, tuning: tuning);
-      print('${race.name}: ${routes.length} Etappen, ${riders.length} Starter, '
+      print('${race.name}: ${routes.length} stages, ${riders.length} starters, '
           '${watch.elapsedMilliseconds} ms');
       for (var i = 0; i < routes.length; i++) {
         final r = result.stages[i];
@@ -92,9 +92,9 @@ void main(List<String> argv) {
         print(
             '${(i + 1).toString().padLeft(3)}  ${routes[i].name.padRight(46)} '
             '${w.rider.name.padRight(18)} ${w.rider.team.padRight(4)} '
-            '${r.breakSurvived ? 'Ausreißer' : ''}');
+            '${r.breakSurvived ? 'breakaway' : ''}');
       }
-      print('\nGesamtwertung');
+      print('\nGeneral classification');
       for (var i = 0; i < 15; i++) {
         final e = result.gc[i];
         print('${(i + 1).toString().padLeft(3)}  ${e.rider.name.padRight(22)} '
@@ -104,10 +104,10 @@ void main(List<String> argv) {
       final last = result.standings.last;
       String top(Iterable<String> rows) => rows.take(3).join(', ');
       print(
-          '\nPunkte:    ${top(last.points.map((e) => '${e.rider.name} ${e.points}'))}');
+          '\nPoints:    ${top(last.points.map((e) => '${e.rider.name} ${e.points}'))}');
       print(
-          'Berg:      ${top(last.mountains.map((e) => '${e.rider.name} ${e.points}'))}');
-      print('Nachwuchs: ${top(last.youth.map((e) => e.rider.name))}');
+          'Mountains: ${top(last.mountains.map((e) => '${e.rider.name} ${e.points}'))}');
+      print('Youth:     ${top(last.youth.map((e) => e.rider.name))}');
       print('Teams:     ${top(last.teams.map((e) => e.team))}');
     default:
       stdout.write(_usage);
@@ -131,8 +131,8 @@ void _printStage(StageResult r) {
         '${i == 0 ? _time(p.timeS) : _gap(p.timeS - r.winnerTimeS)}');
   }
   final speed = r.placings.first.timeS;
-  print('\nLetzter: ${_gap(r.placings.last.timeS - r.winnerTimeS)}, '
-      'Gruppen im Ziel: ${r.placings.last.group + 1}, Siegerzeit ${_time(speed)}');
+  print('\nLast: ${_gap(r.placings.last.timeS - r.winnerTimeS)}, '
+      'groups at the finish: ${r.placings.last.group + 1}, winning time ${_time(speed)}');
 }
 
 /// Runs a stage several times and prints the spread of outcomes.
@@ -160,16 +160,16 @@ void _printSeries(SimRoute route, List<SimRider> riders, int runs, int seed,
     gap10 += r.placings[9].timeS - w.timeS;
     speed += route.raceKm / (w.timeS / 3600);
   }
-  print('\n$runs Läufe in ${watch.elapsedMilliseconds} ms');
-  print('Schnitt des Siegers: ${(speed / runs).toStringAsFixed(1)} km/h');
+  print('\n$runs runs in ${watch.elapsedMilliseconds} ms');
+  print('Speed of the winner: ${(speed / runs).toStringAsFixed(1)} km/h');
   print(
-      'Erste Gruppe im Mittel: ${(firstGroup / runs).toStringAsFixed(1)} Fahrer, '
-      'Solosiege: ${(100 * solo / runs).round()} %');
-  print('Abstand Platz 10 im Mittel: ${_gap(gap10 / runs)}');
-  print('Ausreißer gewinnen: ${(100 * breaks / runs).round()} %');
+      'First group on average: ${(firstGroup / runs).toStringAsFixed(1)} riders, '
+      'solo wins: ${(100 * solo / runs).round()} %');
+  print('Gap of place 10 on average: ${_gap(gap10 / runs)}');
+  print('Breakaways win: ${(100 * breaks / runs).round()} %');
   final order = wins.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
-  print('Sieger:');
+  print('Winners:');
   for (final e in order.take(10)) {
     print(
         '  ${(100 * e.value / runs).round().toString().padLeft(3)} %  ${e.key}');
@@ -190,7 +190,7 @@ bool _check() {
   void expect(String what, bool good, [Object? detail]) {
     ok &= good;
     print(
-        '${good ? 'ok  ' : 'FEHL'} $what${detail == null ? '' : ': $detail'}');
+        '${good ? 'ok  ' : 'FAIL'} $what${detail == null ? '' : ': $detail'}');
   }
 
   final world =
@@ -198,7 +198,7 @@ bool _check() {
   final tour = world.findRace('Tour de France')!;
   final stages = world.stages(tour.id);
   final riders = world.startList(tour.id);
-  expect('Startliste Tour', riders.length == 184, riders.length);
+  expect('start list of the Tour', riders.length == 184, riders.length);
 
   /// Loads a stage of the test race by its number.
   ///
@@ -211,22 +211,22 @@ bool _check() {
   final a = simulateStage(mountain, riders, seed: 7);
   final b = simulateStage(mountain, riders, seed: 7);
   expect(
-      'gleicher Seed, gleiches Ergebnis',
+      'same seed, same result',
       Iterable.generate(a.placings.length).every((i) =>
           a.placings[i].rider.id == b.placings[i].rider.id &&
           a.placings[i].timeS == b.placings[i].timeS));
-  expect('jeder Fahrer im Ziel oder ausgeschieden',
+  expect('every rider finishes or abandons',
       a.placings.length + a.abandons.length == riders.length);
   expect(
-      'jeder Fahrer genau einmal',
+      'every rider exactly once',
       {
             ...a.placings.map((p) => p.rider.id),
             ...a.abandons.map((x) => x.rider.id)
           }.length ==
           riders.length);
   final kmh = mountain.raceKm / (a.winnerTimeS / 3600);
-  expect('Segmente von 200 m', mountain.segments.first.lengthM == 200);
-  expect('Bergetappe: Schnitt zwischen 28 und 38 km/h', kmh > 28 && kmh < 38,
+  expect('segments of 200 m', mountain.segments.first.lengthM == 200);
+  expect('mountain stage: speed between 28 and 38 km/h', kmh > 28 && kmh < 38,
       kmh.toStringAsFixed(1));
 
   /// @param r A stage result.
@@ -241,10 +241,10 @@ bool _check() {
     if (firstGroup(simulateStage(mountain, riders, seed: 100 + i)) <= 12)
       small++;
   }
-  expect('Flachetappe: Massenankunft oder Ausreißersieg', bunch >= runs * 0.9,
-      '$bunch von $runs');
-  expect('Bergetappe: kleine Spitzengruppe', small >= runs * 0.9,
-      '$small von $runs');
+  expect('flat stage: bunch finish or breakaway win', bunch >= runs * 0.9,
+      '$bunch of $runs');
+  expect('mountain stage: small leading group', small >= runs * 0.9,
+      '$small of $runs');
 
   final tt = simulateStage(timeTrial, riders, seed: 1);
   final top = tt.placings.take(10).map((p) => p.rider.attributes.timeTrial);
@@ -254,9 +254,9 @@ bool _check() {
   /// @returns Their arithmetic mean.
   double mean(Iterable<double> x) => x.reduce((p, q) => p + q) / x.length;
   expect(
-      'Zeitfahren: die Besten haben hohe Zeitfahrwerte',
+      'time trial: the best have high time trial values',
       mean(top) > mean(all) + 5,
-      '${mean(top).toStringAsFixed(1)} gegen ${mean(all).toStringAsFixed(1)}');
+      '${mean(top).toStringAsFixed(1)} against ${mean(all).toStringAsFixed(1)}');
 
   final roubaix = world.findRace('Paris-Roubaix')!;
   final cobbles = world.route(world.stages(roubaix.id).first.id);
@@ -266,8 +266,8 @@ bool _check() {
     if (firstGroup(simulateStage(cobbles, field, seed: 200 + i)) <= 30)
       selective++;
   }
-  expect('Roubaix: das Pflaster trennt das Feld', selective >= runs * 0.8,
-      '$selective von $runs');
+  expect('Roubaix: the cobbles split the field', selective >= runs * 0.8,
+      '$selective of $runs');
   world.close();
   return ok;
 }

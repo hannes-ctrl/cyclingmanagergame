@@ -236,10 +236,7 @@ class _SquadScreenState extends State<SquadScreen> {
           final until = shape(r).injuredUntil;
           if (until != null && until.isAfter(career.today)) {
             return cellText(
-              tr('out until {0}.{1}.', [
-                until.day.toString().padLeft(2, '0'),
-                until.month.toString().padLeft(2, '0'),
-              ]),
+              tr('out until {0}', [dayText(until)]),
               color: TeamColors.red,
             );
           }
@@ -538,23 +535,20 @@ class _SquadScreenState extends State<SquadScreen> {
                       ],
                     ),
                   ),
-                Text(
-                  switch (_view) {
-                    _View.attributes => tr(
-                      'FL flat · MTN mountain · MED medium mountain · HIL hill · TT time trial · PRL prologue · COB cobbles · SPR sprint · ACC acceleration · DH downhill · BRK breakaway · STA stamina · RES resistance · REC recovery · click a rider to open his profile',
-                    ),
-                    _View.shape => tr(
-                      'Fitness follows the load of the last six weeks, fatigue that of the last week. Freshness is the difference. Form is the bonus on power at the start of a race.',
-                    ),
-                    _View.contracts => tr(
-                      'Talks about new contracts are possible under Transfers from 1 August. The market value is the wage a rider of this strength usually gets.',
-                    ),
-                    _View.season => tr(
-                      'Points count for the ranking; wins are races, stages and general classifications. Planned are the race days from the race planner.',
-                    ),
-                  },
-                  style: const TextStyle(fontSize: 12, color: TeamColors.muted),
-                ),
+                InfoTip(switch (_view) {
+                  _View.attributes => tr(
+                    'FL flat · MTN mountain · MED medium mountain · HIL hill · TT time trial · PRL prologue · COB cobbles · SPR sprint · ACC acceleration · DH downhill · BRK breakaway · STA stamina · RES resistance · REC recovery · click a rider to open his profile',
+                  ),
+                  _View.shape => tr(
+                    'Fitness follows the load of the last six weeks, fatigue that of the last week. Freshness is the difference. Form is the bonus on power at the start of a race.',
+                  ),
+                  _View.contracts => tr(
+                    'Talks about new contracts are possible under Transfers from 1 August. The market value is the wage a rider of this strength usually gets.',
+                  ),
+                  _View.season => tr(
+                    'Points count for the ranking; wins are races, stages and general classifications. Planned are the race days from the race planner.',
+                  ),
+                }),
               ],
             ),
           ),

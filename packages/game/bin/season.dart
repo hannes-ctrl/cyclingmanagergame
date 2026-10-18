@@ -29,27 +29,27 @@ void main(List<String> args) {
     }
   }
   final started = career.progress.values;
-  print('Saison ${career.year} mit ${team.name}: '
-      '${started.length} von ${career.calendar.length} Rennen, $stages Renntage '
+  print('Season ${career.year} with ${team.name}: '
+      '${started.length} of ${career.calendar.length} races, $stages race days '
       'in ${watch.elapsed.inSeconds} s '
-      '(längster Tag ${slowestMs / 1000} s bei $busiest Rennen)');
+      '(longest day ${slowestMs / 1000} s with $busiest races)');
 
   final names = {for (final r in world.riders()) r.id: r};
-  print('\nGroße Rennen');
+  print('\nBig races');
   for (final p in started.where((p) => p.race.tier.factor >= 8)) {
     final winner = p.race.isStageRace
         ? p.run.standings.last.general.first.rider
         : p.run.results.last.placings.first.rider;
     print('  ${p.race.info.name.padRight(34)} ${winner.name} (${winner.team})');
   }
-  print('\nFahrerrangliste');
+  print('\nRider ranking');
   final riders = career.riderPoints.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
   for (final e in riders.take(12)) {
     final r = names[e.key]!;
     print('  ${e.value.round().toString().padLeft(6)}  ${r.name} (${r.team})');
   }
-  print('\nTeamrangliste');
+  print('\nTeam ranking');
   final teams = career.teamPoints.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
   for (final e in teams.take(8)) {
@@ -57,8 +57,7 @@ void main(List<String> args) {
         '  ${e.value.round().toString().padLeft(6)}  ${career.teams[e.key]!.name}');
   }
   final place = teams.indexWhere((e) => e.key == team.id);
-  print('\n${team.name}: Platz ${place + 1}, '
-      '${career.inbox.length} Nachrichten im Postfach, davon '
-      '${career.inbox.where((m) => m.subject.endsWith('Sieg')).length} Siege');
+  print('\n${team.name}: place ${place + 1}, '
+      '${career.inbox.length} messages in the inbox');
   world.close();
 }

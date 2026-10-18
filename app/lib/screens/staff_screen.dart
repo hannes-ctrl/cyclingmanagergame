@@ -183,20 +183,24 @@ class _StaffScreenState extends State<StaffScreen> {
               Expanded(
                 child: Text(
                   _message ??
-                      tr(
-                        'Staff costs {0} € a year · coaches speed up development (one per ten riders, currently covered: {1} %), doctors shorten lay-offs, scouts make other teams\' riders assessable, mechanics change wheels faster and prevent defects (quality {2} %), physiotherapists help the riders recover in stage races (quality {3} %).',
-                        [
-                          euro(book.wages(s.team.id)),
-                          (book.coachCover(s.team.id) * 100).round(),
-                          (book.mechanicQuality(s.team.id) * 100).round(),
-                          (book.physioQuality(s.team.id) * 100).round(),
-                        ],
-                      ),
+                      tr('Staff costs {0} € a year', [
+                        euro(book.wages(s.team.id)),
+                      ]),
                   style: TextStyle(
                     color: _message == null
                         ? TeamColors.muted
                         : TeamColors.text,
                   ),
+                ),
+              ),
+              InfoTip(
+                tr(
+                  'Coaches speed up development (one per ten riders, currently covered: {0} %), doctors shorten lay-offs, scouts make other teams\' riders assessable, mechanics change wheels faster and prevent defects (quality {1} %), physiotherapists help the riders recover in stage races (quality {2} %).',
+                  [
+                    (book.coachCover(s.team.id) * 100).round(),
+                    (book.mechanicQuality(s.team.id) * 100).round(),
+                    (book.physioQuality(s.team.id) * 100).round(),
+                  ],
                 ),
               ),
             ],
@@ -326,8 +330,7 @@ class _ScoutingState extends State<_Scouting> {
       for (final r in career.riderById.values)
         if (r.country.isNotEmpty) r.country,
     }.toList()..sort();
-    String date(DateTime d) =>
-        '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.';
+    String date(DateTime d) => dayText(d);
     String stage(int n) => switch (n) {
       1 => tr('first impression'),
       2 => tr('detailed report'),
@@ -376,13 +379,9 @@ class _ScoutingState extends State<_Scouting> {
                 children: [
                   Label(tr('New assignment')),
                   const SizedBox(height: 4),
-                  Text(
+                  InfoTip(
                     tr(
                       'A scout looks for two months for riders of a country, an age and a kind, and reports on the most promising ones every one to three weeks. How good his choice is depends on his skill.',
-                    ),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: TeamColors.muted,
                     ),
                   ),
                   const SizedBox(height: 10),

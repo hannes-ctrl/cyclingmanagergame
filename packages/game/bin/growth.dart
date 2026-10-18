@@ -41,16 +41,16 @@ void main(List<String> args) {
 
     final ages = pros.map((r) => (c.year - r.born ~/ 10000).toDouble());
     final r = c.riderById[follow];
-    stdout.writeln('${c.year}  Profis ${pros.length}  '
+    stdout.writeln('${c.year}  pros ${pros.length}  '
         'Top 20 ${mean(ratings.take(20)).toStringAsFixed(2)}  '
         'Top 100 ${mean(ratings.take(100)).toStringAsFixed(2)}  '
-        'alle ${mean(ratings).toStringAsFixed(2)}  '
-        'bester Wert >= 84: ${pros.where((r) => best(r) >= 84).length}  '
+        'all ${mean(ratings).toStringAsFixed(2)}  '
+        'best value >= 84: ${pros.where((r) => best(r) >= 84).length}  '
         '>= 80: ${pros.where((r) => best(r) >= 80).length}  '
-        'Alter ${mean(ages).toStringAsFixed(1)}'
-        '${r == null ? '' : '  | ${r.name}: Berg ${r.attributes.mountain.toStringAsFixed(1)} '
-            'Hügel ${r.attributes.hill.toStringAsFixed(1)} Flach ${r.attributes.flat.toStringAsFixed(1)} '
-            'ZF ${r.attributes.timeTrial.toStringAsFixed(1)} Sprint ${r.attributes.sprint.toStringAsFixed(1)}'}');
+        'age ${mean(ages).toStringAsFixed(1)}'
+        '${r == null ? '' : '  | ${r.name}: mountain ${r.attributes.mountain.toStringAsFixed(1)} '
+            'hill ${r.attributes.hill.toStringAsFixed(1)} flat ${r.attributes.flat.toStringAsFixed(1)} '
+            'TT ${r.attributes.timeTrial.toStringAsFixed(1)} sprint ${r.attributes.sprint.toStringAsFixed(1)}'}');
   }
 
   line();

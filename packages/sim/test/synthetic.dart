@@ -99,12 +99,12 @@ SimRoute _road(String name, double start, List<(double, double)> pieces,
     );
 
 /// A flat stage of 180 km with small rollers.
-SimRoute flatStage() => _road('Flach', 50, [
+SimRoute flatStage() => _road('Flat stage', 50, [
       for (var i = 0; i < 18; i++) ...[(5.0, 0.004), (5.0, -0.004)],
     ]);
 
 /// A hilly classic of 250 km with ten short climbs and a flat finish.
-SimRoute hillyClassic() => _road('Hügel', 100, [
+SimRoute hillyClassic() => _road('Hills', 100, [
       (60, 0.0),
       for (var i = 0; i < 10; i++) ...[
         (2.5 + (i % 3), 0.07 + 0.01 * (i % 3)),
@@ -115,7 +115,7 @@ SimRoute hillyClassic() => _road('Hügel', 100, [
     ]);
 
 /// A mountain stage with two long climbs and a summit finish at 2100 m.
-SimRoute mountainStage() => _road('Berg', 1100, [
+SimRoute mountainStage() => _road('Mountain', 1100, [
       (40, 0.0),
       (14, 0.07),
       (16, -0.06),
@@ -127,7 +127,7 @@ SimRoute mountainStage() => _road('Berg', 1100, [
     ]);
 
 /// The mountain stage with its mountain prizes.
-SimRoute mountainStageWithTops() => _road('Berg', 1100, [
+SimRoute mountainStageWithTops() => _road('Mountain', 1100, [
       (40, 0.0),
       (14, 0.07),
       (16, -0.06),
@@ -144,7 +144,7 @@ SimRoute mountainStageWithTops() => _road('Berg', 1100, [
 
 /// A time trial with a long climb in it.
 SimRoute mountainTimeTrial() =>
-    _road('Bergzeitfahren', 600, [(0.4, 0.0), (14, 0.085)],
+    _road('Mountain time trial', 600, [(0.4, 0.0), (14, 0.085)],
         kind: StageKind.timeTrial);
 
 /// A cobbled classic of 255 km with 25 sectors in its second half.
@@ -156,19 +156,19 @@ SimRoute cobbledClassic() {
     sectors.add(SectorSpan(km, km + length, 2 + (i * 7) % 4, true));
     km += length + 4.5;
   }
-  return _road('Pflaster', 30, [(255, 0.0)], sectors: sectors);
+  return _road('Cobbles', 30, [(255, 0.0)], sectors: sectors);
 }
 
 /// A flat stage with a short steep finish.
-SimRoute puncheurFinish() => _road('Rampe', 50, [(198.8, 0.0), (1.2, 0.09)]);
+SimRoute puncheurFinish() => _road('Ramp', 50, [(198.8, 0.0), (1.2, 0.09)]);
 
 /// An individual time trial of 35 km.
 SimRoute timeTrial() =>
-    _road('Zeitfahren', 50, [(35, 0.0)], kind: StageKind.timeTrial);
+    _road('Time trial', 50, [(35, 0.0)], kind: StageKind.timeTrial);
 
 /// A team time trial of 30 km.
-SimRoute teamTimeTrial() => _road('Mannschaftszeitfahren', 50, [(30, 0.0)],
-    kind: StageKind.teamTimeTrial);
+SimRoute teamTimeTrial() =>
+    _road('Team time trial', 50, [(30, 0.0)], kind: StageKind.teamTimeTrial);
 
 /// Twenty-one stages in the shape of a Grand Tour.
 List<SimRoute> grandTour() => [

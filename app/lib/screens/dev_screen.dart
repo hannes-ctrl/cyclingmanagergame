@@ -104,12 +104,11 @@ class _DevScreenState extends State<DevScreen> {
             ),
           ] else ...[
             const SizedBox(height: 6),
-            Text(
+            InfoTip(
               tr(
                 'Stagiaires: from 1 August up to {0} riders of the development team may start for the professional team, except in WorldTour races and championships. They stay in the development team. Currently: {1}.',
                 [DevTeam.maxStagiaires, dev.stagiaires.length],
               ),
-              style: const TextStyle(fontSize: 12, color: TeamColors.muted),
             ),
           ],
           const SizedBox(height: 12),

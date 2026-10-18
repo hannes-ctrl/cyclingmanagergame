@@ -96,7 +96,7 @@ Future<void> main(List<String> argv) async {
   final switchTo = option('--switch');
   final seasons = int.parse(option('--seasons') ?? '1');
   final jobMarket = args.remove('--job-market');
-  I18n.lang = Lang.de;
+  I18n.lang = Lang.en;
   final root = Platform.script.resolve('../../../data/').toFilePath();
   final world = World('${root}world.sqlite');
   final team = world.teams().firstWhere((t) => t.abbr == abbr);

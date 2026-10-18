@@ -20,7 +20,7 @@ Future<void> serveBrowser({
 }) async {
   final db = openSqlite(worldPath);
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
-  print('Datenbank-Browser: http://localhost:$port');
+  print('Database browser: http://localhost:$port');
 
   await for (final request in server) {
     final response = request.response;

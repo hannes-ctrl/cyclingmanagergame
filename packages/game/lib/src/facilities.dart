@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:sim/sim.dart';
 
 import 'career.dart';
@@ -64,8 +66,37 @@ class Facilities {
   /// Levels per team id and facility.
   final levels = <int, Map<Facility, int>>{};
 
-  /// The player's facility under construction, or null.
-  Build? building;
+  /// The player's facilities under construction, at most [maxBuilds].
+  final builds = <Build>[];
+
+  /// Most facilities the player can build at the same time.
+  static const maxBuilds = 2;
+
+  /// @param f A facility.
+  /// @returns Its building under way for the player, or null.
+  Build? buildOf(Facility f) {
+    for (final b in builds) {
+      if (b.facility == f) return b;
+    }
+    return null;
+  }
+
+  /// Why the player cannot start building [f] now, or null if he can.
+  ///
+  /// @param f The facility.
+  /// @returns The reason, or null.
+  String? cannotBuild(Facility f) {
+    if (buildOf(f) != null) return tr('The facility is already being built.');
+    if (builds.length >= maxBuilds) {
+      return tr('Two facilities are already being built.');
+    }
+    final cost = upgradeCost(f);
+    if (cost == null) return tr('The facility is already at the top level.');
+    if (c.economy.available < cost) {
+      return tr('There is not enough money in the account.');
+    }
+    return null;
+  }
 
   /// Highest level.
   static const maxLevel = 5;
@@ -81,6 +112,21 @@ class Facilities {
           f: (base + _variety(t.id, f)).clamp(1, maxLevel),
       };
     }
+  }
+
+  /// Gives a newly founded team the facilities of its strength once its
+  /// squad is in place.
+  ///
+  /// @param teamId Id of the team.
+  ///
+  /// @param keepBetter Whether levels above that stay, for a running career.
+  void fitTo(int teamId, {bool keepBetter = false}) {
+    final base = fitting(teamId);
+    levels[teamId] = {
+      for (final f in Facility.values)
+        f: max(keepBetter ? level(teamId, f) : 1,
+            (base + _variety(teamId, f)).clamp(1, maxLevel)),
+    };
   }
 
   /// The level that fits a team of its strength: about 3 at 75, 4 at 80,
@@ -188,25 +234,19 @@ class Facilities {
   /// @param f The facility.
   /// @returns null on success, otherwise the reason.
   String? upgrade(Facility f) {
-    if (building != null) {
-      return tr('Another facility is being built.');
-    }
-    final cost = upgradeCost(f);
-    if (cost == null) return tr('The facility is already at the top level.');
-    if (c.economy.available < cost) {
-      return tr('There is not enough money in the account.');
-    }
-    c.economy.balance -= cost;
-    building =
-        Build(f, c.today.add(Duration(days: buildDays(level(c.teamId, f)))));
+    if (cannotBuild(f) case final reason?) return reason;
+    c.economy.balance -= upgradeCost(f)!;
+    builds.add(
+        Build(f, c.today.add(Duration(days: buildDays(level(c.teamId, f))))));
     return null;
   }
 
   /// On the first of a month, when the player has handed it to the board:
   /// with no building going on, the board raises the weakest facility if
-  /// the account still holds a tenth of the budget afterwards.
+  /// the account still holds a tenth of the budget afterwards. It builds
+  /// one at a time.
   void boardBuilds() {
-    if (building != null) return;
+    if (builds.isNotEmpty) return;
     final open = [
       for (final f in Facility.values)
         if (level(c.teamId, f) < maxLevel) f,
@@ -232,34 +272,36 @@ class Facilities {
     ));
   }
 
-  /// The player leaves for another team: a building under way is paid for
-  /// and opens for the old team at once.
+  /// The player leaves for another team: buildings under way are paid for
+  /// and open for the old team at once.
   ///
   /// @param from The team he leaves.
   void handOver(int from) {
-    final b = building;
-    if (b == null) return;
-    building = null;
+    if (builds.isEmpty) return;
     final old =
         levels.putIfAbsent(from, () => {for (final f in Facility.values) f: 3});
-    old[b.facility] = (old[b.facility]! + 1).clamp(1, maxLevel);
+    for (final b in builds) {
+      old[b.facility] = (old[b.facility]! + 1).clamp(1, maxLevel);
+    }
+    builds.clear();
   }
 
-  /// Daily: a finished building opens.
+  /// Daily: finished buildings open.
   void daily() {
-    final b = building;
-    if (b == null || c.today.isBefore(b.ready)) return;
-    building = null;
-    final own = levels.putIfAbsent(
-        c.teamId, () => {for (final f in Facility.values) f: 3});
-    own[b.facility] = (own[b.facility]! + 1).clamp(1, maxLevel);
-    c.inbox.add(Message(
-      c.today,
-      tr('Board'),
-      tr('{0} expanded', [b.facility.label]),
-      tr('The {0} is now at level {1} of {2}.',
-          [b.facility.label, own[b.facility], maxLevel]),
-    ));
+    for (final b in [...builds]) {
+      if (c.today.isBefore(b.ready)) continue;
+      builds.remove(b);
+      final own = levels.putIfAbsent(
+          c.teamId, () => {for (final f in Facility.values) f: 3});
+      own[b.facility] = (own[b.facility]! + 1).clamp(1, maxLevel);
+      c.inbox.add(Message(
+        c.today,
+        tr('Board'),
+        tr('{0} expanded', [b.facility.label]),
+        tr('The {0} is now at level {1} of {2}.',
+            [b.facility.label, own[b.facility], maxLevel]),
+      ));
+    }
   }
 
   // --- Saving -----------------------------------------------------------------
@@ -270,18 +312,17 @@ class Facilities {
           for (final e in levels.entries)
             '${e.key}': [for (final f in Facility.values) e.value[f] ?? 3],
         },
-        if (building != null)
-          'building': [
-            building!.facility.index,
-            building!.ready.millisecondsSinceEpoch,
-          ],
+        'builds': [
+          for (final b in builds)
+            [b.facility.index, b.ready.millisecondsSinceEpoch],
+        ],
       };
 
   /// @param j A map written by [toJson], or null for a save from before
   ///   teams had facilities.
   void restore(Map<String, dynamic>? j) {
     levels.clear();
-    building = null;
+    builds.clear();
     if (j == null) {
       _assign();
       return;
@@ -293,9 +334,11 @@ class Facilities {
           f: f.index < list.length ? list[f.index] : 3,
       };
     }
-    if (j['building'] case [final int f, final int ms]) {
-      building = Build(Facility.values[f],
-          DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true));
+    for (final b in (j['builds'] as List? ?? const [])) {
+      if (b case [final int f, final int ms]) {
+        builds.add(Build(Facility.values[f],
+            DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true)));
+      }
     }
   }
 }

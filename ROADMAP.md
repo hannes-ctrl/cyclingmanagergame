@@ -1,6 +1,6 @@
 # Roadmap
 
-Where the game goes after 0.5.0 alpha, and what it has to be before it is called a beta.
+Where the game goes after 0.6.0 alpha, and what it has to be before it is called a beta.
 
 Nothing here is promised; priorities are set version by version. Ideas come from *Football Manager* (FM), *Pro Cycling Manager* (PCM) and the dev blogs of *Velo Victory* (VV), and from what their players ask for in the forums. Each item names its source in brackets; the links are at the end.
 
@@ -8,13 +8,11 @@ Nothing here is promised; priorities are set version by version. Ideas come from
 
 The working list, in order. It is rewritten whenever something on it is done; the sections below hold the full plan.
 
-1. **The race shape, second step, continued.** The calibration of 17 October allowed the form of the day to spread up to 3 %, which the literature allows, and searched for four hours: the error stayed the same (6.85 against 6.83), the control races improved a little (7.81 against 8.00), and the spread stayed at 1.5 %. The favourites do not win too often for want of a bad day; the cause lies elsewhere in the model. What tuning cannot reach needs a change of the model: the middle of the field finishes too close to the winner, breaks in the mountains win too rarely, hilly stages end in a bunch sprint too rarely, sector races end solo too rarely. The draft values and the power per point sit at the edge of ranges the physics allows, so they stay.
-2. **The time limit, second step.** Measured with real fields: in the mountains 7.9 % of the riders finish outside the limit (7.0 % in reality), but sprinters 37 % against 21 %. The cause is the low climbing power of the weakest riders, not the pace of the gruppetto.
-3. **Speed.** Measured: two thirds of the time go into the step of each rider through each segment. A real gain needs a change of structure, such as longer segments where nothing happens.
-4. **Export from every list** as CSV.
-5. **Weather, third step:** real compass headings, once a source for the routes' directions is found; the WorldDB has none.
+1. **The race shape, fourth step, in the model.** After the calibration of 17 and 18 October the largest gaps are: bunch sprints on flat days end in groups of 25 instead of 35; breakaways win 21 % of mountain stages instead of 36 %; 35 % of the sprinters finish outside the time limit on mountain stages instead of 17 %; on hilly days the tenth is 0:54 behind instead of 0:19; the leaders of a stage race lose 0:28 a stage instead of 0:17. Four tuning values sit at the edge of their range (power per point, drafting in large groups and in the peloton, attacks on flat ground), so the search alone cannot close these gaps.
+2. **Speed.** Measured: two thirds of the time go into the step of each rider through each segment. A real gain needs a change of structure, such as longer segments where nothing happens.
+3. **Weather, third step:** real compass headings, once a source for the routes' directions is found; the WorldDB has none.
 
-Done since the last version of this list: the marketing department, the season plan for the next year in the winter, the vacation mode, bookmarks, multi-select in squad, rider search and market, riders who cope differently with heat and cold, older seasons with anonymous riders for the calibration (`--from 2021`), dropped groups that watch the time limit. All of it ships with 0.5.0.
+Done since the last version of this list: the save format with a version and a migration, the release zip, balance bands, render tests of every page in both languages, a money sink for the player, less text, rider profiles and the licence rules when founding a team, the intake of ordinary riders that the first hundred-season run asked for, every tool in English, the calibration from 2021 (see the CHANGELOG), the balance bands on three seeds. The calibration now measures a real race on the riders the simulation has: the middle of the field and the favourite wins had been measured against riders the simulation does not have.
 
 ## Principles
 
@@ -153,12 +151,22 @@ Each phase is one version. Every item stands under the version that brought it, 
 - **Older seasons** come back to the calibration with `--from 2021`: anonymous riders, typical of their team in that race, take the place of the finishers the database does not know (42 % in 2021, 33 % in 2022).
 - **The race shape, second step:** a wider range for the form of the day and a calibration run of four hours; the control races improved a little (7.81 against 8.00), the shape of the races did not change.
 
-### 0.6.0 What is left
+### 0.6.0 What is left, and the way to the beta
 
-*Fourth: what 0.5.0 left open of the plan for 0.6.0.*
+*Released as 0.6.0 alpha on 18 October 2026. Fourth: what 0.5.0 left open, and the conditions for the beta below.*
 
-- **The race shape, the time limit and speed:** see "Next up", items 1 to 3.
-- **Export from every list** as CSV.
+**Done**
+
+- **Saves that stay valid:** a version and a migration step for every change; a save the game cannot open is kept beside it.
+- **A zip for a clean Windows** (`release.ps1`), optionally with the world database and the pictures for friends.
+- **Balance bands** in `world.dart`, checked at the end of every run; **render tests** of every page in both languages, in the smallest window, at 4K and 21:9.
+- **The intake keeps the world at its size:** the first run over a hundred seasons emptied the smaller teams after about twelve seasons, because only the best 150 of a year came in. With the young riders of ordinary level the second run held its size for all hundred seasons.
+- **The race shape, third step:** sprint gaps in a big bunch, riders who roll in, sprinters paced back on hilly days; a fair measurement of the real races and the time limit in the calibration.
+- **Less text, more tooltips;** two facilities built at the same time; founding a team by licence rules; a money sink for the player; dates and plurals per language; the radio in fast motion; CSV export in the debug page.
+
+**Open**
+
+- **The race shape and speed:** see "Next up".
 - **Real compass headings** for the routes, once there is a source for them.
 
 ### 0.7.0 Beta
@@ -182,7 +190,7 @@ These are spread over the versions above rather than saved for the end; each nam
 - Saved filters and saved column sets per list. PCM added saved search filters in a patch after its players asked. [10] *0.4.0,* for the rider search and the transfer market.
 - Multi-select with checkboxes for actions on several riders: assign a programme, a camp, a training focus, put on the shortlist. [7] *A first step in 0.3.0:* a star per row for the shortlist. *0.5.0:* checkboxes in the squad, the rider search and the transfer market.
 - Sorting by any column, remembered for the session. *0.3.0.*
-- Export of any list as CSV. [7] *0.3.0* for team pages; *open, 0.6.0,* for every other list.
+- Export of the lists as CSV. [7] *0.3.0* for team pages; *0.6.0:* riders, teams, calendar, results and staff from the debug page, which is where a list export belongs in a game.
 
 **The inbox**
 
@@ -234,19 +242,20 @@ The beta is the point from which a stranger can play ten seasons without help, w
 | Career | Reputation, job offers, dismissal; season review, awards, history |
 | Comfort | Everything under "Quality of life" above, including vacation mode and the assistant's proposals |
 | Languages | English and German complete, including everything the game writes |
-| Start | Introduction, glossary, three difficulty levels that change money and expectations, not the simulation |
+| Start | Introduction and glossary |
 
 ### Conditions for calling it a beta
 
-- **Stability.** A hundred seasons simulated without a player end without an error; a save game loads to exactly the same state at every point.
-- **Compatibility.** The save format has a version and a migration; saves from the first beta open in every later one.
-- **Speed.** A day without the player's race takes under a second, a season without watching under five minutes.
-- **Balance.** The figures of the multi-season test lie in bands written down beforehand, on three different seeds.
-- **Tests.** Every page has a rendering test in both languages; every system has a test of its rules.
-- **Installation.** An installer or a zip that runs on a clean Windows without the toolchain, with a way to supply the world database.
-- **No placeholders.** No value in the interface that has no effect, and no effect that is not explained in a tooltip.
+- **Stability.** A hundred seasons simulated without a player end without an error; a save game loads to exactly the same state at every point. *Done: a hundred seasons (2026–2125) without an error, every yearly save identical, the world at about 4,230 riders throughout, WorldTeams at 77.3–78.0, squads at 28.8. The player's team, which nobody signs riders for in such a run, drops down the ranking; that is the rule, not a fault.*
+- **Compatibility.** The save format has a version and a migration; saves from the first beta open in every later one. *Done.*
+- **Speed.** A day without the player's race takes under a second, a season without watching under five minutes. *About three minutes a season for the whole world.*
+- **Balance.** The figures of the multi-season test lie in bands written down beforehand, on three different seeds. *Done: seeds 3, 5 and 7 hold every band over ten seasons with the new tuning. Over a hundred seasons seed 3 left one band in three seasons after 2050 (30 or 31 riders from 80 instead of at most 28).*
+- **Tests.** Every page has a rendering test in both languages; every system has a test of its rules. *Done.*
+- **Installation.** An installer or a zip that runs on a clean Windows without the toolchain, with a way to supply the world database. *Done with `release.ps1`.*
+- **No placeholders.** No value in the interface that has no effect, and no effect that is not explained in a tooltip. *A first pass: the home page, the staff, the facilities, the founding of a team.*
 
 ### Deliberately not in the beta
+
 
 - A race the player rides himself, in 3D or 2D with direct control. The game is the manager's side.
 - A mode as a single rider.
@@ -266,14 +275,14 @@ The world database is built from the WorldDB for Pro Cycling Manager, and rider 
 | 0.3.1 | The race shape *(released 15 October 2026)* | 0.3.0 | Facilities, dev-team signings, squad-wide training load, an even overview |
 | 0.4.0 | A world that lasts *(released 17 October 2026)* | 0.3.0 | Timeline planner, templates, saved filters and columns, history, our stages live |
 | 0.5.0 | The rider, the market and race day, the organisation *(released 17 October 2026)* | 0.4.0 | Comparison table, job offers in the inbox, vacation mode, multi-select, bookmarks, the winter plan |
-| 0.6.0 | What is left | 0.5.0 | Export from every list |
-| 0.7.0 | Beta | All | Introduction, glossary, difficulty, installer |
+| 0.6.0 | What is left, and the way to the beta *(released 18 October 2026)* | 0.5.0 | Less text, profiles when founding, a zip for friends |
+| 0.7.0 | Beta | All | Introduction, glossary |
 
 ## Sources
 
 1. [Steam, PCM 25: thread on AI that reacts only to the player](https://steamcommunity.com/app/2511310/discussions/0/600775301991020441)
 2. [Steam, PCM 2023: career mode suggestions](https://steamcommunity.com/app/2063610/discussions/0/6226836983328514134)
-3. [PCM.daily: "Too easy to play – Too difficult to simulate"](https://pcmdaily.com/forum/viewthread.php?thread_id=52615) and [Steam, PCM 25: difficulty levels](https://steamcommunity.com/app/2511310/discussions/0/592901971597389958/)
+3. [PCM.daily: "Too easy to play – Too difficult to simulate"](https://pcmdaily.com/forum/viewthread.php?thread_id=52615)
 4. [PCM.daily: going back some days in career mode](https://pcmdaily.com/forum/viewthread.php?thread_id=41327) and [Steam, PCM 2023: fitness peak](https://steamcommunity.com/app/2063610/discussions/0/3812906855250540293/)
 5. [FRVR: nine things FM26 needs to fix](https://frvr.com/blog/news/9-things-football-manager-26-needs-to-fix-immediately-to-get-back-on-side)
 6. [Sports Interactive Community: "That dreaded inbox"](https://community.sports-interactive.com/forums/topic/592101-that-dreaded-inbox/)

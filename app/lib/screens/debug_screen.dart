@@ -3,6 +3,7 @@ import 'package:sim/sim.dart';
 
 import '../app_state.dart';
 import '../widgets.dart';
+import 'debug_export.dart';
 
 /// Debug page, shown only in debug mode: the inner state of the career, the
 /// tuning values of the simulation and a few actions that help testing.
@@ -152,6 +153,25 @@ class _DebugScreenState extends State<DebugScreen> {
                             s.debugHeal();
                             _message = tr('Everyone is available again.');
                           }),
+                        ),
+                        action(
+                          tr('Export lists as CSV'),
+                          tr(
+                            'Riders, teams, calendar, results and staff of the career, each as a file in data/export.',
+                          ),
+                          () {
+                            final written = [
+                              for (final l in careerLists(s))
+                                s.exportCsv(l.name, l.headers, l.rows),
+                            ];
+                            setState(
+                              () => _message = written.contains(null)
+                                  ? tr('The file could not be written.')
+                                  : tr('Saved: {0}', [
+                                      written.whereType<String>().join(', '),
+                                    ]),
+                            );
+                          },
                         ),
                         if (_message != null) Text(_message!),
                         const SizedBox(height: 12),

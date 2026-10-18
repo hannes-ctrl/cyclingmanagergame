@@ -19,12 +19,12 @@ void main(List<String> args) {
     stdout.writeln(
         '${(i + 1).toString().padLeft(2)} ${routes[i].name.padRight(22)} '
         '${w.rider.name.padRight(7)} ${(routes[i].raceKm / (w.timeS / 3600)).toStringAsFixed(1)} km/h '
-        'Fahrer ${run.riders.length}, Ermüdung ${debts.first.toStringAsFixed(2)}–'
+        'riders ${run.riders.length}, fatigue ${debts.first.toStringAsFixed(2)}–'
         '${debts[debts.length ~/ 2].toStringAsFixed(2)}–${debts.last.toStringAsFixed(2)}  '
-        '${r.weather?.describe()}  raus: ${out.join(', ')}');
+        '${r.weather?.describe()}  out: ${out.join(', ')}');
   }
   final gc = run.result.gc;
-  stdout.writeln('\nGesamt:');
+  stdout.writeln('\nGeneral classification:');
   for (var i = 0; i < 10; i++) {
     stdout.writeln(
         '${i + 1}. ${gc[i].rider.name} +${(gc[i].timeS - gc.first.timeS).round()} s');

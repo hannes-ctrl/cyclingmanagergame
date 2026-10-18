@@ -8,8 +8,7 @@ import '../ui.dart';
 const _weekdays = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
 String _long(DateTime d) =>
-    '${tr(_weekdays[d.weekday - 1])}, ${d.day.toString().padLeft(2, '0')}.'
-    '${d.month.toString().padLeft(2, '0')}.${d.year}';
+    '${tr(_weekdays[d.weekday - 1])}, ${dayText(d, year: true)}';
 
 /// Opens a small calendar to let the days run up to a chosen date.
 ///
@@ -263,7 +262,7 @@ class _SimulateDialogState extends State<_SimulateDialog> {
                           },
                     child: Text(
                       tr('UNTIL {0} · {1} {2}', [
-                        _long(_target).substring(4, 10),
+                        dayText(_target).toUpperCase(),
                         days,
                         days == 1 ? tr('DAY') : tr('DAYS'),
                       ]),

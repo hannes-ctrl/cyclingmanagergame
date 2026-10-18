@@ -192,11 +192,10 @@ class StageFile {
     if (ascii.decode(Uint8List.sublistView(bytes, _magicAt, _magicAt + 11),
             allowInvalid: true) !=
         'CTStageData') {
-      throw const FormatException('Keine Etappendatei (CTStageData fehlt)');
+      throw const FormatException('Not a stage file (CTStageData missing)');
     }
     final nameLen = u32(_nameAt);
-    if (nameLen > 200)
-      throw const FormatException('Etappenname nicht gefunden');
+    if (nameLen > 200) throw const FormatException('Stage name not found');
     final nameEnd = _nameAt + 4 + nameLen;
     final name = _text(bytes, _nameAt + 4, nameLen);
 
@@ -214,7 +213,7 @@ class StageFile {
         break;
       }
     }
-    if (o < 0) throw const FormatException('Höhenprofil nicht gefunden');
+    if (o < 0) throw const FormatException('Altitude profile not found');
 
     final n = u32(o);
     final profile = List<ProfilePoint>.generate(n, (i) {
@@ -330,7 +329,7 @@ class _Cursor {
   /// @throws FormatException If the value is implausibly large.
   int count() {
     final v = u32();
-    if (v > 300) throw FormatException('Unplausible Listenlänge $v', null, pos);
+    if (v > 300) throw FormatException('Implausible list length $v', null, pos);
     return v;
   }
 
@@ -338,7 +337,7 @@ class _Cursor {
   String text() {
     final len = u32();
     if (len > 120)
-      throw FormatException('Unplausible Textlänge $len', null, pos);
+      throw FormatException('Implausible text length $len', null, pos);
     final s = StageFile._text(bytes, pos, len);
     pos += len;
     return s;

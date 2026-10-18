@@ -31,10 +31,7 @@ class ScoutButton extends StatelessWidget {
     final job = book.jobs.where((j) => j.riderId == riderId).firstOrNull;
     final known = book.knowledge(riderId) >= 1;
     final status = job != null
-        ? tr('Being scouted until {0}.{1}.', [
-            job.until.day.toString().padLeft(2, '0'),
-            job.until.month.toString().padLeft(2, '0'),
-          ])
+        ? tr('Being scouted until {0}.', [dayText(job.until)])
         : known
         ? tr('Everything about him is known.')
         : switch (stage) {

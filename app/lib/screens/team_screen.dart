@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:game/game.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sim/sim.dart';
 
 import '../app_state.dart';
@@ -112,45 +111,6 @@ class TeamPage extends StatelessWidget {
                     ),
                   ],
                 ),
-              ),
-              TextButton.icon(
-                onPressed: () {
-                  final path = s.exportCsv(
-                    team.abbr.isEmpty ? 'team' : team.abbr,
-                    [
-                      tr('Rider'),
-                      tr('Nat'),
-                      tr('Age'),
-                      tr('Strength'),
-                      tr('Points'),
-                      tr('Wins'),
-                      tr('Contract'),
-                    ],
-                    [
-                      for (final r in squad)
-                        [
-                          career.fullName(r.id),
-                          r.country,
-                          '${career.year - r.born ~/ 10000}',
-                          strength(r),
-                          '${(career.riderPoints[r.id] ?? 0).round()}',
-                          '${career.winsOf(r.id, career.year)}',
-                          '${career.economy.contracts[r.id]?.endYear ?? ''}',
-                        ],
-                    ],
-                  );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        path == null
-                            ? tr('The file could not be written.')
-                            : tr('Saved: {0}', [path]),
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(LucideIcons.download, size: 16),
-                label: Text(tr('As CSV')),
               ),
               TextButton(onPressed: s.closeTeam, child: Text(tr('Back'))),
             ],

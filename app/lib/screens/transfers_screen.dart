@@ -411,11 +411,9 @@ class _TransfersScreenState extends State<TransfersScreen> {
                             ),
                           const SizedBox(height: 8),
                           Text(
-                            tr('{0} riders', [
-                              rows.length == 400
-                                  ? tr('The best 400')
-                                  : '${rows.length}',
-                            ]),
+                            rows.length == 400
+                                ? tr('{0} riders', [tr('The best 400')])
+                                : trn(rows.length, '{0} rider', '{0} riders'),
                             style: const TextStyle(
                               fontSize: 12,
                               color: TeamColors.muted,
@@ -604,11 +602,10 @@ class _TransfersScreenState extends State<TransfersScreen> {
             ),
           ],
         ),
-        Text(
+        InfoTip(
           tr(
             'Clauses lower the wage he asks: a signing bonus is paid at once, a win bonus with every win, a low release clause lets another team buy him out, a guaranteed leader must not be demoted.',
           ),
-          style: const TextStyle(fontSize: 12, color: TeamColors.muted),
         ),
       ],
     );
@@ -675,14 +672,10 @@ class _TransfersScreenState extends State<TransfersScreen> {
         const SizedBox(height: 14),
         if (waiting != null)
           Text(
-            tr(
-              'He is considering your offer of {0} € and answers by {1}.{2}.',
-              [
-                euro(waiting.wage),
-                waiting.until.day.toString().padLeft(2, '0'),
-                waiting.until.month.toString().padLeft(2, '0'),
-              ],
-            ),
+            tr('He is considering your offer of {0} € and answers by {1}.', [
+              euro(waiting.wage),
+              dayText(waiting.until),
+            ]),
           )
         else if (!open)
           Text(

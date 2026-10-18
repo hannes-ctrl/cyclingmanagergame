@@ -19,15 +19,15 @@ void main(List<String> args) {
       teamId: team.id, seed: args.length > 1 ? int.parse(args[1]) : 1);
   final watch = Stopwatch()..start();
   final planned = career.planSeason();
-  stdout.writeln('${team.name}: $planned Rennen geplant in '
+  stdout.writeln('${team.name}: $planned races planned in '
       '${watch.elapsedMilliseconds} ms');
   final sum = career.programSummary();
-  stdout.writeln('${sum.races} Rennen, ${sum.days} Renntage, im Schnitt '
-      '${sum.mean.toStringAsFixed(1)} je Fahrer, höchstens ${sum.most}\n');
+  stdout.writeln('${sum.races} races, ${sum.days} race days, on average '
+      '${sum.mean.toStringAsFixed(1)} per rider, at most ${sum.most}\n');
 
   final races = [...career.ownRaces]..sort((a, b) =>
       career.planner.importance(b).compareTo(career.planner.importance(a)));
-  stdout.writeln('Die wichtigsten Rennen:');
+  stdout.writeln('The most important races:');
   for (final race in races.take(14)) {
     final riders = [
       for (final id in career.program[race.info.id] ?? const <int>{})
@@ -38,7 +38,7 @@ void main(List<String> args) {
         '${riders.map((r) => r.lastName).join(', ')}');
   }
 
-  stdout.writeln('\nJe Fahrer (Alter, Stärke, Renntage, Rennen):');
+  stdout.writeln('\nPer rider (age, strength, race days, races):');
   final squad = [...?career.squads[team.id]]
     ..sort((a, b) => Economy.rating(b).compareTo(Economy.rating(a)));
   for (final r in squad) {
@@ -52,8 +52,8 @@ void main(List<String> args) {
         if (x.tier.factor >= 8) x.info.abbr.isEmpty ? x.info.name : x.info.abbr,
     ];
     stdout.writeln('  ${r.name.padRight(22)} ${career.year - r.born ~/ 10000}  '
-        '${Economy.rating(r).round()}  ${'$days'.padLeft(3)} Tage  '
-        '${'${mine.length}'.padLeft(2)} Rennen  ${big.join(', ')}');
+        '${Economy.rating(r).round()}  ${'$days'.padLeft(3)} days  '
+        '${'${mine.length}'.padLeft(2)} races  ${big.join(', ')}');
   }
   world.close();
 }

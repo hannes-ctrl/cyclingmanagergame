@@ -72,7 +72,7 @@ class Ooz {
           0, nullptr, nullptr, nullptr, 0, 0);
       if (n != rawSize) {
         throw FormatException(
-            'Oodle-Block nicht entpackbar (Rückgabe $n statt $rawSize)');
+            'Oodle block cannot be unpacked (returned $n instead of $rawSize)');
       }
       return Uint8List.fromList(dst.asTypedList(rawSize));
     } finally {

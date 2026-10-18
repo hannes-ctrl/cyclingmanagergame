@@ -31,7 +31,7 @@ build/
 
 # Output of calibration runs; the tuning values themselves are tracked
 /data/calibration/log.txt
-/data/calibration/bericht*.txt
+/data/calibration/report*.txt
 /data/calibration/tuning_*.json
 
 # Machine-specific toolchain paths
@@ -47,3 +47,6 @@ build/
 # Written by the player: exported lists and what he set on the screens
 /data/export/
 /data/ui_state.json
+
+# Release zips (release.ps1)
+/dist/

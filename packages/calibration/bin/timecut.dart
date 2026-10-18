@@ -33,9 +33,9 @@ Future<void> main(List<String> argv) async {
       r.attributes.sprint >= 76 && r.attributes.mountain < 70;
 
   stdout.writeln(
-      'Typ     Etappen   außerhalb echt   Sim    Sprinter echt   Sim   '
-      '(je Etappe, in % der Fahrer)');
-  for (final type in ['Hügel', 'Berg']) {
+      'Type     Stages   outside real    sim    sprinters real   sim   '
+      '(per stage, in % of the riders)');
+  for (final type in ['Hilly', 'Mountain']) {
     final picked = [
       for (final c in cases)
         if (c.type == type && c.gcGaps.isNotEmpty) c,
@@ -80,9 +80,9 @@ Future<void> main(List<String> argv) async {
     String pct(double x, int n) =>
         n == 0 ? '–' : '${(100 * x / n).toStringAsFixed(1)} %';
     stdout.writeln(
-        '${type.padRight(7)} ${picked.length.toString().padLeft(7)}   '
+        '${type.padRight(8)} ${picked.length.toString().padLeft(7)}   '
         '${pct(realOut, riders).padLeft(14)} ${pct(simOut, riders).padLeft(7)}   '
         '${pct(realSprint, sprinters).padLeft(12)} ${pct(simSprint, sprinters).padLeft(6)}   '
-        '($simRuns Läufe, $sprinters Sprinter-Starts)');
+        '($simRuns runs, $sprinters sprinter starts)');
   }
 }

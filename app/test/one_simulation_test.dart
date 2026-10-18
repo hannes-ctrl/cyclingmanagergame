@@ -30,7 +30,7 @@ void main() {
   final dataDir = AppState.findDataDir();
 
   test(
-    'Vorschau, gewertete Etappe und Wiederholung sind dasselbe Rennen',
+    'Preview, counted stage and replay are the same race',
     skip: dataDir == null,
     () {
       final world = World('$dataDir/world.sqlite');
@@ -74,7 +74,7 @@ void main() {
   );
 
   test(
-    'Zusehen, Überspringen und Simulieren bis ergeben dieselbe Saison',
+    'Watching, skipping and simulating to a date give the same season',
     skip: dataDir == null,
     () {
       final world = World('$dataDir/world.sqlite');
@@ -146,7 +146,7 @@ void main() {
   );
 
   test(
-    'Im Hintergrund gerechnet ergibt dieselbe Saison',
+    'Computed in the background gives the same season',
     skip: dataDir == null,
     timeout: const Timeout(Duration(minutes: 15)),
     () async {
@@ -183,7 +183,7 @@ void main() {
     },
   );
 
-  test('Nur eine Stelle im Spiel simuliert Etappen', () {
+  test('Only one place in the game simulates stages', () {
     // Everything in the game and the app has to go through StageRaceRun, so
     // that no screen can end up with a second, different race.
     final callers = <String>[];

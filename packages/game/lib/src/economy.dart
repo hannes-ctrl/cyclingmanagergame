@@ -809,10 +809,9 @@ class Economy {
         c.today,
         tr('Agent'),
         tr('{0} considers your offer', [r.name]),
-        tr('{0} will answer by {1}.{2}.', [
+        tr('{0} will answer by {1}.', [
               c.fullName(r.id),
-              until.day.toString().padLeft(2, '0'),
-              until.month.toString().padLeft(2, '0'),
+              dayText(until),
             ]) +
             (rivals.isEmpty
                 ? ''
@@ -1598,6 +1597,15 @@ class Economy {
     confidence = projectedConfidence();
     final oldBudget = budget;
     _settleSponsors(lines);
+    // The owners do not leave a fortune in the account: what is saved
+    // beyond half the new budget goes to them, as for every other team
+    // beyond a third.
+    final cap = ownerShare * budget;
+    if (balance > cap) {
+      lines.add(tr('The owners take {0} of the savings beyond half the budget',
+          [_euro(balance - cap)]));
+      balance = cap;
+    }
 
     final free = _freeTeam;
     // A game saved before the intake moved to November gets it here, before
@@ -1722,6 +1730,34 @@ class Economy {
     ];
   }();
 
+  /// The young riders of ordinary level: the real riders of 19 to 22 below
+  /// the best 150 of their year. They fill the squads of the smaller teams.
+  late final List<(SimRider, int)> depthModels = () {
+    final first = c.licences.firstYear;
+    final byAge = <int, List<SimRider>>{};
+    for (final r in c.world.riders()) {
+      final age = first - r.born ~/ 10000;
+      if (age >= 19 && age <= 22) byAge.putIfAbsent(age, () => []).add(r);
+    }
+    return [
+      for (final age in byAge.keys.toList()..sort())
+        for (final r in (byAge[age]!
+              ..sort((a, b) {
+                final x = rating(b).compareTo(rating(a));
+                return x != 0 ? x : a.id.compareTo(b.id);
+              }))
+            .skip(150))
+          (r, age),
+    ];
+  }();
+
+  /// Riders in the world at the start of a career: the number the intake
+  /// keeps up.
+  late final int _population = c.world.riders().length;
+
+  /// Most young riders of ordinary level in one intake.
+  static const maxDepth = 500;
+
   /// A new young rider after one of the [intakeModels]: the model set back
   /// to the rider's age, every attribute a little different, potential,
   /// weight and height close to his.
@@ -1730,8 +1766,9 @@ class Economy {
   /// @param age Age of the new rider in his first season, 18 or 19.
   /// @returns Attributes, potential, weight and height of the new rider.
   ({Attributes attributes, double potential, double weight, double height})
-      youngRider(Random rng, int age) {
-    final (model, modelAge) = intakeModels[rng.nextInt(intakeModels.length)];
+      youngRider(Random rng, int age, {bool depth = false}) {
+    final models = depth && depthModels.isNotEmpty ? depthModels : intakeModels;
+    final (model, modelAge) = models[rng.nextInt(models.length)];
     var shape = model;
     for (var a = modelAge - 1; a >= age; a--) {
       shape = Career.yearEarlier(shape, a);
@@ -1757,13 +1794,13 @@ class Economy {
   void _newIntake() {
     _intakeYear = c.year;
     final free = _freeTeam;
-    _intake(free);
+    final added = _intake(free);
     c.devTeam.intake(free);
     c.inbox.add(Message(
       c.today,
       'Scouting',
       tr('The young riders of {0}', [c.year + 1]),
-      tr('150 young riders of 18 and 19 are on the market without a team. They can be signed for next season, for the development team too; what they are worth only a scout can tell.'),
+      tr('{0} young riders of 18 and 19 are on the market.', [added]),
     ));
   }
 
@@ -1771,7 +1808,8 @@ class Economy {
   /// free agents at first, each after a real young rider.
   ///
   /// @param free Id of the free-agent team.
-  void _intake(int free) {
+  /// @returns The number of new riders.
+  int _intake(int free) {
     final rng = c.rng;
     final byCountry = <String, List<String>>{};
     for (final r in c.riderById.values) {
@@ -1786,13 +1824,18 @@ class Economy {
         for (var i = 0; i < e.value.length; i += 25) e.key,
     ];
     var id = c.riderById.keys.reduce(max) + 1;
-    for (var n = 0; n < 150; n++) {
+    // The best 150 of a year, and as many of ordinary level as it takes to
+    // keep the number of riders in the world where it began: without them
+    // the smaller teams run dry once the riders of the database retire.
+    final depth =
+        (_population - c.riderById.length - 150).clamp(0, maxDepth).toInt();
+    for (var n = 0; n < 150 + depth; n++) {
       final country = countries[rng.nextInt(countries.length)];
       final names = byCountry[country]!;
       final last = names[rng.nextInt(names.length)].split(' ').last;
       final first = names[rng.nextInt(names.length)].split(' ').first;
       final age = 18 + rng.nextInt(2);
-      final young = youngRider(rng, age);
+      final young = youngRider(rng, age, depth: n >= 150);
       final rider = SimRider(
         id: id,
         name: '${first.isEmpty ? '' : '${first[0]}. '}$last',
@@ -1811,6 +1854,7 @@ class Economy {
       contracts[id] = Contract(marketWage(rider), c.year);
       id++;
     }
+    return 150 + depth;
   }
 
   /// Lets the other teams fill their squads from the free agents.
@@ -1947,6 +1991,10 @@ class Economy {
   ///
   /// @returns The place, 1 for the strongest.
   int strengthRank() => _strengthRank();
+
+  /// Share of the budget the player's team may keep in the account over the
+  /// turn of the year; the owners take the rest.
+  static const ownerShare = 0.5;
 
   /// Starts a season: the balance stays, counters and goals start over.
   void openSeason() {

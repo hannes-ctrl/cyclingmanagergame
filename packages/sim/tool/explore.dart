@@ -20,13 +20,13 @@ void main(List<String> args) {
     tuning = SimTuning({...tuning.toMap(), ...overrides});
   final field = syntheticField();
   final routes = {
-    'Flach': flatStage(),
-    'Rampe': puncheurFinish(),
-    'Hügel': hillyClassic(),
-    'Berg': mountainStage(),
-    'Pflaster': cobbledClassic(),
-    'EZF': timeTrial(),
-    'MZF': teamTimeTrial(),
+    'Flat': flatStage(),
+    'Ramp': puncheurFinish(),
+    'Hills': hillyClassic(),
+    'Mountain': mountainStage(),
+    'Cobbles': cobbledClassic(),
+    'ITT': timeTrial(),
+    'TTT': teamTimeTrial(),
   };
   for (final e in routes.entries) {
     if (only != null && !only.split(',').contains(e.key)) continue;
@@ -59,19 +59,19 @@ void main(List<String> args) {
         breaksFormed++;
       }
       final type = w.rider.id % 100;
-      wins['typ$type'] = (wins['typ$type'] ?? 0) + 1;
+      wins['type$type'] = (wins['type$type'] ?? 0) + 1;
       if (w.rider.teamId <= 3) fav++;
     }
     String f(double x) => x.toStringAsFixed(1);
     stdout.writeln('${e.key.padRight(9)} ${f(route.raceKm)} km, '
-        '${f(speed / runs)} km/h, 1. Gruppe ${f(first / runs)}, '
-        'solo ${100 * solo ~/ runs} %, Pl.10 +${f(gap10 / runs)} s, '
-        'Mitte +${f(gapMid / runs)} s, Ausreißer ${100 * breaks ~/ runs} %, '
-        'Flucht ab km ${breaksFormed == 0 ? '-' : f(breakKm / breaksFormed)}, '
-        'Stürze ${f(crashes / runs)}, Defekte ${f(punctures / runs)}, '
-        'Aufgaben ${f(abandons / runs)}, Windkanten ${f(echelons / runs)}, '
-        'Top-3-Teams siegen ${100 * fav ~/ runs} %, '
-        '${watch.elapsedMilliseconds ~/ runs} ms/Lauf');
-    stdout.writeln('          Siegertypen: $wins');
+        '${f(speed / runs)} km/h, first group ${f(first / runs)}, '
+        'solo ${100 * solo ~/ runs} %, 10th +${f(gap10 / runs)} s, '
+        'middle +${f(gapMid / runs)} s, break wins ${100 * breaks ~/ runs} %, '
+        'break from km ${breaksFormed == 0 ? '-' : f(breakKm / breaksFormed)}, '
+        'crashes ${f(crashes / runs)}, punctures ${f(punctures / runs)}, '
+        'abandons ${f(abandons / runs)}, echelons ${f(echelons / runs)}, '
+        'top 3 teams win ${100 * fav ~/ runs} %, '
+        '${watch.elapsedMilliseconds ~/ runs} ms/run');
+    stdout.writeln('          winner types: $wins');
   }
 }

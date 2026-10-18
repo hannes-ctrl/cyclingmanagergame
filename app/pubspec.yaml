@@ -1,7 +1,7 @@
 name: radmanager
 description: "Radsport-Managerspiel"
 publish_to: 'none'
-version: 0.5.0-alpha+4
+version: 0.6.0-alpha+5
 
 environment:
   sdk: ^3.13.5

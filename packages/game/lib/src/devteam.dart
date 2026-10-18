@@ -101,7 +101,14 @@ class DevTeam {
     final own = c.teams[c.teamId]!;
     final free = c.teams.values.where((t) => t.division == 'Free').first.id;
     final id = c.teams.keys.reduce((a, b) => a > b ? a : b) + 1;
-    final abbr = own.abbr.length >= 2 ? '${own.abbr.substring(0, 2)}D' : 'DEV';
+    // Its own abbreviation: the team's first two letters and a D, or the
+    // next free one.
+    final taken = {for (final t in c.teams.values) t.abbr.toUpperCase()};
+    final stem = own.abbr.length >= 2 ? own.abbr.substring(0, 2) : 'DV';
+    final abbr = [
+      for (final x in 'DUYZXQ'.split('')) '$stem$x',
+      for (var i = 0; i < 10; i++) 'D$i${stem[0]}',
+    ].firstWhere((a) => !taken.contains(a.toUpperCase()), orElse: () => 'DEV');
     final info = TeamInfo(id, '${own.name} Development', abbr, 'Under23',
         own.country, own.color, own.color2, '');
     final pool = [

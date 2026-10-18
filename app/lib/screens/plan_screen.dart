@@ -87,8 +87,7 @@ class _PlanScreenState extends State<PlanScreen> {
     'December',
   ];
 
-  static String _date(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.';
+  static String _date(DateTime d) => dayText(d);
 
   /// Spreads the races over lanes so that none overlaps another in its
   /// lane.
@@ -192,8 +191,10 @@ class _PlanScreenState extends State<PlanScreen> {
     }) {
       final color = _tierColor(r.tier);
       final w = width(r);
-      // Without room for a few letters the bar stays unlabelled.
-      final label = max(w, room) < 22
+      // Only the Grand Tours carry their name; every other race shows it in
+      // the tooltip, so that the timeline stays calm. Without room for a few
+      // letters the bar stays unlabelled.
+      final label = r.tier != RaceTier.grandTour || max(w, room) < 22
           ? ''
           : r.info.abbr.isNotEmpty && room < 70
           ? r.info.abbr
@@ -203,7 +204,7 @@ class _PlanScreenState extends State<PlanScreen> {
         message:
             '${r.info.name}\n${_date(r.start)}'
             '${r.isStageRace ? '–${_date(r.end)}' : ''} · '
-            '${tr('{0} stages', [r.stages.length])} · '
+            '${trn(r.stages.length, '{0} stage', '{0} stages')} · '
             '${tr('{0} of {1} pencilled in', [program[r.info.id]?.length ?? 0, career.world.raceField(r.info.id).ridersPerTeam])}',
         child: SizedBox(
           width: max(w, room),
@@ -757,18 +758,16 @@ class _PlanScreenState extends State<PlanScreen> {
                 tr('Training camp'),
               ),
               swatch(TeamColors.red.withValues(alpha: 0.3), tr('Out')),
-              Text(
+              InfoTip(
                 tr(
                   'Red border: overlaps another race. White border: promise. Target: season goal; a gold outline is a goal he is not planned for. Green line: today.',
                 ),
-                style: const TextStyle(fontSize: 12, color: TeamColors.muted),
               ),
               if (next)
-                Text(
+                InfoTip(
                   tr(
                     'Next season: the squad as it stands with the contracts signed, the races of this year. At the turn of the year this plan becomes the programme for the races the team is invited to; the sports director plans the rest if he is in charge.',
                   ),
-                  style: const TextStyle(fontSize: 12, color: TeamColors.muted),
                 ),
             ],
           ),

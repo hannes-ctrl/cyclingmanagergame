@@ -4,7 +4,7 @@
 
 The game runs on the community **WorldDB** for Pro Cycling Manager, so riders, teams, races and stage profiles are the real ones.
 
-> **Status:** version 0.5.0 alpha. A private hobby project, playable end to end, not balanced. English and German. Nothing in this repository is affiliated with Cyanide, Nacon, Sports Interactive or the UCI.
+> **Status:** version 0.6.0 alpha. A private hobby project, playable end to end, not balanced. English and German. Nothing in this repository is affiliated with Cyanide, Nacon, Sports Interactive or the UCI.
 
 ## Highlights
 
@@ -14,7 +14,7 @@ The game runs on the community **WorldDB** for Pro Cycling Manager, so riders, t
 - **Riders as people:** a personality from what the WorldDB knows of each rider, morale, standing in the team, season goals, promises, mentoring and talks.
 - **A world that moves on:** contracts with clauses and competing offers, a yearly intake, promotions from development teams, licences on a three-year ranking, books for every team, sponsors with wishes, real bike and tyre suppliers, staff and facilities.
 - **A manager's career:** a reputation, a board that can dismiss you, job offers from other teams (optional), and a history of your seasons.
-- **Comfort:** back and forward like a browser, keyboard control, bookmarks, multi-select, a vacation mode, the next season planned in the winter, filters that survive a restart, CSV export, a help with a glossary, colour vision settings, autosaves and a one-click bug report.
+- **Comfort:** back and forward like a browser, keyboard control, bookmarks, multi-select, a vacation mode, the next season planned in the winter, filters that survive a restart, a help with a glossary, colour vision settings, autosaves and a one-click bug report.
 
 All features in detail, with how the simulation and the calibration work: **[FEATURES.md](FEATURES.md)**. Plans: [ROADMAP.md](ROADMAP.md). Changes: [CHANGELOG.md](CHANGELOG.md). Concept: [docs/concept.html](docs/concept.html).
 
@@ -51,6 +51,10 @@ All features in detail, with how the simulation and the calibration work: **[FEA
 
    The executable looks for a `data` folder next to itself or in a parent directory.
 
+## Sharing with friends
+
+`.\release.ps1` builds `dist/Radmanager-<version>-windows.zip`: the program with the Visual C++ runtime and the tuning values, nothing to install. `-World` adds the world database, `-Art` the jerseys, race logos and rider photos. Both come from the WorldDB for Pro Cycling Manager and from the game itself; pass them on privately at most. Without the database the program shows where to copy `world.sqlite`.
+
 ## Repository layout
 
 ```
@@ -62,7 +66,8 @@ packages/
   calibration/      Real results and the search for better tuning values
 docs/concept.html   Concept: interface, requirements, decisions
 data/               Tuning values (tracked); world database, saves and exports (not tracked)
-kalibrieren.ps1     Runs the calibration, e.g. overnight
+calibrate.ps1       Runs the calibration, e.g. overnight
+release.ps1         Builds the release zip for a clean Windows
 ```
 
 The packages are plain Dart without Flutter, so `sim` and `game` run from the command line.
@@ -73,8 +78,8 @@ The packages are plain Dart without Flutter, so `sim` and `game` run from the co
 | --- | --- |
 | `worlddb`: `dart run bin/worlddb.dart serve` | Database browser on http://localhost:8765 |
 | `sim`: `dart run bin/sim.dart stage \| race \| check` | Simulate a stage or race, self-checks |
-| `game`: `dart run bin/world.dart [--seasons n] [--seed s] [--csv file]` | Multi-season test: squads, ages, top riders, licences, morale, money per season |
-| `game`: `dart run bin/check.dart [--seed s] [--team ABBR]` | Plays a season and checks every day what must always hold |
+| `game`: `dart run bin/world.dart [--seasons n] [--seed s] [--csv file] [--roundtrip]`, `--bands file.csv` | Multi-season test: squads, ages, top riders, licences, morale, money per season |
+| `game`: `dart run bin/check.dart [--seed s] [--team ABBR] [--switch ABBR] [--seasons n] [--job-market]` | Plays a season and checks every day what must always hold |
 | `game`: `dart run bin/season.dart [team] [seed]` · `bin/plan.dart` | A whole season headless · the season plan of a team |
 | `calibration`: `dart run bin/calibrate.dart report [--sample k --runs n --types …] [--set name=value]` | Simulation against real results, quick checks of model changes |
 | `calibration`: `dart run bin/calibrate.dart run [--hours h] [--runs n] [--margin m]` | Search better tuning values |
@@ -96,7 +101,7 @@ Texts are written in English in the sources and wrapped in `tr('…')`; German i
 
 ## Known limitations
 
-- Calibrated on 534 real races of 2023 to 2026, the race shape fits well on flat stages and in time trials, less well elsewhere: the middle of the field finishes too close to the winner (0:52 against 1:36 behind on average), hilly stages end in a bunch sprint too rarely (6 % against 18 %), breaks in the mountains win too rarely (21 % against 31 %), and the favourites win too often (59 % against 47 %).
+- Calibrated on 814 real races of 2021 to 2026, the race shape fits well on flat stages and in time trials, less well elsewhere: the middle of the field finishes too close to the winner (1:09 against 1:33 behind on average), hilly stages end in a bunch sprint too rarely (6 % against 18 %), breaks in the mountains win too rarely (21 % against 36 %), and too many sprinters finish outside the time limit on mountain stages (35 % against 17 %). The favourites win about as often as in reality (55 % against 54 % in 2026).
 - The power figures of the strongest riders are a few per cent high: up to 585 W for Ganna in a long time trial, and up to 432 W on average over the whole of Paris-Roubaix, where about 350 W would be real. The speeds fit the real races, so the losses in the model (drag, rolling resistance on rough roads) are probably somewhat high.
 - Material, staff, facilities and team styles act through small estimated factors, not calibrated yet. The suppliers follow what was known of 2026.
 - Wages and budgets follow rider strength, the ranking and the wage level of the world, because the WorldDB contains none of them; they are plausible, not real. Every team keeps books and signs within its means; over ten seasons the balances, the strength of the field (WorldTour 77.4 to 78.0) and the age of the riders (28.3 to 28.9) hold, while the number of riders of 33 and more grows (169 to 227). The board never signs riders for the player; a team it runs only renews and builds facilities.

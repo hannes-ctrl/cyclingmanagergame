@@ -43,8 +43,7 @@ double _endurance(Attributes a) => a.endurance;
 double _resistance(Attributes a) => a.resistance;
 double _recovery(Attributes a) => a.recovery;
 
-String _d(DateTime d) =>
-    '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.';
+String _d(DateTime d) => dayText(d);
 
 /// Opens the rider profile: attributes, condition, contract, results of the
 /// season, honours and career. For riders of other teams the attributes are
@@ -102,11 +101,10 @@ Future<void> _promiseDialog(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          InfoTip(
             tr(
               'A promise lifts his morale at once. Keep it and it rises again; break it and it falls far, and he remembers. One promise per rider and season is possible.',
             ),
-            style: const TextStyle(fontSize: 13, color: TeamColors.muted),
           ),
           const SizedBox(height: 10),
           Flexible(
@@ -701,7 +699,7 @@ class RiderPage extends StatelessWidget {
                               ),
                               TextButton(
                                 onPressed: () => s.compare(null),
-                                child: Text(tr('End comparison')),
+                                child: InfoTip(tr('End comparison')),
                               ),
                             ],
                           ),
@@ -1216,7 +1214,7 @@ String _month(int stamp) =>
 String birthDate(int born) {
   final y = born ~/ 10000, m = born ~/ 100 % 100, d = born % 100;
   if (m == 0 || d == 0) return '$y';
-  return '${d.toString().padLeft(2, '0')}.${m.toString().padLeft(2, '0')}.$y';
+  return dayText(DateTime.utc(y, m, d), year: true);
 }
 
 /// @param born Birth date as yyyymmdd.

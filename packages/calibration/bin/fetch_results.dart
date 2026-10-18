@@ -42,7 +42,7 @@ Future<void> main(List<String> args) async {
       if (result == null) {
         if (page != 'prologue') {
           missing++;
-          stdout.writeln('  kein Ergebnis: ${entry.value} $page');
+          stdout.writeln('  no result: ${entry.value} $page');
         }
         continue;
       }
@@ -51,11 +51,10 @@ Future<void> main(List<String> args) async {
       saved++;
       final w = result.rows.first;
       stdout.writeln('${entry.value} $page '
-          '(${result.day}.${result.month}.): ${w.name}, ${result.rows.length} Fahrer');
+          '(${result.day}.${result.month}.): ${w.name}, ${result.rows.length} riders');
     }
   }
   client.close();
   world.close();
-  stdout
-      .writeln('$saved Ergebnisse gespeichert, $missing Seiten ohne Ergebnis');
+  stdout.writeln('$saved results saved, $missing pages without a result');
 }

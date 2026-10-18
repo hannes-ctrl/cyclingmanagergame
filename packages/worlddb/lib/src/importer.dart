@@ -163,18 +163,18 @@ void _mirror(Database db, CdbTable table) {
 const _routeSchema = '''
 CREATE TABLE stage_route (
   stage_id INTEGER PRIMARY KEY,
-  file TEXT NOT NULL,           -- Dateiname ohne Endung
-  variant TEXT NOT NULL,        -- Jahrgang der Strecke, leer = ohne Jahr
-  source TEXT NOT NULL,         -- 'mod' oder 'game'
-  name TEXT NOT NULL,           -- "Startort - Zielort"
+  file TEXT NOT NULL,           -- file name without extension
+  variant TEXT NOT NULL,        -- year of the route, empty = no year
+  source TEXT NOT NULL,         -- 'mod' or 'game'
+  name TEXT NOT NULL,           -- "Start town - finish town"
   relief INTEGER NOT NULL,
   race_km REAL NOT NULL,
-  road_km REAL NOT NULL,        -- modellierte Straße inkl. Vor- und Auslauf
-  start_km REAL NOT NULL,       -- Lage des Starts auf der Straße
+  road_km REAL NOT NULL,        -- modelled road incl. run-in and run-out
+  start_km REAL NOT NULL,       -- position of the start on the road
   elevation_gain_m REAL NOT NULL,
   max_altitude_m REAL NOT NULL,
-  has_details INTEGER NOT NULL, -- 0: nur Profil lesbar
-  profile BLOB NOT NULL         -- Float32-Paare (Straßen-km, Höhe in m), little-endian
+  has_details INTEGER NOT NULL, -- 0: only the profile is readable
+  profile BLOB NOT NULL         -- Float32 pairs (road km, altitude in m), little-endian
 );
 CREATE TABLE stage_waypoint (
   stage_id INTEGER NOT NULL, seq INTEGER NOT NULL,

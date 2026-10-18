@@ -1,6 +1,6 @@
 // How breakaways fare in the simulation, for the work on the model.
 //
-//   dart run bin/breaks.dart [--sample k] [--runs n] [--types Hügel,Berg]
+//   dart run bin/breaks.dart [--sample k] [--runs n] [--types Hilly,Mountain]
 //
 // For a sample of real races: how often a break goes, how big it is, its
 // lead along the route and where it is caught, against how often a
@@ -27,7 +27,7 @@ Future<void> main(List<String> argv) async {
 
   final sample = int.parse(option('--sample') ?? '2');
   final runs = int.parse(option('--runs') ?? '3');
-  final types = (option('--types') ?? 'Flach,Hügel,Berg').split(',');
+  final types = (option('--types') ?? 'Flat,Hilly,Mountain').split(',');
   final root = Platform.script.resolve('../../../data/').toFilePath();
   final world = World('${root}world.sqlite');
   final exclude = loadExclusions('${root}calibration/exclude.txt');
@@ -40,10 +40,13 @@ Future<void> main(List<String> argv) async {
   world.close();
   final tuning = SimTuning.load('${root}calibration/tuning.json');
 
-  String clock(double s) =>
-      '${s ~/ 60}:${(s.round() % 60).toString().padLeft(2, '0')}';
-  stdout.writeln('Typ        Rennen  Sieg echt  Sieg Sim  Gruppe  Größe  '
-      'größter Vorsprung  bei 70 %   bei 85 %   bei 95 %  gestellt km vor Ziel');
+  String clock(double seconds) {
+    final s = seconds.round();
+    return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
+  }
+
+  stdout.writeln('Type        Races  win real   win sim   group   size  '
+      'largest lead       at 70 %    at 85 %    at 95 %  caught km to go');
   for (final type in types) {
     final picked = [
       for (var i = 0; i < cases.length; i++)

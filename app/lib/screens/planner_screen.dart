@@ -23,8 +23,7 @@ enum _Filter {
   String get label => tr(_label);
 }
 
-String _d(DateTime d) =>
-    '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.';
+String _d(DateTime d) => dayText(d);
 
 Color _statusColor(EntryStatus s) => switch (s) {
   EntryStatus.mandatory || EntryStatus.entered => TeamColors.green,
@@ -217,7 +216,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             color: TeamColors.red.withValues(alpha: 0.16),
-            child: Text(
+            child: InfoTip(
               tr('Entered twice: {0}{1}', [
                 clashes
                     .take(4)
@@ -233,7 +232,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     ? tr(' and {0} more', [clashes.length - 4])
                     : '',
               ]),
-              style: const TextStyle(fontSize: 13),
             ),
           ),
         Container(

@@ -4,20 +4,20 @@ import 'dart:math';
 import 'package:worlddb/worlddb.dart';
 
 const _usage = '''
-Aufruf: dart run worlddb <befehl> [--worlddb <ordner>]
+Usage: dart run worlddb <command> [--worlddb <folder>]
 
-  tables                      Tabellen mit Zeilen- und Spaltenzahl
-  columns <tabelle>           Spalten einer Tabelle
-  dump <tabelle> [n] [regex]  n Zeilen (Standard 10), optional gefiltert
-  stage <datei>               Kopf und Profil einer Etappe (Name ohne .cds)
-  pak <datei.pak> [regex]     Inhalt einer Pak-Datei des Grundspiels auflisten
-  game-stages <datei.pak>     Etappendateien des Grundspiels nach worlddb/GameStages entpacken
-  classifications             Punkteschemata in eine bestehende Weltdatenbank nachtragen
-  jerseys <datei.pak>         Teamtrikots aus dem Grafikpaket nach data/jerseys schreiben
-  import                      Weltdatenbank data/world.sqlite aus der WorldDB bauen
-  sql "<abfrage>"             Abfrage gegen data/world.sqlite
-  serve                       Datenbank-Browser auf http://localhost:8765
-  check                       Liest alles ein und prüft bekannte Eckwerte
+  tables                      tables with their numbers of rows and columns
+  columns <table>             columns of a table
+  dump <table> [n] [regex]    n rows (default 10), optionally filtered
+  stage <file>                head and profile of a stage (name without .cds)
+  pak <file.pak> [regex]      list the content of a pak file of the base game
+  game-stages <file.pak>      unpack the stage files of the base game into worlddb/GameStages
+  classifications             add the points scales to an existing world database
+  jerseys <file.pak>          write the team jerseys of the graphics pack to data/jerseys
+  import                      build the world database data/world.sqlite from the WorldDB
+  sql "<query>"               query data/world.sqlite
+  serve                       database browser on http://localhost:8765
+  check                       read everything and check known reference values
 ''';
 
 /// Command-line entry point of the WorldDB tools.
@@ -44,8 +44,8 @@ Future<void> main(List<String> argv) async {
   switch (args[0]) {
     case 'tables':
       for (final t in CdbDatabase.readFile(dbPath).tables) {
-        print('${t.name.padRight(42)} ${'${t.rowCount}'.padLeft(6)} Zeilen '
-            '${'${t.columns.length}'.padLeft(4)} Spalten');
+        print('${t.name.padRight(42)} ${'${t.rowCount}'.padLeft(6)} rows '
+            '${'${t.columns.length}'.padLeft(4)} columns');
       }
     case 'columns':
       for (final c in _table(dbPath, args[1]).columns) {
@@ -81,11 +81,11 @@ Future<void> main(List<String> argv) async {
         if (filter != null && !filter.hasMatch(e.path)) continue;
         if (shown++ < 15) print('${e.size.toString().padLeft(10)}  ${e.path}');
         bytes += e.size;
-        final m = e.compression ?? 'unkomprimiert';
+        final m = e.compression ?? 'uncompressed';
         methods[m] = (methods[m] ?? 0) + 1;
       }
       print(
-          '$shown Dateien, ${(bytes / 1048576).toStringAsFixed(1)} MB, $methods');
+          '$shown files, ${(bytes / 1048576).toStringAsFixed(1)} MB, $methods');
       pak.close();
     case 'jerseys':
       // Exports the small team jerseys of the graphics pack as PNG files.
@@ -111,7 +111,7 @@ Future<void> main(List<String> argv) async {
         written++;
       }
       pak.close();
-      print('$written Trikots nach ${outDir.path}, $skipped nicht lesbar');
+      print('$written jerseys to ${outDir.path}, $skipped unreadable');
     case 'logos':
       // Exports the race logos of the graphics pack as PNG files, named
       // after the id of the race they belong to.
@@ -152,8 +152,8 @@ Future<void> main(List<String> argv) async {
         }
       }
       pak.close();
-      print('$written Rennlogos nach ${outDir.path}, $skipped nicht lesbar, '
-          '$unknown ohne Rennen');
+      print('$written race logos to ${outDir.path}, $skipped unreadable, '
+          '$unknown without a race');
     case 'photos':
       // Exports the rider photos of the graphics pack as PNG files, named
       // after the id of the rider.
@@ -196,7 +196,7 @@ Future<void> main(List<String> argv) async {
         }
       }
       pak.close();
-      print('$written Fahrerfotos nach ${outDir.path}, $skipped nicht lesbar');
+      print('$written rider photos to ${outDir.path}, $skipped unreadable');
     case 'game-stages':
       final pak = PakFile.open(args[1]);
       final ooz = Ooz(Platform.script
@@ -217,16 +217,15 @@ Future<void> main(List<String> argv) async {
         }
       }
       pak.close();
-      print(
-          '$written Etappen entpackt nach ${outDir.path}, $failed fehlgeschlagen');
+      print('$written stages unpacked to ${outDir.path}, $failed failed');
       if (failed > 0) exitCode = 1;
     case 'import':
       final watch = Stopwatch()..start();
       final s = importWorld(worlddbDir: root, outPath: worldPath);
-      print('${s.tables} Tabellen, ${s.rows} Zeilen gespiegelt');
-      print('${s.stagesWithRoute} von ${s.stages} Etappen mit Strecke, '
-          'davon ${s.stagesCurrentRoute} im Jahrgang 2026, '
-          '${s.stagesWithoutDetails} nur mit Profil');
+      print('${s.tables} tables, ${s.rows} rows copied');
+      print('${s.stagesWithRoute} of ${s.stages} stages with a route, '
+          '${s.stagesCurrentRoute} of them of 2026, '
+          '${s.stagesWithoutDetails} with a profile only');
       print(
           '$worldPath (${(File(worldPath).lengthSync() / 1048576).toStringAsFixed(1)} MB, '
           '${watch.elapsed.inSeconds} s)');
@@ -237,7 +236,7 @@ Future<void> main(List<String> argv) async {
       final added = importVariants(db, root, [2021, 2022, 2023, 2024, 2025]);
       db.execute('COMMIT;');
       db.dispose();
-      print('$added Strecken der Jahrgänge 2021 bis 2025 ergänzt');
+      print('$added routes of 2021 to 2025 added');
     case 'classifications':
       // Adds the points schemes to an existing world database.
       final db = openSqlite(worldPath);
@@ -245,7 +244,7 @@ Future<void> main(List<String> argv) async {
       final rows = importClassifications(db, root);
       db.execute('COMMIT;');
       db.dispose();
-      print('$rows Einträge aus den Classifications-Dateien');
+      print('$rows entries from the classifications files');
     case 'sql':
       final db = openSqlite(worldPath);
       final result = db.select(args[1]);
@@ -276,7 +275,7 @@ Future<void> main(List<String> argv) async {
 CdbTable _table(String dbPath, String name) {
   final t = CdbDatabase.readFile(dbPath).table(name);
   if (t == null) {
-    stderr.writeln('Tabelle $name gibt es nicht.');
+    stderr.writeln('There is no table $name.');
     exit(2);
   }
   return t;
@@ -287,25 +286,25 @@ CdbTable _table(String dbPath, String name) {
 /// @param s The parsed stage file.
 void _printStage(StageFile s) {
   print(
-      '${s.name}  (Format 0x${s.version.toRadixString(16)}, Gelände ${s.relief})');
+      '${s.name}  (format 0x${s.version.toRadixString(16)}, terrain ${s.relief})');
   print('${s.lengthKm.toStringAsFixed(1)} km, '
-      '${s.elevationGainM.round()} Hm, höchster Punkt ${s.maxAltitudeM.round()} m, '
-      '${s.profile.length} Profilpunkte');
+      '${s.elevationGainM.round()} m climbing, highest point ${s.maxAltitudeM.round()} m, '
+      '${s.profile.length} profile points');
   print(
-      'Rennen: km ${s.startKm?.toStringAsFixed(1)} bis ${s.finishKm?.toStringAsFixed(1)} '
-      'der Straße, ${s.raceDistanceKm.toStringAsFixed(1)} km');
+      'Race: km ${s.startKm?.toStringAsFixed(1)} to ${s.finishKm?.toStringAsFixed(1)} '
+      'of the road, ${s.raceDistanceKm.toStringAsFixed(1)} km');
   final start = s.startKm ?? 0;
   for (final w in s.waypoints) {
     if (w.type == WaypointType.feedZone) continue;
-    print('  Rennkm ${(w.km - start).toStringAsFixed(1).padLeft(6)}  '
+    print('  race km ${(w.km - start).toStringAsFixed(1).padLeft(6)}  '
         '${w.type.name.padRight(14)} ${w.detail.toString().padLeft(2)}  ${w.name}');
   }
   for (final c in s.climbs) {
-    print('  Anstieg ${c.name}: ${(c.toKm - c.fromKm).toStringAsFixed(1)} km, '
+    print('  climb ${c.name}: ${(c.toKm - c.fromKm).toStringAsFixed(1)} km, '
         '${c.avgGradient.toStringAsFixed(1)} % (max ${c.maxGradient.toStringAsFixed(1)} %)');
   }
   for (final x in s.sectors) {
-    print('  ${x.cobbled ? 'Pflaster' : 'Unbefestigt'} ${'*' * x.difficulty} '
+    print('  ${x.cobbled ? 'cobbles' : 'gravel'} ${'*' * x.difficulty} '
         '${x.name}: ${((x.toKm - x.fromKm) * 1000).round()} m');
   }
   // Coarse text profile: one line every 5 km.
@@ -337,27 +336,27 @@ bool _check(String dbPath, String stageDir) {
     final good = actual == wanted;
     ok &= good;
     print(
-        '${good ? 'ok  ' : 'FEHL'} $what: $actual${good ? '' : ' (erwartet $wanted)'}');
+        '${good ? 'ok  ' : 'FAIL'} $what: $actual${good ? '' : ' (expected $wanted)'}');
   }
 
   final db = CdbDatabase.readFile(dbPath);
-  expect('Tabellen', db.tables.length, 145);
+  expect('tables', db.tables.length, 145);
   final riders = db.table('DYN_cyclist')!;
-  expect('Fahrer', riders.rowCount, 8078);
+  expect('riders', riders.rowCount, 8078);
   final names = riders.column('gene_sz_lastname')!.values;
   // The WorldDB stores names without diacritics.
-  expect('Pogacar vorhanden', names.contains('Pogacar'), true);
+  expect('Pogacar present', names.contains('Pogacar'), true);
   final races = db.table('STA_race')!;
   final tdf =
       races.rows.firstWhere((r) => r['gene_sz_race_name'] == 'Tour de France');
-  expect('Tour de France Etappen', tdf['gene_i_number_stages']!, 21);
+  expect('Tour de France stages', tdf['gene_i_number_stages']!, 21);
 
   // Tour 2023, stage 17: Col de la Loze (2,304 m) is a known reference value.
   final loze = StageFile.readFile('$stageDir/top_tdf_17_2023.cds');
-  expect('Loze höchster Punkt', loze.maxAltitudeM.round(), 2304);
+  expect('Loze highest point', loze.maxAltitudeM.round(), 2304);
   // The profile only has a point every 200 m, the summit lies in between.
   final lozeTop = loze.profile.map((p) => p.altitude).reduce(max);
-  expect('Loze Profilmaximum auf 5 m genau', (lozeTop - 2304).abs() <= 5, true);
+  expect('Loze profile maximum within 5 m', (lozeTop - 2304).abs() <= 5, true);
 
   // Stages extracted from the base game (command game-stages), if present.
   final gameDir = Directory('${File(dbPath).parent.path}/GameStages');
@@ -374,11 +373,12 @@ bool _check(String dbPath, String stageDir) {
         bad++;
       }
     }
-    expect('Grundspiel-Etappen', n, 1132);
-    expect('davon ohne Wegpunkte/Anstiege', noDetails, 3);
-    expect('davon Start bis Ziel unstimmig', bad, 0);
+    expect('base game stages', n, 1132);
+    expect('of them without waypoints/climbs', noDetails, 3);
+    expect('of them start to finish inconsistent', bad, 0);
     final huez = StageFile.readFile('${gameDir.path}/top_tdf_20_2026.cds');
-    expect('Tour 2026 Etappe 20 Ziel', huez.waypoints.last.name, "Alpe d'Huez");
+    expect(
+        'Tour 2026 stage 20 finish', huez.waypoints.last.name, "Alpe d'Huez");
   }
 
   // Read every stage and check the header against the profile.
@@ -410,18 +410,18 @@ bool _check(String dbPath, String stageDir) {
       if (failed <= 5) print('     ${f.uri.pathSegments.last}: $e');
     }
   }
-  expect('Etappendateien', files, 3328);
-  expect('nicht lesbar', failed, 0);
-  expect('ohne Wegpunkte/Anstiege', noDetails, 21);
-  expect('Start bis Ziel weicht von der Renndistanz ab', raceOff, 0);
+  expect('stage files', files, 3328);
+  expect('unreadable', failed, 0);
+  expect('without waypoints/climbs', noDetails, 21);
+  expect('start to finish differs from the race distance', raceOff, 0);
   final roubaix = StageFile.readFile('$stageDir/topclas_roubaix_2026.cds');
-  expect('Roubaix Pflastersektoren',
+  expect('Roubaix cobbled sectors',
       roubaix.sectors.where((x) => x.cobbled).length, 30);
-  expect('Roubaix Fünf-Sterne-Sektoren',
+  expect('Roubaix five-star sectors',
       roubaix.sectors.where((x) => x.difficulty == 5).length, 3);
-  print('     Profilende weicht > 1 km von der Länge ab: $lengthOff');
-  print('     Profilmaximum weicht > 15 m vom Kopfwert ab: $maxOff');
+  print('     profile end differs from the length by > 1 km: $lengthOff');
+  print('     profile maximum differs from the header by > 15 m: $maxOff');
   print(
-      '     Formatversionen: ${(versions.keys.toList()..sort()).map((v) => '0x${v.toRadixString(16)}×${versions[v]}').join(', ')}');
+      '     format versions: ${(versions.keys.toList()..sort()).map((v) => '0x${v.toRadixString(16)}×${versions[v]}').join(', ')}');
   return ok;
 }

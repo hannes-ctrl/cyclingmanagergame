@@ -143,14 +143,10 @@ class FinanceScreen extends StatelessWidget {
                             ),
                           ),
                         const SizedBox(height: 12),
-                        Text(
+                        InfoTip(
                           tr(
                             'As of today: {0} wins. The goals are assessed at the end of the year; the place in the team ranking can still change until then.',
                             [eco.wins],
-                          ),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: TeamColors.muted,
                           ),
                         ),
                         if (career.history.isNotEmpty) ...[
@@ -207,9 +203,7 @@ class FinanceScreen extends StatelessWidget {
                                     Col(
                                       tr('Month'),
                                       80,
-                                      (m, _) => cellText(
-                                        '${m.month.month.toString().padLeft(2, '0')}.${m.month.year}',
-                                      ),
+                                      (m, _) => cellText(monthText(m.month)),
                                     ),
                                     Col(
                                       'Sponsor',
@@ -275,15 +269,26 @@ class _Sponsors extends StatelessWidget {
     final eco = s.career.economy;
     final year = s.career.year;
 
+    // A small button; without an action it is greyed out.
     Widget pill(String label, VoidCallback? onTap) => InkWell(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
         decoration: BoxDecoration(
-          border: Border.all(color: c.line),
+          border: Border.all(
+            color: onTap == null ? c.line.withValues(alpha: 0.4) : c.line,
+          ),
           borderRadius: BorderRadius.circular(11),
         ),
-        child: Text(label, style: const TextStyle(fontSize: 12)),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: onTap == null
+                ? TeamColors.muted.withValues(alpha: 0.6)
+                : TeamColors.text,
+          ),
+        ),
       ),
     );
 
@@ -476,11 +481,10 @@ class _Equipment extends StatelessWidget {
             ),
           ],
         ),
-        Text(
+        InfoTip(
           tr(
             'The suppliers pay for being on the team\'s bikes and lower the cost of material. Better bikes are more aerodynamic or lighter, better tyres roll more easily or puncture less; the difference between the best and the weakest is about a second per kilometre in a time trial.',
           ),
-          style: const TextStyle(fontSize: 12, color: TeamColors.muted),
         ),
         if (eq.accepted case final o?)
           Padding(
@@ -551,9 +555,7 @@ class _FacilitiesState extends State<_Facilities> {
     final c = s.colors;
     final career = s.career;
     final fac = career.facilities;
-    final building = fac.building;
-    String day(DateTime d) =>
-        '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+    String day(DateTime d) => dayText(d, year: true);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -591,22 +593,26 @@ class _FacilitiesState extends State<_Facilities> {
                         ),
                       ),
                     const SizedBox(width: 10),
-                    if (building?.facility == f)
+                    if (fac.buildOf(f) case final building?)
                       Text(
-                        tr('ready on {0}', [day(building!.ready)]),
+                        tr('ready on {0}', [day(building.ready)]),
                         style: const TextStyle(
                           fontSize: 12,
                           color: TeamColors.green,
                         ),
                       )
                     else if (fac.upgradeCost(f) case final cost?)
-                      widget.pill(
-                        tr('Expand · {0} €', [euro(cost)]),
-                        s.busy || building != null
-                            ? null
-                            : () => setState(
-                                () => _answer = s.upgradeFacility(f),
-                              ),
+                      // Two buildings at a time, and only with the money.
+                      Tooltip(
+                        message: fac.cannotBuild(f) ?? '',
+                        child: widget.pill(
+                          tr('Expand · {0} €', [euro(cost)]),
+                          s.busy || fac.cannotBuild(f) != null
+                              ? null
+                              : () => setState(
+                                  () => _answer = s.upgradeFacility(f),
+                                ),
+                        ),
                       ),
                   ],
                 ),
@@ -620,10 +626,7 @@ class _FacilitiesState extends State<_Facilities> {
           ),
         Text(
           _answer ??
-              tr(
-                'Level 3 is the average of the peloton. Running all facilities costs {0} € a year; a new level takes some months to build.',
-                [euro(fac.upkeep(career.teamId))],
-              ),
+              tr('Upkeep {0} € a year', [euro(fac.upkeep(career.teamId))]),
           style: TextStyle(
             fontSize: 12,
             color: _answer == null ? TeamColors.muted : TeamColors.gold,

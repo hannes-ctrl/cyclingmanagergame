@@ -8,7 +8,7 @@ import 'package:sim/sim.dart';
 void main() {
   final dataDir = AppState.findDataDir();
 
-  test('Saisonplan des Sportlichen Leiters', skip: dataDir == null, () {
+  test('The sports director\'s season plan', skip: dataDir == null, () {
     final world = World('$dataDir/world.sqlite');
     addTearDown(world.close);
     final team = world.teams().firstWhere((t) => t.abbr == 'RBH').id;

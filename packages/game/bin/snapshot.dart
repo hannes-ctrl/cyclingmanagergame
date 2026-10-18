@@ -66,25 +66,25 @@ void main(List<String> args) {
   final text = jsonEncode(a.toJson());
   final races = [for (final p in a.progress.values) jsonEncode(a.raceJson(p))];
   final raceBytes = races.fold(0, (sum, r) => sum + r.length);
-  print('Stand am ${a.today.toIso8601String().substring(0, 10)}: '
-      '${(text.length / 1048576).toStringAsFixed(1)} MB und '
-      '${races.length} Rennen mit ${(raceBytes / 1048576).toStringAsFixed(1)} MB, '
-      'geschrieben in ${watch.elapsedMilliseconds} ms');
+  print('State of ${a.today.toIso8601String().substring(0, 10)}: '
+      '${(text.length / 1048576).toStringAsFixed(1)} MB and '
+      '${races.length} races of ${(raceBytes / 1048576).toStringAsFixed(1)} MB, '
+      'written in ${watch.elapsedMilliseconds} ms');
 
   watch = Stopwatch()..start();
   final b = start()
     ..restore(jsonDecode(text) as Map<String, dynamic>,
         [for (final r in races) jsonDecode(r) as Map<String, dynamic>]);
-  print('geladen in ${watch.elapsedMilliseconds} ms');
+  print('loaded in ${watch.elapsedMilliseconds} ms');
   final same = fingerprint(a) == fingerprint(b);
-  print('gleich nach dem Laden: $same');
+  print('the same after loading: $same');
   // A second round trip must give the identical text.
-  print('zweites Speichern identisch: ${jsonEncode(b.toJson()) == text && [
+  print('second save identical: ${jsonEncode(b.toJson()) == text && [
         for (final p in b.progress.values) jsonEncode(b.raceJson(p))
       ].join() == races.join()}');
   watch = Stopwatch()..start();
   jsonEncode(a.toJson());
-  print('nur der Zustand ohne Rennen: ${watch.elapsedMilliseconds} ms');
+  print('the state without races only: ${watch.elapsedMilliseconds} ms');
 
   play(a, after);
   play(b, after);
@@ -94,12 +94,12 @@ void main(List<String> args) {
     if (fa[i] != fb[i]) {
       equal = false;
       print(
-          'Abweichung in Zeile $i:\n  ${fa[i].length > 160 ? '${fa[i].substring(0, 160)}…' : fa[i]}'
+          'Difference in line $i:\n  ${fa[i].length > 160 ? '${fa[i].substring(0, 160)}…' : fa[i]}'
           '\n  ${fb[i].length > 160 ? '${fb[i].substring(0, 160)}…' : fb[i]}');
     }
   }
   print(
-      'gleich nach $after weiteren Tagen (${a.today.toIso8601String().substring(0, 10)}): $equal');
+      'the same after $after more days (${a.today.toIso8601String().substring(0, 10)}): $equal');
   world.close();
   if (!same || !equal) exitCode = 1;
 }

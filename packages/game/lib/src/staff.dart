@@ -239,8 +239,7 @@ class StaffBook {
 
     for (final team in c.teams.values) {
       if (team.division == 'Free') continue;
-      // Team strength 60 to 80 becomes a base level of roughly 5 to 16.
-      final base = ((c.teamStrength(team.id) - 60) * 0.55 + 5).clamp(4.0, 17.0);
+      final base = _baseFor(team.id);
       final (directors, coaches, doctors, scouts) =
           team.division.startsWith('[1]')
               ? (4, 3, 2, 2)
@@ -273,6 +272,40 @@ class StaffBook {
     for (var i = 0; i < 12 * StaffRole.values.length; i++) {
       add(0, StaffRole.values[i % StaffRole.values.length],
           5 + rng.nextDouble() * 11);
+    }
+  }
+
+  /// The level of a team's staff at the start: team strength 60 to 80
+  /// becomes a base level of roughly 5 to 16.
+  ///
+  /// @param teamId Id of the team.
+  /// @returns The base level.
+  double _baseFor(int teamId) =>
+      ((c.teamStrength(teamId) - 60) * 0.55 + 5).clamp(4.0, 17.0).toDouble();
+
+  /// Fits the staff of a newly founded team to its strength once its squad
+  /// is in place: before that it has no riders, and its people were those
+  /// of the weakest team.
+  ///
+  /// @param teamId Id of the team.
+  ///
+  /// @param keepBetter Whether people better than that keep their values,
+  ///   for a running career.
+  void fitTo(int teamId, {bool keepBetter = false}) {
+    final rng = Random(c.seed * 31 + teamId);
+    final base = _baseFor(teamId);
+    int level(double b) =>
+        (b + rng.nextDouble() * 5 - 2.5).round().clamp(2, 20);
+    var first = true;
+    for (final s in of(teamId)) {
+      final lead = first && s.role == StaffRole.director;
+      if (lead) first = false;
+      final skill = level(base + (lead ? 1.5 : 0)), second = level(base);
+      if (keepBetter && s.skill >= skill) continue;
+      s
+        ..skill = skill
+        ..second = keepBetter ? max(s.second, second) : second
+        ..wage = wageFor(skill);
     }
   }
 

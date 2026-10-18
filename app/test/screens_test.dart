@@ -68,7 +68,7 @@ void main() {
     }
   });
 
-  testWidgets('Startmenü', skip: dataDir == null, (tester) async {
+  testWidgets('Start menu', skip: dataDir == null, (tester) async {
     tester.view.physicalSize = const Size(1600, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -113,7 +113,7 @@ void main() {
     expect(find.text('FORTSETZEN'), findsOneWidget);
   });
 
-  testWidgets('Zurück, Vor und Tasten', skip: dataDir == null, (tester) async {
+  testWidgets('Back, forward and keys', skip: dataDir == null, (tester) async {
     tester.view.physicalSize = const Size(1600, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -250,7 +250,7 @@ void main() {
     expect(state.career.mutedTopics, contains('Medizin'));
   });
 
-  testWidgets('Debug und Fahrersuche', skip: dataDir == null, (tester) async {
+  testWidgets('Debug and rider search', skip: dataDir == null, (tester) async {
     tester.view.physicalSize = const Size(1600, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -285,7 +285,7 @@ void main() {
     );
   });
 
-  testWidgets('Englisch', skip: dataDir == null, (tester) async {
+  testWidgets('English', skip: dataDir == null, (tester) async {
     tester.view.physicalSize = const Size(1600, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -321,7 +321,7 @@ void main() {
     }
   });
 
-  testWidgets('Kader und Rennbericht', skip: dataDir == null, (tester) async {
+  testWidgets('Squad and race report', skip: dataDir == null, (tester) async {
     tester.view.physicalSize = const Size(1600, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -788,7 +788,7 @@ void main() {
   });
 
   testWidgets(
-    'Mehrfachauswahl, Lesezeichen, Urlaub und Winterplan',
+    'Multi-select, bookmarks, vacation and winter plan',
     skip: dataDir == null,
     (tester) async {
       tester.view.physicalSize = const Size(1600, 900);
@@ -859,4 +859,94 @@ void main() {
       );
     },
   );
+
+  // Every page and every view in both languages, on a small screen, the
+  // usual one, a 4K screen at double scale and a 21:9 one: a page that
+  // overflows or throws fails the test.
+  for (final (lang, size, ratio) in [
+    (Lang.de, const Size(1600, 900), 1.0),
+    (Lang.en, const Size(1600, 900), 1.0),
+    // The smallest window the app allows.
+    (Lang.de, const Size(1280, 760), 1.0),
+    (Lang.de, const Size(3840, 2160), 2.0),
+    (Lang.en, const Size(3440, 1440), 1.0),
+  ]) {
+    testWidgets(
+      'All pages: ${lang.name} ${size.width.round()}×${size.height.round()}',
+      skip: dataDir == null,
+      (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = ratio;
+        addTearDown(tester.view.reset);
+        I18n.lang = lang;
+        addTearDown(() => I18n.lang = Lang.de);
+        final settings = AppSettings(dataDir!, persist: false)
+          ..debug = true
+          ..lang = lang;
+        final state = AppState(dataDir, persist: false)..watchLive = false;
+        await tester.pumpWidget(
+          RadmanagerApp(state: state, settings: settings),
+        );
+        await tester.pumpAndSettle();
+        // A few days, so that there are results, messages and a race.
+        for (var i = 0; i < 3; i++) {
+          await tester.runAsync(state.next);
+          await tester.pumpAndSettle();
+          if (state.pending != null) break;
+        }
+        Future<void> open(String key) async {
+          final f = find.text(tr(key));
+          // On a low window the sidebar scrolls.
+          if (f.evaluate().isEmpty) {
+            await tester.scrollUntilVisible(
+              f,
+              80,
+              scrollable: find.byType(Scrollable).first,
+            );
+          }
+          expect(f, findsWidgets, reason: key);
+          await tester.tap(f.first);
+          await tester.pumpAndSettle();
+        }
+
+        final views = <String, List<String>>{
+          'Home': [],
+          'Inbox': [],
+          'Squad': ['Form and training', 'Contracts', 'Season'],
+          'Development team': [],
+          'Training camps': [],
+          'Calendar': [],
+          'Race planner': ['Rider matrix'],
+          'Races': ['Date'],
+          'Rankings': ['Breakaways', 'Licences', 'Archive'],
+          'Transfers': ['Market'],
+          'Rider search': [],
+          'Finances and goals': [],
+          'Staff': [],
+          'Delegation': [],
+          'History': ['Seasons', 'Records', 'Retired riders'],
+          'Save games': [],
+          'Debug': [],
+        };
+        for (final e in views.entries) {
+          await open(e.key);
+          for (final view in e.value) {
+            await open(view);
+          }
+        }
+        // Rider page and team page lie on top of the pages.
+        state.openRider(state.squad.first.id);
+        await tester.pumpAndSettle();
+        expect(find.text(tr('Rider profile')), findsWidgets);
+        state.closeRider();
+        state.teamPage = state.career.teams.values
+            .firstWhere(
+              (t) => t.id != state.team.id && t.division.startsWith('['),
+            )
+            .id;
+        state.goTo('home');
+        await tester.pumpAndSettle();
+      },
+    );
+  }
 }

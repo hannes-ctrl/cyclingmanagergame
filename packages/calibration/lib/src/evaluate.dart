@@ -80,7 +80,17 @@ class CaseScore {
       this.realFavourite,
       this.simFavourite = 0,
       this.realGcLoss,
-      this.simGcLoss});
+      this.simGcLoss,
+      this.cutSprinters = 0,
+      this.realCutOut = 0,
+      this.simCutOut = 0});
+
+  /// Sprinters at the start of a hilly or mountain stage of a stage race,
+  /// and how many of them finished outside the time limit, in reality and
+  /// on average in the simulation; 0 for other races.
+  final int cutSprinters;
+  final int realCutOut;
+  final double simCutOut;
 
   /// Parts of [loss], already weighted, for the report.
   final double shapeTerm;
@@ -156,6 +166,18 @@ const _wFrequency = 60.0;
 /// single real result says little, only the frequency over many races counts.
 const _wFavourite = 20.0;
 
+/// Weight of the term for how many sprinters finish outside the time limit
+/// on hilly and mountain stages of stage races.
+const _wCut = 20.0;
+
+/// Whether a rider counts as a sprinter for the time limit: fast, and no
+/// climber.
+///
+/// @param r The rider.
+/// @returns true for a sprinter.
+bool isSprinter(SimRider r) =>
+    r.attributes.sprint >= 76 && r.attributes.mountain < 70;
+
 /// Weight of the time the leaders of the general classification lose on a
 /// stage. It decides how far apart a stage race ends.
 const _wGc = 0.3;
@@ -168,11 +190,21 @@ const _wGc = 0.3;
 /// @param seed Base seed.
 /// @returns The score of this race.
 CaseScore scoreCase(CalibrationCase c, SimTuning tuning, int runs, int seed) {
-  // The real race is measured on all finishers; its first group is scaled
-  // to the part of the field that the simulation has.
+  // The shape of the real race is measured on the riders the simulation
+  // has: the database lacks mostly lesser riders, so the middle of all real
+  // finishers lies further back, and the tenth of all of them further
+  // forward, than the same places of the simulated field could. The speed
+  // comes from the real winner, the kind of finish from all finishers.
   final all = c.allTimes.isEmpty ? c.realTimes : c.allTimes;
-  final real = RaceShape.of(all, c.route.raceKm, c.winnerFromBreak,
-      fieldShare: c.riders.length / all.length);
+  final known =
+      RaceShape.of([...c.realTimes]..sort(), c.route.raceKm, c.winnerFromBreak);
+  final real = RaceShape(
+      known.logFirstGroup,
+      known.logGap10,
+      known.logGapMedian,
+      known.logGap90,
+      RaceShape.of(all, c.route.raceKm, c.winnerFromBreak).speedKmh,
+      known.breakWin);
   final realGroup = all.where((t) => t - all.first <= 1).length;
   final top5 = c.realOrder.take(5).toSet();
   final winner = c.realOrder.first;
@@ -202,6 +234,24 @@ CaseScore scoreCase(CalibrationCase c, SimTuning tuning, int runs, int seed) {
       : null;
   var simGcSum = 0.0;
   final finishes = List.filled(FinishKind.road.length, 0);
+  // The time limit on a hard stage of a stage race: which sprinters were
+  // outside it in reality.
+  final cutStage =
+      c.gcGaps.isNotEmpty && (c.type == 'Mountain' || c.type == 'Hilly');
+  final byId = {for (final r in c.riders) r.id: r};
+  var cutSprinters = 0, realCutOut = 0;
+  var simCutSum = 0;
+  if (cutStage) {
+    final w = c.realTimes.first;
+    final limit =
+        w * (1 + timeLimitShare(c.route, c.route.raceKm / (w / 3600)));
+    for (var k = 0; k < c.realOrder.length; k++) {
+      final r = byId[c.realOrder[k]];
+      if (r == null || !isSprinter(r)) continue;
+      cutSprinters++;
+      if (c.realTimes[k] > limit) realCutOut++;
+    }
+  }
   for (var r = 0; r < runs; r++) {
     // The seed depends on the race and the run, not on the tuning values, so
     // every setting sees the same random numbers.
@@ -220,6 +270,14 @@ CaseScore scoreCase(CalibrationCase c, SimTuning tuning, int runs, int seed) {
         .length;
     finishes[FinishKind.road.indexOf(FinishKind.ofGroup(firstGroup))]++;
     if (favourites.contains(result.placings.first.rider.id)) favouriteWins++;
+    if (cutStage && cutSprinters > 0) {
+      final w = result.winnerTimeS;
+      final cut =
+          w * (1 + timeLimitShare(c.route, c.route.raceKm / (w / 3600)));
+      for (final p in result.placings) {
+        if (p.timeS > cut && isSprinter(p.rider)) simCutSum++;
+      }
+    }
     if (realGcLoss != null) {
       final at = {for (final p in result.placings) p.rider.id: p.timeS};
       final losses = [
@@ -268,12 +326,19 @@ CaseScore scoreCase(CalibrationCase c, SimTuning tuning, int runs, int seed) {
       speedTerm: speedTerm,
       breakTerm: breakTerm,
       gcTerm: gcTerm,
-      realFavourite: c.riders.any((r) => r.id == winner)
-          ? favourites.contains(winner)
-          : null,
+      // Who the favourites were is judged by the riders' values of the
+      // database's season; in earlier seasons many of them were not yet, or
+      // no longer, what those values say, so only that season counts.
+      realFavourite:
+          !c.label.contains('/') && c.riders.any((r) => r.id == winner)
+              ? favourites.contains(winner)
+              : null,
       simFavourite: favouriteWins / runs,
       realGcLoss: realGcLoss,
-      simGcLoss: simGcLoss);
+      simGcLoss: simGcLoss,
+      cutSprinters: cutSprinters,
+      realCutOut: realCutOut,
+      simCutOut: simCutSum / runs);
 }
 
 /// Scores of all races for one tuning set.
@@ -292,7 +357,7 @@ class Evaluation {
   double get frequencyLoss {
     final byType = <String, List<CaseScore>>{};
     for (final s in scores) {
-      if (s.type != 'Zeitfahren') byType.putIfAbsent(s.type, () => []).add(s);
+      if (s.type != 'Time trial') byType.putIfAbsent(s.type, () => []).add(s);
     }
     double sq(double x) => x * x;
     double mean(Iterable<double> x) => x.reduce((a, b) => a + b) / x.length;
@@ -342,8 +407,25 @@ class Evaluation {
     return weight == 0 ? 0 : _wFavourite * sum / weight;
   }
 
+  /// Error of how many sprinters finish outside the time limit on hilly
+  /// and mountain stages of stage races, per type: simulation against
+  /// reality.
+  double get cutLoss {
+    var sum = 0.0, weight = 0;
+    for (final type in ['Hilly', 'Mountain']) {
+      final list = scores.where((s) => s.type == type && s.cutSprinters > 0);
+      final n = list.fold(0, (a, s) => a + s.cutSprinters);
+      if (n < 20) continue;
+      final real = list.fold(0, (a, s) => a + s.realCutOut) / n;
+      final sim = list.fold(0.0, (a, s) => a + s.simCutOut) / n;
+      sum += (sim - real) * (sim - real) * n;
+      weight += n;
+    }
+    return weight == 0 ? 0 : _wCut * sum / weight;
+  }
+
   /// Total error; lower is better.
-  double get loss => caseLoss + frequencyLoss + favouriteLoss;
+  double get loss => caseLoss + frequencyLoss + favouriteLoss + cutLoss;
 }
 
 /// Scores a tuning set over all races, spread across several cores.
@@ -437,7 +519,7 @@ Future<Map<String, double>> optimize(
   var sigma = 0.08;
   var evaluations = 2, accepted = 0, rejected = 0, lastReseed = 0;
   final watch = Stopwatch()..start();
-  log?.call('Start: Fehler ${bestLoss.toStringAsFixed(4)}');
+  log?.call('Start: error ${bestLoss.toStringAsFixed(4)}');
 
   while (watch.elapsed < budget) {
     if (evaluations - lastReseed >= reseedEvery) {
@@ -448,7 +530,7 @@ Future<Map<String, double>> optimize(
       bestConfirm =
           (await evaluate(cases, best, runs: runs, seed: confirmSeed)).loss;
       evaluations += 2;
-      log?.call('Neue Zufallszahlen: Fehler der besten Einstellung '
+      log?.call('New random numbers: error of the best setting '
           '${bestLoss.toStringAsFixed(4)}');
     }
     final candidate = Map.of(best);
@@ -485,15 +567,15 @@ Future<Map<String, double>> optimize(
       // The held-back races show whether the gain is real or fitted noise.
       final check = validation.isEmpty
           ? ''
-          : ', Kontrolle ${(await evaluate(validation, best, runs: runs, seed: 4711)).loss.toStringAsFixed(4)}';
-      log?.call('${_hm(watch.elapsed)}  Versuch $evaluations: besser, Fehler '
+          : ', control ${(await evaluate(validation, best, runs: runs, seed: 4711)).loss.toStringAsFixed(4)}';
+      log?.call('${_hm(watch.elapsed)}  attempt $evaluations: better, error '
           '${bestLoss.toStringAsFixed(4)}$check  (${changed.join(', ')})');
     } else {
       sigma = max(0.01, sigma * 0.96);
     }
   }
-  log?.call('Ende nach ${_hm(watch.elapsed)}: $evaluations Versuche, '
-      '$accepted Verbesserungen, $rejected nicht bestätigt, Fehler ${bestLoss.toStringAsFixed(4)}');
+  log?.call('End after ${_hm(watch.elapsed)}: $evaluations attempts, '
+      '$accepted improvements, $rejected not confirmed, error ${bestLoss.toStringAsFixed(4)}');
   return best;
 }
 

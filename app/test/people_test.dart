@@ -9,7 +9,7 @@ void main() {
   final dataDir = AppState.findDataDir();
 
   test(
-    'Ziele, Versprechen und Moral',
+    'Goals, promises and morale',
     skip: dataDir == null,
     timeout: const Timeout(Duration(minutes: 15)),
     () {

@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.6.0 alpha (2026-10-18)
+
+On the way to the beta: a world that lasts a hundred seasons, saves that stay valid, less text, a zip for friends.
+
+**World and races**
+- The intake keeps the number of riders where it began: beside the best 150 of a year come as many young riders of ordinary level as retired. Without them the smaller teams ran dry after about twelve seasons, and from then on WorldTeams had too few riders.
+- In a big bunch sprint gaps of a second open behind the first riders; riders with nothing left to ride for roll in near the line; on hilly days teams pace a dropped sprinter back.
+- The calibration measures a real race on the riders the simulation has, counts favourite wins only for 2026 (whose riders the ratings describe) and scores the time limit for sprinters; `--from 2021` brings the earlier seasons in.
+- New tuning from an eight-hour calibration over 814 races from 2021 to 2026: error 7.03 → 6.55 on the races tuned on, 6.54 → 6.09 on the control races; sprinters outside the time limit on mountain stages 41 % → 35 % (real 17 %), breakaway wins on flat days 3 % → 6 % (real 12 %).
+
+**Saves and installation**
+- The save format has a version and a migration; a save the game cannot open is kept beside it instead of being overwritten.
+- A founded team gets the staff and facilities its squad deserves (it got those of a team without riders); old saves are repaired on loading, and its budget covers them.
+- `release.ps1` builds a zip that runs on a clean Windows, with the Visual C++ runtime, optionally with the world database (`-World`) and pictures (`-Art`). Without the database the program says where it belongs.
+
+**Interface**
+- Founding a team: the strength of the best eight decides the licence, the licence the squad size (WorldTeam 27–30, ProTeam 20–30, Continental 16–30); rider profiles; unique abbreviations.
+- Less text: explanations behind an ⓘ, shorter messages; arrow keys in the inbox; race names in the rider matrix only for the Grand Tours, the others in the tooltip.
+- Two facilities can be built at the same time; one that cannot be built now is greyed out, and its tooltip says why.
+- The radio question shows the last kilometres before it in fast motion.
+- Dates and plurals in the form of the language; tooltips for the figures of the home page.
+- CSV export only in the debug page.
+- At the turn of the year the owners take the player's savings beyond half the budget.
+
+**Fixes**
+- The save tests overwrote the weekly autosaves of the running game.
+- Pages overflowed in the smallest window (sidebar, rider search, delegation).
+- The calibration report showed gaps of 59.5 to 59.9 seconds as 0:00.
+
+**Tools and docs**
+- Every tool, report and script in English; `calibrate.ps1` replaces `kalibrieren.ps1`; old milestone scripts removed.
+- `world.dart --roundtrip` saves and loads every season, the run ends with balance bands written down for the beta; `check.dart --seasons`. Three seeds hold the bands; a hundred seasons run without an error.
+- Render tests of every page in both languages and in the smallest window, at 4K and at 21:9.
+
 ## 0.5.0 alpha (2026-10-17)
 
 The rider, the market and race day (the plans of 0.5.0 to 0.7.0), the manager's career, and most of 0.6.0. Over ten simulated seasons the field keeps its level (WorldTour strength 77.5 to 78.0, riders of 80 and more 14 to 23), the age goes from 28.3 to 29.0, the WorldTeams' median balance from 2.3 to 10.1 million euros.

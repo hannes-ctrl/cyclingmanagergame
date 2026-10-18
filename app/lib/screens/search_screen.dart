@@ -534,14 +534,19 @@ class _SearchScreenState extends State<SearchScreen> {
                         ],
                         onChanged: () => setState(() {}),
                       ),
-                      const Spacer(),
-                      Text(
-                        tr(
-                          'Ranges instead of numbers: no scout has watched this rider yet.',
-                        ),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: TeamColors.muted,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          tr(
+                            'Ranges instead of numbers: no scout has watched this rider yet.',
+                          ),
+                          textAlign: TextAlign.right,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: TeamColors.muted,
+                          ),
                         ),
                       ),
                     ],

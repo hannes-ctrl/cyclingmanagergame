@@ -4,6 +4,15 @@
 // the board runs. Every later balance change is judged by it.
 //
 //   dart run bin/world.dart [--seasons n] [--seed s] [--team ABBR] [--csv file]
+//                           [--roundtrip]
+//   dart run bin/world.dart --bands file.csv
+//
+// At the end the figures of every season are checked against the bands
+// below, written down before the beta: a balance change that leaves them
+// is a regression. --bands checks a CSV of an earlier run.
+//
+// With --roundtrip every season is saved on 1 July, in the middle of the
+// racing, loaded into a new career and compared with the original.
 //
 // All decisions are delegated: line-ups, radio, training, scouting, season
 // plan, contract renewals and facilities. The stages run on other isolates.
@@ -17,6 +26,51 @@ import 'package:sim/sim.dart';
 ///
 /// @param argv Options.
 /// @returns A future that completes after the last season.
+/// The range every season of a run must stay in, by column: what a world
+/// in balance looks like (strength per tier, ages, top riders, money of the
+/// WorldTeams, facilities). Written down for the beta; see ROADMAP.md.
+const bands = <String, (double, double)>{
+  'WT': (76.5, 79.0),
+  'Pro': (72.5, 76.5),
+  'Conti': (65.5, 70.0),
+  'Squad WT': (27.0, 30.0),
+  'Age': (27.5, 29.5),
+  'from 33': (100, 250),
+  'from 80': (8, 28),
+  'from 84': (0, 5),
+  'Balance WT': (0, 15),
+  'in debt': (0, 6),
+  'Facilities WT': (2.8, 4.2),
+  'Morale': (-0.3, 0.4),
+};
+
+/// Checks the seasons of a run against [bands].
+///
+/// @param header The column names.
+/// @param rows One row per season, the season in the first column.
+/// @returns Lines naming each band left, empty if all held.
+List<String> checkBands(List<String> header, List<List<Object>> rows) {
+  final out = <String>[];
+  for (final e in bands.entries) {
+    final col = header.indexOf(e.key);
+    if (col < 0) continue;
+    final (low, high) = e.value;
+    final off = [
+      for (final r in rows)
+        if (double.tryParse('${r[col]}') case final v? when v < low || v > high)
+          '${r[0]}: $v',
+    ];
+    if (off.isNotEmpty) {
+      out.add('${e.key} outside $low to $high in ${off.length} season(s), '
+          'first ${off.first}');
+    }
+  }
+  return out;
+}
+
+/// @returns The data folder of the repository.
+String root0() => Platform.script.resolve('../../../data/').toFilePath();
+
 Future<void> main(List<String> argv) async {
   final args = [...argv];
   String? option(String name) {
@@ -27,18 +81,28 @@ Future<void> main(List<String> argv) async {
     return v;
   }
 
+  // Only the bands of an earlier run.
+  if (option('--bands') case final file?) {
+    final lines = File(file).readAsLinesSync();
+    final head = lines.first.split(';');
+    final broken = checkBands(head, [
+      for (final l in lines.skip(1))
+        if (l.isNotEmpty) l.split(';'),
+    ]);
+    stdout.writeln(broken.isEmpty ? 'All bands held.' : broken.join('\n'));
+    return;
+  }
   final seasons = int.parse(option('--seasons') ?? '10');
   final seed = int.parse(option('--seed') ?? '3');
   final abbr = option('--team') ?? 'RBH';
   final csv = option('--csv');
-  I18n.lang = Lang.de;
+  final roundtrip = args.remove('--roundtrip');
+  final tuning = SimTuning.load('${root0()}calibration/tuning.json');
+  I18n.lang = Lang.en;
   final root = Platform.script.resolve('../../../data/').toFilePath();
   final world = World('${root}world.sqlite');
   final team = world.teams().firstWhere((t) => t.abbr == abbr);
-  final c = Career(world,
-      teamId: team.id,
-      seed: seed,
-      tuning: SimTuning.load('${root}calibration/tuning.json'))
+  final c = Career(world, teamId: team.id, seed: seed, tuning: tuning)
     ..delegation.lineups = true
     ..delegation.radio = RadioMode.off
     ..delegation.training = true
@@ -49,39 +113,39 @@ Future<void> main(List<String> argv) async {
 
   final rows = <List<Object>>[];
   const header = [
-    'Saison',
-    'Fahrer',
-    'in Teams',
+    'Season',
+    'Riders',
+    'in teams',
     'WT',
     'Pro',
     'Conti',
-    'Kader WT',
-    'Kader Pro',
-    'unter 8',
-    'Alter',
-    'bis 23',
-    'ab 33',
-    'ab 84',
-    'ab 80',
-    'Bester',
-    'Neu',
-    'Rücktritt',
-    'Auf/Ab',
-    'Moral',
-    'unzufrieden',
-    'Platz',
-    'Konto',
+    'Squad WT',
+    'Squad Pro',
+    'under 8',
+    'Age',
+    'to 23',
+    'from 33',
+    'from 84',
+    'from 80',
+    'Best',
+    'New',
+    'Retired',
+    'Up/down',
+    'Morale',
+    'unhappy',
+    'Place',
+    'Balance',
     'Budget',
-    'Gehälter',
-    'Talente',
-    'bei Profis',
-    'Talent bester',
+    'Wages',
+    'Talents',
+    'with pros',
+    'Best talent',
     'Budget WT',
-    'Konto WT',
+    'Balance WT',
     'Budget Pro',
-    'im Minus',
-    'Einr. WT',
-    'Winter ab',
+    'in debt',
+    'Facilities WT',
+    'Winter from',
     'Min',
   ];
   stdout.writeln(header.join('\t'));
@@ -95,6 +159,21 @@ Future<void> main(List<String> argv) async {
     var winter = '-';
     while (!c.seasonOver) {
       await c.advanceAsync();
+      if (roundtrip && c.today.month == 7 && c.today.day == 1) {
+        final saved = c.toJson();
+        final copy = Career(world,
+            teamId: c.startTeam, seed: seed, tuning: tuning)
+          ..restore(saved, [for (final p in c.progress.values) c.raceJson(p)]);
+        final a = saved.toString(), b = copy.toJson().toString();
+        if (a != b) {
+          var at = 0;
+          while (at < a.length && at < b.length && a[at] == b[at]) {
+            at++;
+          }
+          stderr.writeln('${c.year}: save and load differ at $at: '
+              '…${a.substring(max(0, at - 80), min(a.length, at + 80))}…');
+        }
+      }
       if (c.racingOver && winter == '-') {
         winter = '${c.today.day}.${c.today.month}.';
       }
@@ -208,4 +287,6 @@ Future<void> main(List<String> argv) async {
   }
   c.planner.saveWeights();
   world.close();
+  final broken = checkBands(header, rows);
+  stdout.writeln(broken.isEmpty ? 'All bands held.' : broken.join('\n'));
 }

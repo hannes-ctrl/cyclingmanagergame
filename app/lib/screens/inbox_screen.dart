@@ -10,8 +10,7 @@ import '../widgets.dart';
 
 /// @param d A date.
 /// @returns `dd.mm.`.
-String shortDate(DateTime d) =>
-    '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.';
+String shortDate(DateTime d) => dayText(d);
 
 /// Inbox: the messages on the left, the selected one on the right with a
 /// jump to the matching screen.
@@ -38,6 +37,9 @@ const _areaOf = <String, (String, String)>{
 class _InboxScreenState extends State<InboxScreen> {
   Message? _selected;
   String? _topic;
+
+  /// The row of the selected message, to keep it in view.
+  final _current = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +96,29 @@ class _InboxScreenState extends State<InboxScreen> {
         ],
       );
     }
-    final selected = messages.contains(_selected) ? _selected! : messages.first;
+    var selected = messages.contains(_selected) ? _selected! : messages.first;
+    // Arrow keys: the message above or below.
+    if (s.inboxSteps != 0) {
+      final at = (messages.indexOf(selected) + s.inboxSteps).clamp(
+        0,
+        messages.length - 1,
+      );
+      s.inboxSteps = 0;
+      selected = _selected = messages[at];
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final context = _current.currentContext;
+        if (context != null) {
+          Scrollable.ensureVisible(
+            context,
+            alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+          );
+          Scrollable.ensureVisible(
+            context,
+            alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+          );
+        }
+      });
+    }
     selected.read = true;
 
     return Padding(
@@ -199,6 +223,7 @@ class _InboxScreenState extends State<InboxScreen> {
                         final m = messages[i];
                         final current = identical(m, selected);
                         return InkWell(
+                          key: current ? _current : null,
                           onTap: () => setState(() => _selected = m),
                           child: Container(
                             padding: const EdgeInsets.symmetric(

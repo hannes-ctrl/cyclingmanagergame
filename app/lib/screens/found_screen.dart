@@ -5,6 +5,7 @@ import 'package:sim/sim.dart';
 import '../app_state.dart';
 import '../ui.dart';
 import '../widgets.dart';
+import 'found_rider.dart';
 
 const _palette = [
   '14234B', '0B4FA8', '1E88C8', '0E7C61', '2E9E3F', 'F0C000', //
@@ -123,11 +124,15 @@ class _FoundScreenState extends State<FoundScreen> {
       for (final t in s.teams)
         if (t.country.isNotEmpty) t.country,
     }.toList()..sort();
-    final enough =
-        picked.length >= FoundingRules.minRiders &&
-        picked.length <= FoundingRules.maxRiders;
-    final named =
-        _name.text.trim().length >= 3 && _abbr.text.trim().length >= 2;
+    // The licence decides how many riders the squad needs.
+    final (least, most) = FoundingRules.rangeFor(division);
+    final enough = picked.length >= least && picked.length <= most;
+    final abbr = _abbr.text.trim().toUpperCase();
+    // Every team has its own abbreviation.
+    final taken =
+        abbr.isNotEmpty &&
+        _teams.values.any((t) => t.abbr.toUpperCase() == abbr);
+    final named = _name.text.trim().length >= 3 && abbr.length >= 2 && !taken;
 
     void toggle(SimRider r) => setState(() {
       if (!_picked.remove(r.id) && _picked.length < FoundingRules.maxRiders) {
@@ -216,15 +221,7 @@ class _FoundScreenState extends State<FoundScreen> {
                   tr('Found your own team'),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    tr(
-                      'Starts a new career on 1 January. Selected riders move at once; their old teams fill up from the free agents.',
-                    ),
-                    style: TextStyle(fontSize: 12, color: TeamColors.muted),
-                  ),
-                ),
+                const Spacer(),
                 TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: Text(tr('Cancel')),
@@ -297,10 +294,23 @@ class _FoundScreenState extends State<FoundScreen> {
                                         : TeamColors.muted,
                                   ),
                                 ),
+                                // The name opens the profile.
                                 Col(
                                   tr('Rider'),
                                   190,
-                                  (r, _) => cellText(_names[r.id] ?? r.name),
+                                  (r, _) => InkWell(
+                                    onTap: () => showFoundRider(
+                                      context,
+                                      s,
+                                      r,
+                                      _names[r.id] ?? r.name,
+                                      _teams[r.teamId],
+                                    ),
+                                    child: cellText(
+                                      _names[r.id] ?? r.name,
+                                      color: TeamColors.text,
+                                    ),
+                                  ),
                                   sortKey: (r) => r.lastName,
                                 ),
                                 Col(
@@ -359,10 +369,7 @@ class _FoundScreenState extends State<FoundScreen> {
                             ),
                           ),
                           Text(
-                            tr(
-                              '{0} riders · click to select or deselect · column heading sorts',
-                              [rows.length],
-                            ),
+                            tr('{0} riders', [rows.length]),
                             style: const TextStyle(
                               fontSize: 12,
                               color: TeamColors.muted,
@@ -400,7 +407,10 @@ class _FoundScreenState extends State<FoundScreen> {
                                   key: const ValueKey('kuerzel'),
                                   controller: _abbr,
                                   maxLength: 3,
-                                  decoration: field(tr('Abbreviation')),
+                                  decoration: field(tr('Abbreviation'))
+                                      .copyWith(
+                                        errorText: taken ? tr('taken') : null,
+                                      ),
                                   onChanged: (_) => setState(() {}),
                                 ),
                               ),
@@ -516,59 +526,49 @@ class _FoundScreenState extends State<FoundScreen> {
                             ],
                           ),
                           Divider(height: 20, color: c.line),
-                          fact(
-                            tr('Rider'),
-                            tr(
-                              '{0} ({1} to {2}; a WorldTeam needs {3}, a ProTeam {4})',
-                              [
-                                picked.length,
-                                FoundingRules.minRiders,
-                                FoundingRules.maxRiders,
-                                FoundingRules.minWorldTour,
-                                FoundingRules.minPro,
-                              ],
+                          Tooltip(
+                            message: tr(
+                              'The mean of the best eight riders, each with his best main attribute.',
                             ),
-                            color: enough ? TeamColors.green : TeamColors.gold,
+                            child: fact(
+                              tr('Strength'),
+                              picked.isEmpty ? '–' : one(strength),
+                            ),
                           ),
-                          fact(
-                            tr('Strength (mean of the best eight)'),
-                            picked.isEmpty ? '–' : one(strength),
-                          ),
-                          fact(
-                            tr('Licence'),
-                            FoundingRules.label(division),
-                            color: division.startsWith('[1]')
-                                ? TeamColors.gold
-                                : division.startsWith('[2]')
-                                ? TeamColors.green
-                                : TeamColors.text,
-                          ),
-                          Text(
-                            tr(
-                              'WorldTeam from {0}, ProTeam from {1}: that is how strong the weakest teams of these licences are.',
+                          Tooltip(
+                            message: tr(
+                              'WorldTeam from a strength of {0}, ProTeam from {1}: as strong as the weakest teams of these licences.',
                               [one(_rules.worldTour), one(_rules.pro)],
                             ),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: TeamColors.muted,
+                            child: fact(
+                              tr('Licence'),
+                              FoundingRules.label(division),
+                              color: division.startsWith('[1]')
+                                  ? TeamColors.gold
+                                  : division.startsWith('[2]')
+                                  ? TeamColors.green
+                                  : TeamColors.text,
+                            ),
+                          ),
+                          Tooltip(
+                            message: tr(
+                              'A WorldTeam needs 27 to 30 riders, a ProTeam 20 to 30, a Continental team 16 to 30.',
+                            ),
+                            child: fact(
+                              tr('Rider'),
+                              '${picked.length} / $least–$most',
+                              color: enough
+                                  ? TeamColors.green
+                                  : TeamColors.gold,
                             ),
                           ),
                           fact(tr('Wages per year'), '${euro(wages)} €'),
-                          fact(
-                            tr('Sponsor money per year'),
-                            '${euro(wages * 1.45 < 1000000 ? 1000000 : wages * 1.45)} €',
-                          ),
                           Divider(height: 20, color: c.line),
                           Label(tr('Squad')),
                           const SizedBox(height: 4),
                           Expanded(
                             child: picked.isEmpty
-                                ? Text(
-                                    tr(
-                                      'Select at least 16 riders on the left.',
-                                    ),
-                                    style: TextStyle(color: TeamColors.muted),
-                                  )
+                                ? const SizedBox()
                                 : ListView(
                                     children: [
                                       for (final r in picked)

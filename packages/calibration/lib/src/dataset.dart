@@ -89,11 +89,11 @@ class CalibrationCase {
 
   /// Rough classification for the report.
   String get type {
-    if (route.kind != StageKind.road) return 'Zeitfahren';
-    if (route.sectorRace) return 'Sektoren';
-    if (route.selectivity < 600 && route.finishGrade < 0.03) return 'Flach';
-    if (route.selectivity > 1500) return 'Berg';
-    return 'Hügel';
+    if (route.kind != StageKind.road) return 'Time trial';
+    if (route.sectorRace) return 'Sectors';
+    if (route.selectivity < 600 && route.finishGrade < 0.03) return 'Flat';
+    if (route.selectivity > 1500) return 'Mountain';
+    return 'Hilly';
   }
 }
 
@@ -232,7 +232,7 @@ Dataset loadDataset(World world, String resultsDir, int year,
     final label = file.uri.pathSegments.last.replaceAll('.json', '');
     if (exclude[year == currentSeason ? label : '$year/$label']
         case final reason?) {
-      notes.add('$label: ausgeschlossen ($reason)');
+      notes.add('$label: excluded ($reason)');
       continue;
     }
     // Standings before the stage = standings after the stage before it.
@@ -263,11 +263,11 @@ Dataset loadDataset(World world, String resultsDir, int year,
     if (year == currentSeason) {
       final stage = world.stageNumber(real.raceId, number);
       if (stage == null) {
-        notes.add('$label: keine Etappe $number in der Datenbank');
+        notes.add('$label: no stage $number in the database');
         continue;
       }
       if (stage.variant != '$year') {
-        notes.add('$label: Strecke nur im Jahrgang ${stage.variant}');
+        notes.add('$label: route only in the year ${stage.variant}');
         continue;
       }
       routeId = stage.id;
@@ -275,14 +275,14 @@ Dataset loadDataset(World world, String resultsDir, int year,
       final id = (variants[real.raceId] ??=
           world.variantStages(real.raceId, year))[number];
       if (id == null) {
-        notes.add('$label: keine Strecke des Jahrgangs $year');
+        notes.add('$label: no route of the year $year');
         continue;
       }
       routeId = id;
     }
     final route = world.route(routeId);
     if (route.kind == StageKind.teamTimeTrial) {
-      notes.add('$label: Teamzeitfahren');
+      notes.add('$label: team time trial');
       continue;
     }
     final riders = <SimRider>[];
@@ -317,7 +317,7 @@ Dataset loadDataset(World world, String resultsDir, int year,
       }
     }
     if (riders.length < 60) {
-      notes.add('$label: nur ${riders.length} Fahrer zugeordnet');
+      notes.add('$label: only ${riders.length} riders matched');
       continue;
     }
     // Who won does not matter for the calibration, so the winner need not
@@ -335,7 +335,7 @@ Dataset loadDataset(World world, String resultsDir, int year,
         : kmh > 35 && kmh < 62;
     if (!plausible) {
       notes.add(
-          '$label: Schnitt ${kmh.toStringAsFixed(1)} km/h passt nicht zur Strecke');
+          '$label: an average of ${kmh.toStringAsFixed(1)} km/h does not fit the route');
       continue;
     }
     cases.add(CalibrationCase(year == currentSeason ? label : '$year/$label',
@@ -345,7 +345,7 @@ Dataset loadDataset(World world, String resultsDir, int year,
       ..country = info[real.raceId]?.country ?? ''
       ..month = info[real.raceId]?.startMonth ?? 6);
   }
-  notes.add('$unmatched von $rows Fahrern im Ziel nicht zugeordnet '
+  notes.add('$unmatched of $rows finishers not matched '
       '(${(100 * unmatched / max(rows, 1)).toStringAsFixed(1)} %)');
   return Dataset(cases, notes);
 }
@@ -365,7 +365,7 @@ Map<String, String> loadExclusions(String path) {
     if (text.isEmpty || text.startsWith('#')) continue;
     final at = text.indexOf('#');
     out[(at < 0 ? text : text.substring(0, at)).trim()] =
-        at < 0 ? 'ohne Angabe' : text.substring(at + 1).trim();
+        at < 0 ? 'no reason given' : text.substring(at + 1).trim();
   }
   return out;
 }

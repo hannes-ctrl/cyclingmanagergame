@@ -186,11 +186,10 @@ class _SingleRacePanelState extends State<SingleRacePanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        InfoTip(
           tr(
             'A race on its own, as a playground: the field as the season would send it, fresh riders, the same simulation as in the career. Nothing of it reaches your career.',
           ),
-          style: const TextStyle(color: TeamColors.muted),
         ),
         const SizedBox(height: 12),
         field(
@@ -242,7 +241,7 @@ class _SingleRacePanelState extends State<SingleRacePanel> {
             for (final r in races)
               (
                 r.info.id,
-                '${r.start.day.toString().padLeft(2, '0')}.${r.start.month.toString().padLeft(2, '0')}. · ${r.info.name} · ${r.tier.label}',
+                '${dayText(r.start)} · ${r.info.name} · ${r.tier.label}',
               ),
           ], (v) => _raceId = v),
         ),

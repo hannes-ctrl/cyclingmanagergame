@@ -6,12 +6,10 @@ import '../app_state.dart';
 import '../widgets.dart';
 
 String _stamp(DateTime d) =>
-    '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.'
-    '${d.year} ${d.hour.toString().padLeft(2, '0')}:'
+    '${dayText(d, year: true)} ${d.hour.toString().padLeft(2, '0')}:'
     '${d.minute.toString().padLeft(2, '0')}';
 
-String _day(DateTime d) =>
-    '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+String _day(DateTime d) => dayText(d, year: true);
 
 /// Save games: store the running state under a name, load or delete named
 /// saves.
@@ -168,10 +166,7 @@ class _SavesScreenState extends State<SavesScreen> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: Text(
-                        _message ??
-                            tr(
-                              'The running game is saved automatically after every action anyway. Named saves are .rmsave files in the folder data\\saves.',
-                            ),
+                        _message ?? '',
                         style: TextStyle(
                           fontSize: 12,
                           color: _message == null

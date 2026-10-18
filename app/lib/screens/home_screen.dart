@@ -6,8 +6,7 @@ import '../app_state.dart';
 import '../widgets.dart';
 import '../ui.dart';
 
-String _d(DateTime d) =>
-    '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.';
+String _d(DateTime d) => dayText(d);
 
 /// Overview: the essentials at a glance, like the home page in Football
 /// Manager. Next races, news, state of the team, squad.
@@ -72,24 +71,29 @@ class HomeScreen extends StatelessWidget {
         if (!p.finished && p.run.riders.any((r) => r.teamId == s.team.id)) p,
     ];
 
-    Widget fact(String label, String value, {Color? color}) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(label, style: const TextStyle(color: TeamColors.muted)),
+    // A figure with its explanation as a tooltip, by [help] or the label.
+    Widget fact(String label, String value, {Color? color, String? help}) =>
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: withHelp(
+                  help ?? label,
+                  Text(label, style: const TextStyle(color: TeamColors.muted)),
+                ),
+              ),
+              Text(
+                value,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: color ?? TeamColors.text,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
           ),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: color ?? TeamColors.text,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        ],
-      ),
-    );
+        );
 
     Widget line(String left, String right, {Color? color}) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -190,7 +194,7 @@ class HomeScreen extends StatelessWidget {
                               ),
                               Text(
                                 '${r.tier.label} · ${r.info.country} · '
-                                '${r.isStageRace ? tr('{0} stages', [r.stages.length]) : tr('One-day race')}',
+                                '${r.isStageRace ? trn(r.stages.length, '{0} stage', '{0} stages') : tr('One-day race')}',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: TeamColors.muted,
@@ -237,6 +241,7 @@ class HomeScreen extends StatelessWidget {
                     career.licences.cycleStart,
                     career.licences.cycleEnd,
                   ]),
+                  help: 'Three-year ranking',
                   tr('Place {0}', [cycle + 1]),
                   color: cycle < career.licences.worldTourPlaces
                       ? TeamColors.green
@@ -257,6 +262,7 @@ class HomeScreen extends StatelessWidget {
               ),
               fact(
                 tr('Your reputation'),
+                help: 'Reputation',
                 tr('{0} of 100 · {1}', [
                   career.manager.reputation.round(),
                   career.manager.standing,

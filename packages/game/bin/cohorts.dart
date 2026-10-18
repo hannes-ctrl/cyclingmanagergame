@@ -154,7 +154,7 @@ void _table(List<SimRider> riders, int Function(SimRider) ageOf,
   }
   // Per cohort of 150 riders (the yearly intake): the rating at ranks 1,
   // 3, 10, 30, 75 and 150, and the potential of the best 30.
-  stdout.writeln('Alter\tAnzahl\t#1\t#3\t#10\t#30\t#75\t#150\tPot.Top30');
+  stdout.writeln('Age\tCount\t#1\t#3\t#10\t#30\t#75\t#150\tPot.Top30');
   for (final age in groups.keys.toList()..sort()) {
     if (age < 18 || age > 38) continue;
     final g = [...groups[age]!]

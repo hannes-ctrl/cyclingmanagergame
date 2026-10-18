@@ -209,11 +209,10 @@ class _TacticsDialogState extends State<_TacticsDialog> {
                 style: const TextStyle(color: TeamColors.muted),
               ),
               const SizedBox(height: 4),
-              Text(
+              InfoTip(
                 tr(
                   'What you change is pinned and applies to the remaining stages. Everything else the sports director plans anew for every stage; shown is his plan for the next one. A click on the pin releases it again.',
                 ),
-                style: const TextStyle(fontSize: 12, color: TeamColors.muted),
               ),
               const SizedBox(height: 6),
               Wrap(

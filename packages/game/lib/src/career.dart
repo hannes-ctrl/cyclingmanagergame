@@ -297,6 +297,15 @@ class _DayStage {
   final StageJob job;
 }
 
+/// A question of the team car: race, stage, the question, and the stage as
+/// far as it has been ridden when the question comes.
+typedef RadioPrompt = ({
+  RaceProgress race,
+  int stageIndex,
+  RadioCall call,
+  StageResult trial,
+});
+
 /// A day in progress: its stages and what has been ridden of them.
 class _Day {
   _Day(this.date, this.inboxBefore, this.stages);
@@ -595,7 +604,10 @@ class Career {
       }
       economy.refill();
       _strength.clear();
-      economy.found(max(1000000.0, economy.wageBill(teamId) * 1.45));
+      _fitFounded();
+      // The same budget as every other team: its wages, staff and
+      // facilities are covered.
+      economy.found(max(1000000.0, finances.breakEven(teamId)));
       return;
     }
     final pro = custom!.division.startsWith('[2]');
@@ -620,7 +632,16 @@ class Career {
       left -= wage;
       count++;
     }
+    _strength.clear();
+    _fitFounded();
     economy.found(budget);
+  }
+
+  /// Staff and facilities of the founded team as its squad's strength
+  /// deserves: both were made while it had no riders yet.
+  void _fitFounded() {
+    staff.fitTo(teamId);
+    facilities.fitTo(teamId);
   }
 
   /// Comparable team with the same licence: wherever it is invited, the
@@ -1086,7 +1107,7 @@ class Career {
       today,
       tr('Board'),
       tr('The racing season {0} is over', [year]),
-      tr('We end the season in place {0} of the team ranking with {1} points; the board assesses the goals at the turn of the year. Until then: contracts for next season can still be signed (the other teams decide by 15 November), the new young riders arrive on 1 November, riders without a team can be signed at once, and from 1 November camps can be booked for January and February.',
+      tr('Place {0} in the team ranking with {1} points. The board assesses the goals at the turn of the year.',
           [place ?? '-', (teamPoints[teamId] ?? 0).round()]),
     ));
   }
@@ -1691,11 +1712,16 @@ class Career {
   ///
   /// @returns Race, stage and question, or null if there is none or the radio
   ///   is switched off ([Delegation.radio]).
-  ({RaceProgress race, int stageIndex, RadioCall call})? nextRadioCall() {
+  RadioPrompt? nextRadioCall() {
     for (final job in _radioJobs()) {
-      final call = job.job.run().openCall;
-      if (call != null) {
-        return (race: job.race, stageIndex: job.index, call: call);
+      final trial = job.job.run();
+      if (trial.openCall case final call?) {
+        return (
+          race: job.race,
+          stageIndex: job.index,
+          call: call,
+          trial: trial,
+        );
       }
     }
     return null;
@@ -1736,12 +1762,16 @@ class Career {
   /// isolate.
   ///
   /// @returns Race, stage and question, or null.
-  Future<({RaceProgress race, int stageIndex, RadioCall call})?>
-      nextRadioCallAsync() async {
+  Future<RadioPrompt?> nextRadioCallAsync() async {
     for (final job in _radioJobs()) {
-      final call = (await Isolate.run(job.job.run)).openCall;
-      if (call != null) {
-        return (race: job.race, stageIndex: job.index, call: call);
+      final trial = await Isolate.run(job.job.run);
+      if (trial.openCall case final call?) {
+        return (
+          race: job.race,
+          stageIndex: job.index,
+          call: call,
+          trial: trial,
+        );
       }
     }
     return null;
@@ -2015,16 +2045,13 @@ class Career {
       if (abandons) race.run.withdraw(r.id);
       if (r.teamId != teamId) return;
       replaceInProgram(r, until);
-      final day = until.day.toString().padLeft(2, '0');
-      final month = until.month.toString().padLeft(2, '0');
       inbox.add(Message(
         today,
         tr('Team doctor'),
         tr('{0} is out for {1} days', [r.name, days]),
-        tr('{0}. Expected back on {1}.{2}.{3}', [
+        tr('{0}. Expected back on {1}.{2}', [
           what,
-          day,
-          month,
+          dayText(until),
           abandons ? tr(' He had to abandon the race.') : ''
         ]),
         raceId: race?.race.info.id,
@@ -2872,7 +2899,7 @@ class Career {
   ///
   /// @param r The rider.
   /// @param race The race.
-  /// @param what Text such as "Sieg" or "Etappe 3".
+  /// @param what Text such as "Win" or "Stage 3".
   void _honour(SimRider r, RaceEntry race, String what) => palmares
       .putIfAbsent(r.id, () => [])
       .add([year, race.info.name, what, race.tier.index]);
@@ -3135,6 +3162,52 @@ class Career {
     return j;
   }
 
+  /// Version of the save format. [restore] brings older snapshots up to it
+  /// step by step, so that a save opens in every later version.
+  static const saveVersion = 4;
+
+  /// The steps of the save format, by the version they start from. Each
+  /// turns a snapshot of version n into one of n + 1, giving what that
+  /// version added the value a career had before it.
+  static final _migrations = <int, void Function(Map<String, dynamic>)>{
+    // 0.5.0: the manager's career, the job market, the plan for the next
+    // season and the delegation held during a run.
+    1: (j) {
+      (j['delegation'] as Map<String, dynamic>)
+          .putIfAbsent('jobMarket', () => false);
+      j.putIfAbsent('nextProgram', () => <String, dynamic>{});
+      j.putIfAbsent('nextGoals', () => <String, dynamic>{});
+    },
+    // 0.6.0: nothing in the snapshot changes; a founded team is repaired
+    // after loading (see [restore]).
+    2: (j) {},
+    // 0.6.0: two facilities can be built at the same time.
+    3: (j) {
+      if (j['facilities'] case final Map<String, dynamic> f) {
+        final one = f.remove('building');
+        f['builds'] = [if (one != null) one];
+      }
+    },
+  };
+
+  /// Brings a snapshot up to [saveVersion].
+  ///
+  /// @param j A map written by [toJson] of this or an earlier version; it is
+  ///   changed in place.
+  /// @throws FormatException for a snapshot of a newer version.
+  static void migrate(Map<String, dynamic> j) {
+    var v = j['version'] as int? ?? 1;
+    if (v > saveVersion) {
+      throw FormatException(
+          tr('The save comes from a newer version of the game.'));
+    }
+    while (v < saveVersion) {
+      _migrations[v]!(j);
+      v++;
+      j['version'] = v;
+    }
+  }
+
   /// Serialises the career without its races; see [raceJson] for those.
   ///
   /// @returns A JSON-encodable map; [restore] reads it back.
@@ -3150,7 +3223,7 @@ class Career {
             '${e.key}': f == null ? e.value : f(e.value)
         };
     final j = <String, dynamic>{
-      'version': 1,
+      'version': saveVersion,
       'team': teamId,
       'manager': manager.toJson(),
       'year': year,
@@ -3267,6 +3340,8 @@ class Career {
   /// @param races The races of the season, each written by [raceJson], in
   ///   the order they were started.
   void restore(Map<String, dynamic> j, Iterable<Map<String, dynamic>> races) {
+    final from = j['version'] as int? ?? 1;
+    migrate(j);
     final pool = [
       for (final r in (j['pool'] as List).cast<List<dynamic>>()) _rider(r),
     ];
@@ -3507,6 +3582,15 @@ class Career {
         ..links[j['devParent'] as int? ?? teamId] = info.id;
     }
     camps.restore(j['camps'] as List<dynamic>);
+    // Saves before 0.6.0: a founded team got the staff and facilities of
+    // a team without riders. They are raised to what its squad deserves;
+    // whatever the player has built or hired beyond that stays.
+    if (custom case final t? when from < 3) {
+      staff.fitTo(t.id, keepBetter: true);
+      facilities.fitTo(t.id, keepBetter: true);
+      final even = finances.breakEven(t.id);
+      if (economy.budget < even) economy.scaleSponsors(even / economy.budget);
+    }
     entries.load(j['entries'] as Map<String, dynamic>);
 
     _buildCalendar();

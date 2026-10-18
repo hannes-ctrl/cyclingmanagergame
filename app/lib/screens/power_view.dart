@@ -86,11 +86,10 @@ class PowerView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        InfoTip(
           tr(
             'What the power meters showed. NP is the normalised power, which weighs hard efforts as the body feels them; IF is NP relative to the threshold at the start. The bar shows the time in the six zones from recovery to anaerobic.',
           ),
-          style: const TextStyle(fontSize: 12, color: TeamColors.muted),
         ),
         const SizedBox(height: 10),
         for (final r in riders)

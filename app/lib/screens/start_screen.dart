@@ -26,8 +26,7 @@ enum _Section {
   final IconData icon;
 }
 
-String _date(DateTime d) =>
-    '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+String _date(DateTime d) => dayText(d, year: true);
 
 /// Start menu: continue the running career, load a save, start a new career
 /// or change the settings of the app.
@@ -310,11 +309,10 @@ class _StartScreenState extends State<StartScreen> {
       children: [
         Text(tr('New career'), style: headStyle(24)),
         const SizedBox(height: 4),
-        Text(
+        InfoTip(
           tr(
             'Take over a WorldTeam or ProTeam, or found your own. The running career is replaced; save it under a name first if you want to keep it.',
           ),
-          style: TextStyle(color: TeamColors.muted),
         ),
         const SizedBox(height: 14),
         Expanded(

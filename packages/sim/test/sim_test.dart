@@ -117,6 +117,29 @@ void main() {
   });
 
   group('road stage', () {
+    test('the line of a big bunch breaks in the sprint', () {
+      // Without breaks the whole bunch shares one time; with them, gaps of
+      // a second or more open behind the first places.
+      double spread(SimTuning t) {
+        final r = simulateStage(flatStage(), field, seed: 3, tuning: t);
+        // The biggest group on the line is the bunch.
+        final sizes = <int, int>{};
+        for (final p in r.placings) {
+          sizes[p.group] = (sizes[p.group] ?? 0) + 1;
+        }
+        final main =
+            sizes.entries.reduce((a, b) => b.value > a.value ? b : a).key;
+        final bunch = r.placings.where((p) => p.group == main).toList();
+        return bunch.last.timeS - bunch.first.timeS;
+      }
+
+      final calm = SimTuning({'bunchSplitRate': 0.0, 'crashRate': 0});
+      final split = SimTuning(
+          {'bunchSplitRate': 0.2, 'bunchSplitFrom': 10, 'crashRate': 0});
+      expect(spread(calm), lessThan(0.1));
+      expect(spread(split), greaterThan(1));
+    });
+
     test('same seed, same result', () {
       final a = simulateStage(hillyClassic(), field, seed: 7);
       final b = simulateStage(hillyClassic(), field, seed: 7);

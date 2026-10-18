@@ -16,8 +16,8 @@ void main() {
   final root = Platform.script.resolve('../../../data/').toFilePath();
   final world = World('${root}world.sqlite');
   final exclude = loadExclusions('${root}calibration/exclude.txt');
-  stdout.writeln('Jahr   Rennen  zugeordnet  Sieger dabei  Top 10 dabei  '
-      'unter 24 damals  über 33 heute');
+  stdout.writeln('Year    Races     matched  winner known  top 10 known  '
+      'under 24 then    over 33 now');
   for (var year = 2021; year <= currentSeason; year++) {
     final dir = Directory('${root}results/$year');
     if (!dir.existsSync()) continue;

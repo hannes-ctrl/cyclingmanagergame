@@ -29,7 +29,7 @@ Future<void> main(List<String> argv) async {
   final seeds = option('--seeds', 4);
   if (args.isEmpty) {
     stdout.writeln(
-        'Aufruf: dart run bin/compare.dart [--runs n] [--seeds n] datei.json ... (oder standard)');
+        'Usage: dart run bin/compare.dart [--runs n] [--seeds n] file.json ... (or standard)');
     return;
   }
   const year = 2026;
@@ -46,10 +46,11 @@ Future<void> main(List<String> argv) async {
     [for (final p in parts) ...p.notes],
   );
   world.close();
-  stdout.writeln('${data.cases.length} Rennen, davon ${data.validation.length} '
-      'zur Kontrolle; $seeds Ziehungen mit je $runs Läufen\n');
-  stdout.writeln('${'Einstellung'.padRight(34)}  Fehler je Ziehung'
-      '${' ' * (seeds * 7 - 17).clamp(1, 99)}Mittel  Kontrolle');
+  stdout
+      .writeln('${data.cases.length} races, ${data.validation.length} of them '
+          'for control; $seeds draws of $runs runs each\n');
+  stdout.writeln('${'Setting'.padRight(34)}  error per draw   '
+      '${' ' * (seeds * 7 - 17).clamp(1, 99)}  mean  control');
   for (final name in args) {
     final tuning = name == 'standard'
         ? SimTuning().toMap()

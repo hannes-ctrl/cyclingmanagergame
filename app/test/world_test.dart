@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 // Checks what keeps the world alive over the seasons: the other teams
 // promote riders from their development teams, the intake is as strong as
 // a real year, prize money follows the size of the race, and the winter has
@@ -11,7 +13,7 @@ void main() {
   final dataDir = AppState.findDataDir();
 
   test(
-    'Nachwuchs und Preisgeld',
+    'Development riders and prize money',
     skip: dataDir == null,
     timeout: const Timeout(Duration(minutes: 10)),
     () {
@@ -101,14 +103,25 @@ void main() {
         fac.development(strongest.id),
         greaterThan(fac.development(weakest.id)),
       );
-      final medical = fac.level(team, Facility.medical);
-      if (medical < Facilities.maxLevel) {
+      final open = [
+        for (final f in Facility.values)
+          if (fac.level(team, f) < Facilities.maxLevel) f,
+      ];
+      if (open.length >= 3) {
+        final before = {for (final f in open) f: fac.level(team, f)};
         c.economy.balance = 1e8;
-        expect(fac.upgrade(Facility.medical), isNull);
-        expect(fac.upgrade(Facility.training), isNotNull); // one at a time
-        c.today = fac.building!.ready;
+        expect(fac.upgrade(open[0]), isNull);
+        expect(fac.upgrade(open[0]), isNotNull); // not the same one twice
+        expect(fac.upgrade(open[1]), isNull);
+        expect(fac.upgrade(open[2]), isNotNull); // two at a time
+        c.today = fac.builds
+            .map((b) => b.ready)
+            .reduce((a, b) => a.isAfter(b) ? a : b);
         fac.daily();
-        expect(fac.level(team, Facility.medical), medical + 1);
+        expect(fac.builds, isEmpty);
+        expect(fac.level(team, open[0]), before[open[0]]! + 1);
+        expect(fac.level(team, open[1]), before[open[1]]! + 1);
+        expect(fac.level(team, open[2]), before[open[2]]);
       }
 
       // The sports director gives climbing domestiques only where there is
@@ -130,7 +143,7 @@ void main() {
     },
   );
   test(
-    'Winter: Nachwuchs im November, vereinslose Fahrer, Winterlager',
+    'Winter: the intake in November, free agents, winter camps',
     skip: dataDir == null,
     timeout: const Timeout(Duration(minutes: 10)),
     () {
@@ -214,7 +227,7 @@ void main() {
     },
   );
   test(
-    'Scouting in Stufen, Mentoren, Vorlagen, Angebote und Sponsorwünsche',
+    'Scouting in stages, mentors, templates, offers and sponsor wishes',
     skip: dataDir == null,
     timeout: const Timeout(Duration(minutes: 10)),
     () {
@@ -334,7 +347,7 @@ void main() {
     },
   );
   test(
-    'Gespräche im Postfach, Wechselwunsch und Eingewöhnung',
+    'Talks in the inbox, wish to leave and settling in',
     skip: dataDir == null,
     timeout: const Timeout(Duration(minutes: 10)),
     () {
@@ -382,7 +395,7 @@ void main() {
     },
   );
   test(
-    'Klauseln, Straßenkapitän und Grand Tours',
+    'Clauses, road captain and Grand Tours',
     skip: dataDir == null,
     timeout: const Timeout(Duration(minutes: 10)),
     () {
@@ -453,7 +466,7 @@ void main() {
   );
 
   test(
-    'Managerkarriere: Ruf, Entlassung, Teamwechsel',
+    'Manager career: reputation, dismissal, change of teams',
     skip: dataDir == null,
     timeout: const Timeout(Duration(minutes: 10)),
     () {
@@ -511,7 +524,7 @@ void main() {
   );
 
   test(
-    'Winterplan für die nächste Saison und Marketing',
+    'Winter plan for the next season and marketing',
     skip: dataDir == null,
     timeout: const Timeout(Duration(minutes: 10)),
     () {
@@ -565,6 +578,77 @@ void main() {
       expect(c.people.goals[rider.id], contains(tour.info.id));
       expect(c.nextProgram, isEmpty);
       expect(c.nextGoals, isEmpty);
+    },
+  );
+
+  test(
+    'Saves of older versions load, newer ones are refused',
+    skip: dataDir == null,
+    timeout: const Timeout(Duration(minutes: 5)),
+    () {
+      I18n.lang = Lang.de;
+      final world = World('$dataDir/world.sqlite');
+      addTearDown(world.close);
+      final team = world.teams().firstWhere((t) => t.abbr == 'RBH').id;
+      final c = Career(world, teamId: team, seed: 4);
+      final current = c.toJson();
+      expect(current['version'], Career.saveVersion);
+
+      // A snapshot of version 1 (0.4.0): without what 0.5.0 added.
+      final old = jsonDecode(jsonEncode(current)) as Map<String, dynamic>
+        ..['version'] = 1
+        ..remove('nextProgram')
+        ..remove('nextGoals')
+        ..remove('manager')
+        ..remove('team');
+      (old['delegation'] as Map<String, dynamic>).remove('jobMarket');
+      // Before 0.6.0 one facility at a time was built.
+      final ready = DateTime.utc(2026, 5, 1);
+      (old['facilities'] as Map<String, dynamic>)
+        ..remove('builds')
+        ..['building'] = [
+          Facility.medical.index,
+          ready.millisecondsSinceEpoch,
+        ];
+      final copy = Career(world, teamId: team, seed: 4)..restore(old, const []);
+      expect(copy.teamId, team);
+      expect(copy.delegation.jobMarket, isFalse);
+      expect(copy.nextProgram, isEmpty);
+      expect(copy.facilities.buildOf(Facility.medical)?.ready, ready);
+      expect(copy.facilities.builds, hasLength(1));
+      expect(copy.toJson()['version'], Career.saveVersion);
+
+      // A snapshot of a later version is refused with a reason.
+      final newer = jsonDecode(jsonEncode(current)) as Map<String, dynamic>
+        ..['version'] = Career.saveVersion + 1;
+      expect(
+        () => Career(world, teamId: team, seed: 4).restore(newer, const []),
+        throwsA(isA<FormatException>()),
+      );
+    },
+  );
+
+  test(
+    'The owners take savings beyond half the budget',
+    skip: dataDir == null,
+    timeout: const Timeout(Duration(minutes: 5)),
+    () {
+      I18n.lang = Lang.de;
+      final world = World('$dataDir/world.sqlite');
+      addTearDown(world.close);
+      final team = world.teams().firstWhere((t) => t.abbr == 'RBH').id;
+      final c = Career(world, teamId: team, seed: 4);
+      c.economy.balance = 1e9;
+      c.today = DateTime.utc(c.year + 1, 1, 1);
+      c.startNextSeason();
+      expect(
+        c.economy.balance,
+        lessThanOrEqualTo(Economy.ownerShare * c.economy.budget + 1),
+      );
+      expect(
+        c.inbox.any((m) => m.body.contains('Die Eigentümer nehmen')),
+        isTrue,
+      );
     },
   );
 }

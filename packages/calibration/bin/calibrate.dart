@@ -4,9 +4,11 @@
 //       [--set name=value ...]
 //       Compares the current tuning with the real races. With --sample only
 //       every k-th race counts and --runs is taken as given: a quick check
-//       of a model change. --types limits it to race types (Flach, Hügel,
-//       Berg, Sektoren, Zeitfahren).
-//   dart run bin/calibrate.dart run [--hours h] [--runs n] [--margin m]
+//       of a model change. --types limits it to race types (Flat, Hilly,
+//       Mountain, Sectors, Time trial). --from 2021 adds the earlier
+//       seasons, with anonymous riders for the finishers the database
+//       does not know.
+//   dart run bin/calibrate.dart run [--hours h] [--runs n] [--margin m] [--from year]
 //       Searches for better tuning values for h hours (default 8).
 //       Every improvement is written to data/calibration/tuning.json at
 //       once; the run can be interrupted at any time and resumed later.
@@ -79,7 +81,7 @@ Future<void> main(List<String> argv) async {
   for (final c in data.cases) {
     byType[c.type] = (byType[c.type] ?? 0) + 1;
   }
-  stdout.writeln('${data.cases.length} Vergleichsrennen: $byType');
+  stdout.writeln('${data.cases.length} races to compare: $byType');
   final tuning = SimTuning.load(tuningFile.path).toMap();
   // --set name=value: try a value without writing it, for the report.
   for (var i = args.indexOf('--set'); i >= 0; i = args.indexOf('--set')) {
@@ -88,8 +90,8 @@ Future<void> main(List<String> argv) async {
     args.removeRange(i, i + 2);
   }
   stdout.writeln(tuningFile.existsSync()
-      ? 'Einstellung aus ${tuningFile.path}'
-      : 'Noch keine kalibrierte Einstellung, es gelten die Standardwerte');
+      ? 'Setting from ${tuningFile.path}'
+      : 'No calibrated setting yet; the defaults apply');
 
   switch (args.isEmpty ? 'report' : args[0]) {
     case 'notes':
@@ -108,8 +110,8 @@ Future<void> main(List<String> argv) async {
       _report(e);
       _reportSplit(e);
       _reportBounds(tuning);
-      stdout.writeln('\n${quick ? runs : max(runs, 8)} Läufe je Rennen, '
-          '${cases.length} Rennen in '
+      stdout.writeln('\n${quick ? runs : max(runs, 8)} runs per race, '
+          '${cases.length} races in '
           '${watch.elapsed.inSeconds} s');
     case 'run':
       void log(String line) {
@@ -119,8 +121,8 @@ Future<void> main(List<String> argv) async {
         logFile.writeAsStringSync('$stamped\n', mode: FileMode.append);
       }
 
-      log('Kalibrierung über ${hours.toStringAsFixed(1)} h, '
-          '${data.cases.length} Rennen, $runs Läufe je Rennen');
+      log('Calibration for ${hours.toStringAsFixed(1)} h, '
+          '${data.cases.length} races, $runs runs per race');
       // Keep the previous values: a search can also make things worse in
       // ways the error does not measure.
       if (!dry && tuningFile.existsSync()) {
@@ -132,8 +134,8 @@ Future<void> main(List<String> argv) async {
         tuningFile.copySync('${root}calibration/tuning_$stamp.json');
       }
       final training = data.training, validation = data.validation;
-      log('${training.length} Rennen zum Einstellen, '
-          '${validation.length} zur Kontrolle${dry ? ' (Probelauf, es wird nichts gespeichert)' : ''}');
+      log('${training.length} races to tune on, '
+          '${validation.length} for control${dry ? ' (dry run, nothing is saved)' : ''}');
       await optimize(
         training,
         validation: validation,
@@ -156,7 +158,8 @@ Future<void> main(List<String> argv) async {
         },
       );
     default:
-      stdout.writeln('Befehle: report, run [--hours h] [--runs n] [--dry], '
+      stdout.writeln(
+          'Commands: report, run [--hours h] [--runs n] [--dry] [--from year], '
           'notes, reparse');
   }
 }
@@ -180,24 +183,25 @@ void _report(Evaluation e) {
   /// @param x Values.
   /// @returns Their arithmetic mean.
   double avg(Iterable<double> x) => x.reduce((a, b) => a + b) / x.length;
-  final types = ['Flach', 'Hügel', 'Berg', 'Sektoren', 'Zeitfahren'];
-  stdout.writeln('\nGesamtfehler ${f(e.loss, 4)}  (kleiner ist besser)');
-  stdout.writeln('  je Rennen ${f(e.caseLoss, 3)}: '
-      'Renngestalt ${f(avg(e.scores.map((x) => x.shapeTerm)), 3)}, '
-      'Tempo ${f(avg(e.scores.map((x) => x.speedTerm)), 3)}, '
-      'Ausreißer ${f(avg(e.scores.map((x) => x.breakTerm)), 3)}'
-      ' (Renngestalt und Tempo zusammen je Rennen gedeckelt)');
-  stdout.writeln('  Häufigkeiten je Renntyp ${f(e.frequencyLoss, 3)}');
-  stdout.writeln('  Favoritensiege je Renntyp ${f(e.favouriteLoss, 3)}, '
-      'Gesamtwertung ${f(avg(e.scores.map((x) => x.gcTerm)), 3)} je Rennen\n');
+  final types = ['Flat', 'Hilly', 'Mountain', 'Sectors', 'Time trial'];
+  stdout.writeln('\nTotal error ${f(e.loss, 4)}  (lower is better)');
+  stdout.writeln('  per race ${f(e.caseLoss, 3)}: '
+      'shape ${f(avg(e.scores.map((x) => x.shapeTerm)), 3)}, '
+      'speed ${f(avg(e.scores.map((x) => x.speedTerm)), 3)}, '
+      'breakaway ${f(avg(e.scores.map((x) => x.breakTerm)), 3)}'
+      ' (shape and speed capped together per race)');
+  stdout.writeln('  frequencies per race type ${f(e.frequencyLoss, 3)}');
+  stdout.writeln('  favourite wins per race type ${f(e.favouriteLoss, 3)}, '
+      'general classification ${f(avg(e.scores.map((x) => x.gcTerm)), 3)} per race, '
+      'time limit ${f(e.cutLoss, 3)}\n');
   stdout.writeln(
-      '                     Rennen   1. Gruppe      Abstand Pl. 10   Abstand Mitte    '
-      'Schnitt km/h     Ausreißersiege   Sieger in Top 3 / Top 10 (nur zur Info)');
+      '                      Races   1st group      Gap place 10     Gap of middle    '
+      'Speed km/h       Break wins       Winner in top 3 / top 10 (for information)');
   stdout.writeln(
-      '                              echt   Sim     echt    Sim      echt    Sim      '
-      'echt   Sim      echt   Sim');
-  for (final type in [...types, 'alle']) {
-    final s = e.scores.where((x) => type == 'alle' || x.type == type).toList();
+      '                              real   sim     real    sim      real    sim      '
+      'real   sim      real   sim');
+  for (final type in [...types, 'all']) {
+    final s = e.scores.where((x) => type == 'all' || x.type == type).toList();
     if (s.isEmpty) continue;
     stdout.writeln('${type.padRight(20)} ${s.length.toString().padLeft(5)}   '
         '${f(exp(avg(s.map((x) => x.real.logFirstGroup)))).padLeft(5)} '
@@ -215,14 +219,15 @@ void _report(Evaluation e) {
   }
   // How the race was decided: real field from ProCyclingStats against the
   // share of simulation runs.
-  stdout.writeln('\nGröße der Siegergruppe (echt / Simulation, Anteil in %):');
-  stdout.writeln('                     Rennen   ${[
+  stdout.writeln(
+      '\nSize of the winner\'s group (real / simulation, share in %):');
+  stdout.writeln('                     Races    ${[
     for (final k in FinishKind.road) k.label.padRight(17)
-  ].join()}Solo echt: Median km');
-  for (final type in ['Flach', 'Hügel', 'Berg', 'Sektoren', 'alle']) {
+  ].join()}Real solo: median km');
+  for (final type in ['Flat', 'Hilly', 'Mountain', 'Sectors', 'all']) {
     final s = e.scores
         .where((x) =>
-            (type == 'alle' ? x.type != 'Zeitfahren' : x.type == type) &&
+            (type == 'all' ? x.type != 'Time trial' : x.type == type) &&
             x.realKind != null &&
             x.finishShares.isNotEmpty)
         .toList();
@@ -241,7 +246,7 @@ void _report(Evaluation e) {
     ]..sort();
     stdout.writeln('${type.padRight(20)} ${s.length.toString().padLeft(5)}   '
         '${cells.join()}'
-        '${solos.isEmpty ? '–' : '${f(solos[solos.length ~/ 2])} (${solos.length} Rennen)'}');
+        '${solos.isEmpty ? '–' : '${f(solos[solos.length ~/ 2])} (${solos.length} races)'}');
   }
 
   // Stage races: time gaps add up over the stages, so compare the sum of
@@ -255,27 +260,30 @@ void _report(Evaluation e) {
     }
   }
   stdout.writeln(
-      '\nRundfahrten: Summe der Abstände von Platz 10 über alle Etappen (echt / Simulation):');
+      '\nStage races: sum of the gaps of place 10 over all stages (real / simulation):');
   double seconds(double logValue) => exp(logValue) - 1;
-  String clock(double s) =>
-      '${s ~/ 60}:${(s.round() % 60).toString().padLeft(2, '0')}';
+  String clock(double seconds) {
+    final s = seconds.round();
+    return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
+  }
+
   for (final r in byRace.entries.where((r) => r.value.length >= 3)) {
     final real = r.value.fold(0.0, (sum, x) => sum + seconds(x.real.logGap10));
     final sim = r.value.fold(0.0, (sum, x) => sum + seconds(x.sim.logGap10));
     stdout.writeln(
-        '  ${r.key.padRight(34)} ${r.value.length.toString().padLeft(2)} Etappen   '
+        '  ${r.key.padRight(34)} ${r.value.length.toString().padLeft(2)} stages    '
         '${clock(real).padLeft(7)} / ${clock(sim).padLeft(7)}   '
-        'Faktor ${f(sim / (real == 0 ? 1 : real), 2)}');
+        'factor ${f(sim / (real == 0 ? 1 : real), 2)}');
   }
 
   // The fields of earlier seasons are covered less well by the database
   // (see bin/seasons.dart); this shows whether they are matched worse.
-  stdout.writeln('\nJe Jahrgang, nur Straßenrennen (echt / Simulation):');
-  stdout.writeln('          Rennen   Fehler   Abstand Pl. 10      '
-      'Abstand Mitte      1. Gruppe');
+  stdout.writeln('\nPer season, road races only (real / simulation):');
+  stdout.writeln('           Races    Error   Gap place 10        '
+      'Gap of middle      1st group');
   final bySeason = <String, List<CaseScore>>{};
   for (final x in e.scores) {
-    if (x.type == 'Zeitfahren') continue;
+    if (x.type == 'Time trial') continue;
     final season = RegExp(r'^\d{4}/').hasMatch(x.label)
         ? x.label.substring(0, 4)
         : '$currentSeason';
@@ -294,11 +302,12 @@ void _report(Evaluation e) {
   }
 
   // How often one of the three riders best suited to the route wins.
-  stdout.writeln('\nSieg eines der drei Topfavoriten (echt / Simulation):');
-  for (final type in [...types, 'alle']) {
+  stdout.writeln(
+      '\nWin of one of the three top favourites, ${currentSeason} only (real / simulation):');
+  for (final type in [...types, 'all']) {
     final s = e.scores
-        .where((x) =>
-            (type == 'alle' || x.type == type) && x.realFavourite != null)
+        .where(
+            (x) => (type == 'all' || x.type == type) && x.realFavourite != null)
         .toList();
     if (s.isEmpty) continue;
     final real = s.where((x) => x.realFavourite!).length / s.length;
@@ -306,23 +315,34 @@ void _report(Evaluation e) {
         '${f(100 * real, 0).padLeft(3)} % / '
         '${f(100 * avg(s.map((x) => x.simFavourite)), 0).padLeft(3)} %');
   }
+  // Sprinters outside the time limit on hard stages of stage races.
+  stdout.writeln('\nSprinters outside the time limit (real / simulation):');
+  for (final type in ['Hilly', 'Mountain']) {
+    final s = e.scores.where((x) => x.type == type && x.cutSprinters > 0);
+    final n = s.fold(0, (a, x) => a + x.cutSprinters);
+    if (n == 0) continue;
+    stdout.writeln('  ${type.padRight(20)} ${n.toString().padLeft(5)}   '
+        '${f(100 * s.fold(0, (a, x) => a + x.realCutOut) / n, 0).padLeft(3)} % / '
+        '${f(100 * s.fold(0.0, (a, x) => a + x.simCutOut) / n, 0).padLeft(3)} %');
+  }
   // Time the ten best of the general classification lose per stage.
   final gc = e.scores.where((x) => x.realGcLoss != null).toList();
   if (gc.isNotEmpty) {
-    stdout.writeln('\nZeitverlust der Top 10 der Gesamtwertung je Etappe, '
-        'Mittel über ${gc.length} Etappen (echt / Simulation): '
+    stdout.writeln(
+        '\nTime lost by the top 10 of the general classification per stage, '
+        'mean over ${gc.length} stages (real / simulation): '
         '${secs(avg(gc.map((x) => x.realGcLoss!)))} / '
         '${secs(avg(gc.map((x) => x.simGcLoss!)))}');
   }
 
   final worst = [...e.scores]..sort((a, b) => b.loss.compareTo(a.loss));
-  stdout.writeln('\nGrößte Abweichungen:');
+  stdout.writeln('\nLargest deviations:');
   for (final s in worst.take(8)) {
     stdout.writeln(
         '  ${f(s.loss, 2).padLeft(6)}  ${s.label.padRight(34)} ${s.type.padRight(10)} '
-        '1. Gruppe ${f(exp(s.real.logFirstGroup), 0)}/${f(exp(s.sim.logFirstGroup), 0)}, '
-        'Pl. 10 ${secs(s.real.logGap10)}/${secs(s.sim.logGap10)}, '
-        'km/h ${f(s.real.speedKmh)}/${f(s.sim.speedKmh)} (echt/Sim)');
+        '1st group ${f(exp(s.real.logFirstGroup), 0)}/${f(exp(s.sim.logFirstGroup), 0)}, '
+        'place 10 ${secs(s.real.logGap10)}/${secs(s.sim.logGap10)}, '
+        'km/h ${f(s.real.speedKmh)}/${f(s.sim.speedKmh)} (real/sim)');
   }
 }
 
@@ -350,7 +370,7 @@ void _reparse(String root, int year) {
     if (result.wonHow != null) withHow++;
   }
   stdout.writeln(
-      '$written Ergebnisse neu geschrieben, $withHow mit Angabe zum Rennausgang');
+      '$written results written anew, $withHow with how the race was won');
 }
 
 /// Prints the error of the training and of the validation races. A tuning
@@ -367,9 +387,9 @@ void _reportSplit(Evaluation e) {
       if (Dataset.isValidation(s.label)) s,
   ];
   if (training.isEmpty || validation.isEmpty) return;
-  stdout.writeln('\nFehler der ${training.length} Rennen zum Einstellen: '
+  stdout.writeln('\nError of the ${training.length} races to tune on: '
       '${Evaluation(training).loss.toStringAsFixed(4)} · '
-      'der ${validation.length} Kontrollrennen: '
+      'of the ${validation.length} control races: '
       '${Evaluation(validation).loss.toStringAsFixed(4)}');
 }
 
@@ -385,10 +405,10 @@ void _reportBounds(Map<String, double> tuning) {
     final at = (v - p.min) / (p.max - p.min);
     if (at < 0.02 || at > 0.98) {
       lines.add('  ${p.name.padRight(22)} ${v.toStringAsFixed(3).padLeft(9)}  '
-          '(${at < 0.5 ? 'untere' : 'obere'} Grenze, Bereich ${p.min} bis ${p.max})  ${p.meaning}');
+          '(${at < 0.5 ? 'lower' : 'upper'} limit, range ${p.min} to ${p.max})  ${p.meaning}');
     }
   }
   if (lines.isEmpty) return;
-  stdout.writeln('\nStellschrauben am Rand ihres Bereichs:');
+  stdout.writeln('\nTuning values at the edge of their range:');
   lines.forEach(stdout.writeln);
 }

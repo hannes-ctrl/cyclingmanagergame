@@ -372,8 +372,10 @@ StageResult simulateStage(
     try {
       result = race.run();
     } on _RadioStop catch (stop) {
+      // The race so far, for the fast motion up to the question.
       return StageResult(const [], race.events, false)
         ..openCall = stop.call
+        ..timeline = race._timeline
         ..weather = weather;
     }
   }
@@ -1644,7 +1646,15 @@ class _RoadRace {
     if (!isMain && !aheadOfMain && !g.convoy && gapToMain < 150) {
       rescued = [
         for (final m in order)
-          if (m.favorite || hasGc && m.gcGap != null && m.gcGap! < 300) m,
+          if (m.favorite ||
+              hasGc && m.gcGap != null && m.gcGap! < 300 ||
+              // On a hilly day a sprinter dropped on a climb is paced back
+              // by his team while there is road enough to the line.
+              m.role == Role.sprinter &&
+                  !_mountainStage &&
+                  remainingKm > 12 &&
+                  gapToMain < 90)
+            m,
       ];
       if (rescued.isNotEmpty) {
         final teams = {for (final m in rescued) m.rider.teamId};
@@ -1870,7 +1880,8 @@ class _RoadRace {
       g.gruppetto = false;
       ref = order[n ~/ 2];
       final leaders = _leadersIn(order);
-      final aimless = _selective && !order.any((m) => _hasStake(m, leaders));
+      final aimless = (_selective || remainingKm < t.rollInKm) &&
+          !order.any((m) => _hasStake(m, leaders));
       // A group that only rolls in still watches the time limit.
       effort = aimless
           ? t.aimlessEffort +
@@ -1953,7 +1964,14 @@ class _RoadRace {
         (isMain || aheadOfMain) &&
         s.grade > 0.02 &&
         (inFinale || remainingKm < route.raceKm * 0.4);
-    final leadersHere = easing ? _leadersIn(order) : const <int>{};
+    // Close to the line, on any day, whoever has nothing to ride for lets
+    // the front go: helpers whose work is done, lead-out men after their
+    // turn. They roll in a little behind.
+    final rollingIn = (isMain || aheadOfMain) &&
+        n > 8 &&
+        remainingKm < t.rollInKm &&
+        route.kind == StageKind.road;
+    final leadersHere = easing || rollingIn ? _leadersIn(order) : const <int>{};
     final line = onSector
         ? ([...order]..sort((a, b) => a.rank.compareTo(b.rank)))
         : order;
@@ -1994,8 +2012,9 @@ class _RoadRace {
               ((v - own) / v * 10).clamp(0.0, 0.8) * lengthKm * 2;
         }
       }
-      final sitsUp =
-          easing && e > t.sitUpEffort && !working && !_hasStake(m, leadersHere);
+      final sitsUp = (easing && e > t.sitUpEffort || rollingIn) &&
+          !working &&
+          !_hasStake(m, leadersHere);
       if (!identical(m, ref) &&
           (stuck ||
               lostDownhill ||
@@ -2084,6 +2103,10 @@ class _RoadRace {
         : ((gapToFront / max(1.0, frontClock) / limit - 0.5) / 0.5)
             .clamp(0.0, 1.0);
   }
+
+  /// Whether the day is a mountain stage, on which no team waits for its
+  /// sprinter.
+  late final bool _mountainStage = route.selectivity > 1500;
 
   /// Whether the current segment lies in the finale.
   bool _inFinale = false;
@@ -2685,9 +2708,25 @@ class _RoadRace {
           events.add(RaceEvent(route.raceKm - 0.2, EventType.crash,
               tr('Crash in the sprint: {0}', [_names(fallen, 4)])));
         }
+        // At sprint speed the line of a big group breaks: behind the first
+        // ones a gap of a second or more opens now and then, and everyone
+        // behind it gets a slower time. The favourites and those placed in
+        // the general classification ride at the front and keep the time
+        // of the group.
+        var split = 0.0;
         for (var i = 0; i < order.length; i++) {
-          // Same time for the group; the fraction only fixes the order.
-          placings.add(Placing(order[i].rider, g.clock + i * 1e-4, gi));
+          final m = order[i];
+          if (n >= 20 &&
+              i >= t.bunchSplitFrom &&
+              rng.nextDouble() < t.bunchSplitRate) {
+            split += 1 + rng.nextDouble();
+          }
+          final front =
+              m.favorite || hasGc && m.gcGap != null && m.gcGap! < 300;
+          // Otherwise the same time for the group; the fraction only
+          // fixes the order.
+          placings.add(
+              Placing(m.rider, g.clock + (front ? 0 : split) + i * 1e-4, gi));
         }
       }
     }

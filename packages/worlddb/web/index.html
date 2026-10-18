@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Radmanager · Datenbank</title>
+<title>Radmanager · Database</title>
 <style>
-/* Gleiche Grundform wie der UI-Entwurf: Seitenleiste in Teamfarbe, getönte Flächen, dichte Tabellen. */
+/* The same basic look as the interface draft: sidebar in the team colour, tinted panels, dense tables. */
 :root{--bg:#15122a;--fg:#eeecf7;--mut:#a59fc8;--team:#33206e;--side-fg:#ffffff;--acc:#f7d417;--acc-fg:#1b1600;
   --gold:#f7d417;--gruen:#44c285;--rot:#ef6258;--blau:#6db3ff;
   --panel:color-mix(in srgb,var(--team) 12%,var(--bg));--panel2:color-mix(in srgb,var(--team) 26%,var(--bg));
@@ -54,12 +54,12 @@ svg text{font-family:"Segoe UI",Arial,sans-serif}
 </head>
 <body>
 <aside id="side">
-  <header><h1>Radmanager</h1><span class="small" style="opacity:.8">Datenbank-Browser · WorldDB 2026</span></header>
-  <div class="modes"><button id="m-teams" aria-pressed="true">Teams</button><button id="m-races" aria-pressed="false">Rennen</button></div>
-  <input id="filter" type="search" placeholder="Filtern …" aria-label="Liste filtern">
+  <header><h1>Radmanager</h1><span class="small" style="opacity:.8">Database browser · WorldDB 2026</span></header>
+  <div class="modes"><button id="m-teams" aria-pressed="true">Teams</button><button id="m-races" aria-pressed="false">Races</button></div>
+  <input id="filter" type="search" placeholder="Filtern …" aria-label="Filter the list">
   <div id="list"></div>
 </aside>
-<main id="main"><div class="pad mut">Lädt …</div></main>
+<main id="main"><div class="pad mut">Loading …</div></main>
 <script>
 /**
  * Database browser for the world database. Talks to the JSON API of
@@ -93,9 +93,9 @@ const api=(p)=>fetch("/api/"+p).then(r=>{if(!r.ok)throw new Error(p+": "+r.statu
 const state={mode:"teams",teams:[],races:[],sel:null,sort:{key:"last_name",dir:1},riders:[],stage:null};
 
 /** Display names of the WorldDB divisions, in list order. */
-const DIV={"[1] World Tour":"WorldTeams","[2] Pro Tour":"ProTeams","[3] Continental Tour":"Continental","Under23":"U23","Free":"Ohne Team"};
+const DIV={"[1] World Tour":"WorldTeams","[2] Pro Tour":"ProTeams","[3] Continental Tour":"Continental","Under23":"U23","Free":"Free agents"};
 /** Race class patterns of the WorldDB and the group they are listed under. */
-const CLS=[[/^CWTGT/,"Grand Tours"],[/^CWTMaj/,"Monumente"],[/^CWT/,"WorldTour"],[/HC$/,"ProSeries"],[/^Cont[12]1$/,"Klasse 1"],[/^Cont[12]2U$/,"U23"],[/^Cont[12]2$/,"Klasse 2"],[/ITT$/,"Meisterschaften Zeitfahren"],[/Championship/,"Meisterschaften"]];
+const CLS=[[/^CWTGT/,"Grand Tours"],[/^CWTMaj/,"Monuments"],[/^CWT/,"WorldTour"],[/HC$/,"ProSeries"],[/^Cont[12]1$/,"Class 1"],[/^Cont[12]2U$/,"U23"],[/^Cont[12]2$/,"Class 2"],[/ITT$/,"Time trial championships"],[/Championship/,"Championships"]];
 /**
  * @param {string} c Race class of the WorldDB.
  * @returns {string} The group label, or the class itself if none matches.
@@ -115,16 +115,16 @@ function renderList(){
       const g=DIV[t.division]||t.division; if(g!==last){html+=`<div class="grp">${esc(g)}</div>`;last=g}
       html+=`<button data-team="${t.id}" aria-current="${state.sel===t.id}"><span class="sw" style="background:linear-gradient(#${esc(t.color)} 50%,#${esc(t.color2)} 50%)"></span><span class="t">${esc(t.name)}</span><span class="r">${t.riders}</span></button>`;}
   } else {
-    const order=["Grand Tours","Monumente","WorldTour","ProSeries","Klasse 1","Klasse 2","U23","Meisterschaften","Meisterschaften Zeitfahren"];
+    const order=["Grand Tours","Monuments","WorldTour","ProSeries","Class 1","Class 2","U23","Championships","Time trial championships"];
     const groups={}; for(const r of state.races){ if(f&&!r.name.toLowerCase().includes(f))continue; (groups[clsName(r.class)]??=[]).push(r); }
     for(const g of [...order,...Object.keys(groups).filter(k=>!order.includes(k))]){ if(!groups[g])continue;
       html+=`<div class="grp">${esc(g)} · ${groups[g].length}</div>`+groups[g].map(r=>`<button data-race="${r.id}" aria-current="${state.sel===r.id}"><span class="t">${esc(r.name)}</span><span class="r">${date(r.start_mmdd)}</span></button>`).join("");}
   }
-  H($("#list"),html||`<div class="grp">Nichts gefunden</div>`);
+  H($("#list"),html||`<div class="grp">Nothing found</div>`);
 }
 
 /** Rider attribute columns: database field and German column heading. */
-const ATTR=[["flat","FL"],["mountain","BG"],["medium_mountain","MB"],["hill","HÜ"],["time_trial","ZF"],["prologue","PR"],["cobble","KO"],["sprint","SP"],["acceleration","ANT"],["downhill","ABF"],["breakaway","AUS"],["endurance","AD"],["resistance","WID"],["recovery","REG"]];
+const ATTR=[["flat","FL"],["mountain","MTN"],["medium_mountain","MED"],["hill","HIL"],["time_trial","TT"],["prologue","PRL"],["cobble","COB"],["sprint","SPR"],["acceleration","ACC"],["downhill","DH"],["breakaway","BRK"],["endurance","STA"],["resistance","RES"],["recovery","REC"]];
 /**
  * @param {number} v A rider attribute.
  * @returns {string} CSS class that colours the value.
@@ -163,10 +163,10 @@ async function showTeam(id){
 function renderTeam(t){
   const {key,dir}=state.sort; const rows=[...state.riders].sort((a,b)=>(a[key]>b[key]?1:a[key]<b[key]?-1:0)*dir);
   const th=(k,l,n)=>`<th class="${n?"n":""}" data-sort="${k}">${l}${key===k?(dir>0?" ▲":" ▼"):""}</th>`;
-  H($("#main"),`<div class="bar"><h2>${esc(t.name)}</h2><span class="mut">${esc(t.abbr)} · ${esc(DIV[t.division]||t.division)} · ${esc(t.country)} · ${rows.length} Fahrer · Teamchef ${esc(t.manager)}</span></div>
-  <div class="pad"><div class="scroll"><table><tr>${th("last_name","Fahrer")}${th("country","Nat")}${th("birthdate","Alter",1)}${th("potential","Pot",1)}${ATTR.map(a=>th(a[0],a[1],1)).join("")}${th("contract_end","Vertrag",1)}</tr>
+  H($("#main"),`<div class="bar"><h2>${esc(t.name)}</h2><span class="mut">${esc(t.abbr)} · ${esc(DIV[t.division]||t.division)} · ${esc(t.country)} · ${rows.length} riders · Manager ${esc(t.manager)}</span></div>
+  <div class="pad"><div class="scroll"><table><tr>${th("last_name","Rider")}${th("country","Nat")}${th("birthdate","Age",1)}${th("potential","Pot",1)}${ATTR.map(a=>th(a[0],a[1],1)).join("")}${th("contract_end","Contract",1)}</tr>
   ${rows.map(r=>`<tr><td>${esc(r.last_name)} <span class="mut">${esc(r.first_name)}</span></td><td class="mut">${esc(r.country)}</td><td class="n">${age(r.birthdate)}</td><td class="n">${r.potential}</td>${ATTR.map(a=>`<td class="n ${ac(r[a[0]])}">${r[a[0]]}</td>`).join("")}<td class="n">${r.contract_end||"–"}</td></tr>`).join("")}</table></div>
-  <p class="small mut">Werte aus der WorldDB. Gehälter, Budgets und bei den meisten Fahrern der Fahrertyp sind dort leer und müssen vom Spiel erzeugt werden.</p></div>`);
+  <p class="small mut">Values of the WorldDB. Wages, budgets and, for most riders, the rider type are empty there; the game makes them.</p></div>`);
 }
 
 /**
@@ -177,9 +177,9 @@ function renderTeam(t){
 async function showRace(id){
   state.sel=id; renderList(); const r=state.races.find(x=>x.id===id); const stages=await api("stages?id="+id);
   state.stages=stages; state.race=r;
-  H($("#main"),`<div class="bar"><h2>${esc(r.name)}</h2><span class="mut">${esc(clsName(r.class))} · ${esc(r.country)} · ${stages.length>1?stages.length+" Etappen":"Eintagesrennen"} · ab ${date(r.start_mmdd)}</span></div>
-  <div class="pad"><div class="scroll"><table id="stages"><tr><th class="n">Nr.</th><th>Datum</th><th>Strecke</th><th class="n">km</th><th class="n">Hm</th><th class="n">Höchster Punkt</th><th>Jahrgang</th><th>Quelle</th></tr>
-  ${stages.map(s=>`<tr class="pick" data-stage="${s.id}"><td class="n">${s.number}</td><td>${String(s.day).padStart(2,"0")}.${String(s.month).padStart(2,"0")}.</td><td>${esc(s.name||"keine Streckendatei")}</td><td class="n">${s.race_km?.toFixed(1)??""}</td><td class="n">${s.elevation_gain_m!=null?Math.round(s.elevation_gain_m):""}</td><td class="n">${s.max_altitude_m!=null?Math.round(s.max_altitude_m)+" m":""}</td><td>${s.variant==="2026"?"2026":`<span class="pill y">${esc(s.variant||"ohne Jahr")}</span>`}</td><td class="mut">${s.source==="game"?"Grundspiel":"WorldDB"}</td></tr>`).join("")}</table></div>
+  H($("#main"),`<div class="bar"><h2>${esc(r.name)}</h2><span class="mut">${esc(clsName(r.class))} · ${esc(r.country)} · ${stages.length>1?stages.length+" stages":"One-day race"} · from ${date(r.start_mmdd)}</span></div>
+  <div class="pad"><div class="scroll"><table id="stages"><tr><th class="n">No.</th><th>Date</th><th>Route</th><th class="n">km</th><th class="n">Hm</th><th class="n">Highest point</th><th>Year</th><th>Source</th></tr>
+  ${stages.map(s=>`<tr class="pick" data-stage="${s.id}"><td class="n">${s.number}</td><td>${String(s.day).padStart(2,"0")}.${String(s.month).padStart(2,"0")}.</td><td>${esc(s.name||"no route file")}</td><td class="n">${s.race_km?.toFixed(1)??""}</td><td class="n">${s.elevation_gain_m!=null?Math.round(s.elevation_gain_m):""}</td><td class="n">${s.max_altitude_m!=null?Math.round(s.max_altitude_m)+" m":""}</td><td>${s.variant==="2026"?"2026":`<span class="pill y">${esc(s.variant||"no year")}</span>`}</td><td class="mut">${s.source==="game"?"Base game":"WorldDB"}</td></tr>`).join("")}</table></div>
   <div id="stage"></div></div>`);
   if(stages.length) showStage(stages[0].id);
 }
@@ -199,21 +199,21 @@ async function showStage(id){
   const altAt=k=>{let best=P[0];for(const p of P){if(Math.abs(p[0]-k)<Math.abs(best[0]-k))best=p}return best[1]};
   const kmStep=s.race_km>120?20:s.race_km>40?10:5; const ticks=[];for(let k=0;k<=s.race_km;k+=kmStep)ticks.push(k);
   const marks=s.waypoints.filter(w=>w.type==="climb"||w.type==="sprint"||w.type==="summitFinish");
-  const svg=`<svg viewBox="0 0 ${W} ${Hh}" style="min-width:640px;width:100%;display:block" role="img" aria-label="Höhenprofil ${esc(s.name)}">
+  const svg=`<svg viewBox="0 0 ${W} ${Hh}" style="min-width:640px;width:100%;display:block" role="img" aria-label="Altitude profile ${esc(s.name)}">
   ${[...Array(top/500+1).keys()].map(i=>`<line x1="${L}" x2="${W-R}" y1="${y(i*500)}" y2="${y(i*500)}" stroke="var(--line)"/><text x="${L-6}" y="${y(i*500)+4}" font-size="11" text-anchor="end" fill="var(--mut)">${i*500}</text>`).join("")}
-  ${s.sectors.map(c=>`<rect x="${x(c.from_race_km)}" y="${T}" width="${Math.max(1.5,x(c.to_race_km)-x(c.from_race_km))}" height="${Hh-T-B}" fill="${c.cobbled?"var(--rot)":"var(--gold)"}" opacity="${0.2+c.difficulty*0.1}"><title>${esc(c.name)} · ${c.difficulty} von 5</title></rect>`).join("")}
+  ${s.sectors.map(c=>`<rect x="${x(c.from_race_km)}" y="${T}" width="${Math.max(1.5,x(c.to_race_km)-x(c.from_race_km))}" height="${Hh-T-B}" fill="${c.cobbled?"var(--rot)":"var(--gold)"}" opacity="${0.2+c.difficulty*0.1}"><title>${esc(c.name)} · ${c.difficulty} of 5</title></rect>`).join("")}
   <polygon points="${x(0)},${y(0)} ${P.map(p=>x(p[0]).toFixed(1)+","+y(p[1]).toFixed(1)).join(" ")} ${x(s.race_km)},${y(0)}" fill="var(--panel2)" stroke="var(--fg)" stroke-width="1.2"/>
   ${ticks.map(k=>`<line x1="${x(k)}" x2="${x(k)}" y1="${Hh-B}" y2="${Hh-B+4}" stroke="var(--mut)"/><text x="${x(k)}" y="${Hh-8}" font-size="11" text-anchor="middle" fill="var(--mut)">${k}</text>`).join("")}
   ${marks.map(w=>{const cx=x(w.race_km),cy=y(altAt(w.race_km)),spr=w.type==="sprint";return `<line x1="${cx}" x2="${cx}" y1="${cy}" y2="${T-6}" stroke="${spr?"var(--gruen)":"var(--rot)"}" stroke-dasharray="2 3"/><circle cx="${cx}" cy="${T-14}" r="9" fill="${spr?"var(--gruen)":"var(--rot)"}"><title>${esc(w.name)} · km ${w.race_km.toFixed(1)}</title></circle><text x="${cx}" y="${T-10}" font-size="10" font-weight="700" text-anchor="middle" fill="#15122a">${spr?"S":CAT[w.detail]||"?"}</text>`}).join("")}
   </svg>`;
   const climbs=s.climbs.filter(c=>c.kind===0);
-  H($("#stage"),`<div class="box"><div style="display:flex;flex-wrap:wrap;gap:4px 16px;align-items:baseline;justify-content:space-between"><h3>${esc(s.name)}</h3><span class="mut small">${s.race_km.toFixed(1)} km · ${Math.round(s.elevation_gain_m)} Hm · höchster Punkt ${Math.round(s.max_altitude_m)} m · Datei ${esc(s.file)}${s.has_details?"":" · Wertungen nicht lesbar"}</span></div>
+  H($("#stage"),`<div class="box"><div style="display:flex;flex-wrap:wrap;gap:4px 16px;align-items:baseline;justify-content:space-between"><h3>${esc(s.name)}</h3><span class="mut small">${s.race_km.toFixed(1)} km · ${Math.round(s.elevation_gain_m)} m climbing · highest point ${Math.round(s.max_altitude_m)} m · file ${esc(s.file)}${s.has_details?"":" · classifications unreadable"}</span></div>
   <div class="scroll">${svg}</div>
-  <div class="small mut">Rote Marken: Bergwertung mit Kategorie. Grün: Sprint oder Zwischenzeit. Rot hinterlegt: Kopfsteinpflaster, gelb: unbefestigt.</div></div>
+  <div class="small mut">Red marks: categorised climbs. Green: sprints and time checks. Red background: cobbles, yellow: gravel.</div></div>
   <div class="cols" style="margin-top:14px">
-  ${climbs.length?`<div class="box"><span class="lbl">Anstiege</span><table><tr><th>Name</th><th class="n">bis km</th><th class="n">Länge</th><th class="n">Ø</th><th class="n">max</th></tr>${climbs.map(c=>`<tr><td>${esc(c.name)}</td><td class="n">${c.to_race_km.toFixed(1)}</td><td class="n">${(c.to_race_km-c.from_race_km).toFixed(1)} km</td><td class="n">${c.avg_gradient.toFixed(1)} %</td><td class="n">${c.max_gradient.toFixed(1)} %</td></tr>`).join("")}</table></div>`:""}
-  ${s.sectors.length?`<div class="box"><span class="lbl">Sektoren · ${s.sectors.length}</span><table><tr><th>Name</th><th class="n">ab km</th><th class="n">Länge</th><th>Schwierigkeit</th></tr>${s.sectors.map(c=>`<tr><td>${esc(c.name)}</td><td class="n">${c.from_race_km.toFixed(1)}</td><td class="n">${Math.round((c.to_race_km-c.from_race_km)*1000)} m</td><td class="${c.difficulty>=5?"a4":c.difficulty>=4?"a3":""}">${"★".repeat(c.difficulty)}</td></tr>`).join("")}</table></div>`:""}
-  <div class="box"><span class="lbl">Wegpunkte</span><table><tr><th class="n">km</th><th>Art</th><th>Ort</th></tr>${s.waypoints.filter(w=>w.type!=="feedZone").map(w=>`<tr><td class="n">${w.race_km.toFixed(1)}</td><td>${({start:"Start",timeTrialStart:"Start Zeitfahren",teamTimeTrialStart:"Start Teamzeitfahren",finish:"Ziel",summitFinish:"Bergankunft "+(CAT[w.detail]||""),sprint:w.detail===16?"Zwischenzeit":"Sprint",climb:"Bergwertung "+(CAT[w.detail]||"")})[w.type]||esc(w.type)}</td><td>${esc(w.name)}</td></tr>`).join("")}</table></div></div>`);
+  ${climbs.length?`<div class="box"><span class="lbl">Climbs</span><table><tr><th>Name</th><th class="n">to km</th><th class="n">Length</th><th class="n">Ø</th><th class="n">max</th></tr>${climbs.map(c=>`<tr><td>${esc(c.name)}</td><td class="n">${c.to_race_km.toFixed(1)}</td><td class="n">${(c.to_race_km-c.from_race_km).toFixed(1)} km</td><td class="n">${c.avg_gradient.toFixed(1)} %</td><td class="n">${c.max_gradient.toFixed(1)} %</td></tr>`).join("")}</table></div>`:""}
+  ${s.sectors.length?`<div class="box"><span class="lbl">Sectors · ${s.sectors.length}</span><table><tr><th>Name</th><th class="n">from km</th><th class="n">Length</th><th>Difficulty</th></tr>${s.sectors.map(c=>`<tr><td>${esc(c.name)}</td><td class="n">${c.from_race_km.toFixed(1)}</td><td class="n">${Math.round((c.to_race_km-c.from_race_km)*1000)} m</td><td class="${c.difficulty>=5?"a4":c.difficulty>=4?"a3":""}">${"★".repeat(c.difficulty)}</td></tr>`).join("")}</table></div>`:""}
+  <div class="box"><span class="lbl">Waypoints</span><table><tr><th class="n">km</th><th>Kind</th><th>Place</th></tr>${s.waypoints.filter(w=>w.type!=="feedZone").map(w=>`<tr><td class="n">${w.race_km.toFixed(1)}</td><td>${({start:"Start",timeTrialStart:"Time trial start",teamTimeTrialStart:"Team time trial start",finish:"Finish",summitFinish:"Summit finish "+(CAT[w.detail]||""),sprint:w.detail===16?"Time check":"Sprint",climb:"Climb "+(CAT[w.detail]||"")})[w.type]||esc(w.type)}</td><td>${esc(w.name)}</td></tr>`).join("")}</table></div></div>`);
 }
 
 // One click handler for the whole page: list entries, stage rows, sortable
@@ -231,7 +231,7 @@ $("#filter").addEventListener("input",renderList);
 (async()=>{
   try{ [state.teams,state.races]=await Promise.all([api("teams"),api("races")]);
     const rank=Object.keys(DIV); state.teams.sort((a,b)=>rank.indexOf(a.division)-rank.indexOf(b.division)||a.name.localeCompare(b.name)); renderList(); showTeam(state.teams.find(t=>t.division==="[1] World Tour").id); }
-  catch(err){ H($("#main"),`<div class="pad">Die Weltdatenbank ist nicht erreichbar: ${esc(err.message)}. Läuft <code>worlddb serve</code>, und wurde vorher <code>worlddb import</code> ausgeführt?</div>`); }
+  catch(err){ H($("#main"),`<div class="pad">The world database cannot be reached: ${esc(err.message)}. Is <code>worlddb serve</code> running, and was <code>worlddb import</code> run before?</div>`); }
 })();
 </script>
 </body>

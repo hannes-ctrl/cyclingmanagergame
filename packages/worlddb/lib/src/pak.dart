@@ -58,14 +58,14 @@ class PakFile {
     final footer =
         ByteData.sublistView(read(length - _footerSize, _footerSize));
     if (footer.getUint32(17, Endian.little) != _magic) {
-      throw const FormatException('Kein Unreal-Pak (Kennung fehlt)');
+      throw const FormatException('Not an Unreal pak (magic number missing)');
     }
     final version = footer.getUint32(21, Endian.little);
     if (version != 11) {
-      throw FormatException('Pak-Version $version wird nicht unterstützt');
+      throw FormatException('Pak version $version is not supported');
     }
     if (footer.getUint8(16) != 0) {
-      throw const FormatException('Verschlüsselter Pak-Index');
+      throw const FormatException('Encrypted pak index');
     }
     final methods = [
       for (var i = 0; i < 5; i++)
@@ -81,7 +81,7 @@ class PakFile {
     index.skip(4 + 8); // entry count, seed of the path hashes
     if (index.u32() != 0) index.skip(8 + 8 + 20); // path hash index
     if (index.u32() == 0) {
-      throw const FormatException('Pak ohne Verzeichnis');
+      throw const FormatException('Pak without an index');
     }
     final dirOffset = index.u64();
     final dirSize = index.u64();
@@ -146,7 +146,7 @@ class PakFile {
   /// @throws StateError If the entry is compressed and no decoder was given.
   Uint8List read(PakEntry e, {BlockDecoder? decoder}) {
     if (e.encrypted) {
-      throw UnsupportedError('${e.path} ist verschlüsselt');
+      throw UnsupportedError('${e.path} is encrypted');
     }
     // The data is preceded by the entry header: 3 × 8 bytes of position and
     // sizes, method (4), checksum (20), with compression a block list (4 + 16
@@ -159,7 +159,7 @@ class PakFile {
     }
     if (decoder == null) {
       throw UnsupportedError(
-          '${e.path} ist mit ${e.compression} komprimiert, kein Entpacker angegeben');
+          '${e.path} is compressed with ${e.compression}, and no decompressor was given');
     }
     final out = BytesBuilder(copy: false);
     // Uncompressed size of a full block: the last field of the entry header.

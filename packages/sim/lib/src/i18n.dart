@@ -67,3 +67,37 @@ String dec(num value, [int digits = 1]) {
   final text = value.toStringAsFixed(digits);
   return I18n.lang == Lang.de ? text.replaceAll('.', ',') : text;
 }
+
+const _monthsEn = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+String _two(int n) => n.toString().padLeft(2, '0');
+
+/// A day as the current language writes it: `17.10.` in German, `17 Oct`
+/// in English; with the year `17.10.2026` or `17 Oct 2026`.
+///
+/// @param d The day.
+/// @param year Whether the year is part of it.
+/// @returns The date.
+String dayText(DateTime d, {bool year = false}) => I18n.lang == Lang.de
+    ? '${_two(d.day)}.${_two(d.month)}.${year ? d.year : ''}'
+    : '${d.day} ${_monthsEn[d.month - 1]}${year ? ' ${d.year}' : ''}';
+
+/// A month as the current language writes it: `10.2026` or `Oct 2026`.
+///
+/// @param d A day of the month.
+/// @returns The month.
+String monthText(DateTime d) => I18n.lang == Lang.de
+    ? '${_two(d.month)}.${d.year}'
+    : '${_monthsEn[d.month - 1]} ${d.year}';
+
+/// A count with its noun in the right number, in the current language:
+/// `1 stage`, `3 stages`.
+///
+/// @param n The count.
+/// @param one The text for one, with `{0}` for the count.
+/// @param many The text for any other count.
+/// @returns The text.
+String trn(int n, String one, String many) => tr(n == 1 ? one : many, [n]);

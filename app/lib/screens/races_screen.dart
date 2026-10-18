@@ -36,8 +36,7 @@ String _groupOf(RaceInfo race) {
   return 'Other';
 }
 
-String _date(int day, int month) =>
-    '${day.toString().padLeft(2, '0')}.${month.toString().padLeft(2, '0')}.';
+String _date(int day, int month) => dayText(DateTime.utc(2000, month, day));
 
 /// Races: the list of all races on the left, the selected race with route,
 /// report and classifications on the right.
@@ -345,7 +344,7 @@ class _RaceDetail extends StatelessWidget {
                           tr('{0} · {1} · from {2}', [
                             tr(_groupOf(race)),
                             stages.length > 1
-                                ? tr('{0} stages', [stages.length])
+                                ? trn(stages.length, '{0} stage', '{0} stages')
                                 : tr('One-day race'),
                             _date(race.startDay, race.startMonth),
                           ]),

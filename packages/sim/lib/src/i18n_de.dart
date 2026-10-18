@@ -1570,8 +1570,6 @@ const german = <String, String>{
       'Das Nachwuchsteam ist mit {0} Fahrern voll.',
   '{0} joins the development team': '{0} kommt ins Nachwuchsteam',
   '{0} rides for {1} from {2} until {3}.': '{0} fährt ab {2} bis {3} für {1}.',
-  'Another facility is being built.':
-      'Gerade wird schon eine andere Einrichtung ausgebaut.',
   'The facility is already at the top level.':
       'Die Einrichtung ist schon auf der höchsten Stufe.',
   'There is not enough money in the account.':
@@ -2009,12 +2007,76 @@ const german = <String, String>{
   'well': 'gut',
   'badly': 'schlecht',
   'normally': 'normal',
-  '{0} °C are forecast; {1} cope badly with the heat.': '{0} °C sind angesagt; {1} kommen mit der Hitze schlecht zurecht.',
-  '{0} °C are forecast; {1} cope badly with the cold.': '{0} °C sind angesagt; {1} kommen mit der Kälte schlecht zurecht.',
+  '{0} °C are forecast; {1} cope badly with the heat.':
+      '{0} °C sind angesagt; {1} kommen mit der Hitze schlecht zurecht.',
+  '{0} °C are forecast; {1} cope badly with the cold.':
+      '{0} °C sind angesagt; {1} kommen mit der Kälte schlecht zurecht.',
   'Reputation': 'Ruf',
-  'The person in a word, from professionalism, ambition, loyalty, consistency and adaptability. Green is a good sign (such as model professional, professional, loyal), red a warning (such as mercenary, slack, temperamental); most riders are balanced. It comes from what the WorldDB knows of a rider (loyalty to his contracts, years as a professional, wins) and is the same in every career.': 'Der Mensch in einem Wort, aus Professionalität, Ehrgeiz, Loyalität, Beständigkeit und Anpassungsfähigkeit. Grün ist ein gutes Zeichen (etwa Musterprofi, Profi, loyal), Rot eine Warnung (etwa Söldner, nachlässig, launisch); die meisten Fahrer sind ausgeglichen. Sie folgt aus dem, was die WorldDB über einen Fahrer weiß (Vertragstreue, Profijahre, Siege), und ist in jeder Karriere dieselbe.',
-  'How much a rider suffers on a hot or a cold day: a heavy rider sheds heat badly and keeps warm well, a light one the other way round, and riders of hot countries are used to the heat, those of the north to the cold. From 27 °C every degree costs energy, below 6 °C the cold does; the race preparation warns of riders who cope badly.': 'Wie sehr ein Fahrer an einem heißen oder kalten Tag leidet: Ein schwerer Fahrer gibt Wärme schlecht ab und hält sich gut warm, ein leichter umgekehrt, und Fahrer aus heißen Ländern sind die Hitze gewohnt, die aus dem Norden die Kälte. Ab 27 °C kostet jedes Grad Energie, unter 6 °C die Kälte; die Rennvorbereitung warnt vor Fahrern, die schlecht damit zurechtkommen.',
-  'Your standing as a manager, 0 to 100. It rises when your team finishes above what its strength promised and meets its goals, falls otherwise, and drifts towards the level of the team you run. Other teams make offers when your reputation reaches them.': 'Dein Ansehen als Manager, 0 bis 100. Er steigt, wenn dein Team besser abschneidet, als seine Stärke versprach, und seine Ziele erreicht, fällt sonst und nähert sich dem Niveau des Teams, das du führst. Andere Teams machen Angebote, wenn dein Ruf an sie heranreicht.',
-  'Switched on under Delegation (off at the start): on 1 November the board judges the season; after a bad one it warns you, after a second one it dismisses you at the end of the year. Other teams offer you jobs in the inbox; an accepted offer hands you their riders, staff, money and sponsors at the turn of the year.': 'Unter Aufgabenverteilung einschaltbar (zu Beginn aus): Am 1. November beurteilt der Vorstand die Saison; nach einer schlechten verwarnt er dich, nach einer zweiten entlässt er dich zum Jahresende. Andere Teams bieten dir im Postfach Jobs an; ein angenommenes Angebot übergibt dir zum Jahreswechsel ihre Fahrer, ihr Personal, Geld und ihre Sponsoren.',
-  'The sixth facility: every level above three raises what the sponsors pay by three per cent, measured against the level the team started with, on new contracts and offers.': 'Die sechste Einrichtung: Jede Stufe über drei erhöht die Sponsorengelder um drei Prozent, gemessen an der Stufe beim Start, bei neuen Verträgen und Angeboten.',
+  'The person in a word, from professionalism, ambition, loyalty, consistency and adaptability. Green is a good sign (such as model professional, professional, loyal), red a warning (such as mercenary, slack, temperamental); most riders are balanced. It comes from what the WorldDB knows of a rider (loyalty to his contracts, years as a professional, wins) and is the same in every career.':
+      'Der Mensch in einem Wort, aus Professionalität, Ehrgeiz, Loyalität, Beständigkeit und Anpassungsfähigkeit. Grün ist ein gutes Zeichen (etwa Musterprofi, Profi, loyal), Rot eine Warnung (etwa Söldner, nachlässig, launisch); die meisten Fahrer sind ausgeglichen. Sie folgt aus dem, was die WorldDB über einen Fahrer weiß (Vertragstreue, Profijahre, Siege), und ist in jeder Karriere dieselbe.',
+  'How much a rider suffers on a hot or a cold day: a heavy rider sheds heat badly and keeps warm well, a light one the other way round, and riders of hot countries are used to the heat, those of the north to the cold. From 27 °C every degree costs energy, below 6 °C the cold does; the race preparation warns of riders who cope badly.':
+      'Wie sehr ein Fahrer an einem heißen oder kalten Tag leidet: Ein schwerer Fahrer gibt Wärme schlecht ab und hält sich gut warm, ein leichter umgekehrt, und Fahrer aus heißen Ländern sind die Hitze gewohnt, die aus dem Norden die Kälte. Ab 27 °C kostet jedes Grad Energie, unter 6 °C die Kälte; die Rennvorbereitung warnt vor Fahrern, die schlecht damit zurechtkommen.',
+  'Your standing as a manager, 0 to 100. It rises when your team finishes above what its strength promised and meets its goals, falls otherwise, and drifts towards the level of the team you run. Other teams make offers when your reputation reaches them.':
+      'Dein Ansehen als Manager, 0 bis 100. Er steigt, wenn dein Team besser abschneidet, als seine Stärke versprach, und seine Ziele erreicht, fällt sonst und nähert sich dem Niveau des Teams, das du führst. Andere Teams machen Angebote, wenn dein Ruf an sie heranreicht.',
+  'Switched on under Delegation (off at the start): on 1 November the board judges the season; after a bad one it warns you, after a second one it dismisses you at the end of the year. Other teams offer you jobs in the inbox; an accepted offer hands you their riders, staff, money and sponsors at the turn of the year.':
+      'Unter Aufgabenverteilung einschaltbar (zu Beginn aus): Am 1. November beurteilt der Vorstand die Saison; nach einer schlechten verwarnt er dich, nach einer zweiten entlässt er dich zum Jahresende. Andere Teams bieten dir im Postfach Jobs an; ein angenommenes Angebot übergibt dir zum Jahreswechsel ihre Fahrer, ihr Personal, Geld und ihre Sponsoren.',
+  'The sixth facility: every level above three raises what the sponsors pay by three per cent, measured against the level the team started with, on new contracts and offers.':
+      'Die sechste Einrichtung: Jede Stufe über drei erhöht die Sponsorengelder um drei Prozent, gemessen an der Stufe beim Start, bei neuen Verträgen und Angeboten.',
+  'The points of all the team\'s riders this season, by the UCI scale. The place decides what sponsors offer and is one of the board\'s goals.':
+      'Die Punkte aller Fahrer des Teams in dieser Saison, nach der UCI-Skala. Der Platz entscheidet, was Sponsoren bieten, und ist eines der Ziele des Vorstands.',
+  'The points of a team\'s 20 best riders over three seasons. At the end of the third, the best teams get the WorldTour licences; the two best ProTeams are invited to every WorldTour race.':
+      'Die Punkte der 20 besten Fahrer eines Teams über drei Saisons. Am Ende der dritten erhalten die besten Teams die WorldTour-Lizenzen; die zwei besten ProTeams sind zu jedem WorldTour-Rennen eingeladen.',
+  'Money in the account. It grows with sponsor and prize money and shrinks with wages and running costs, month by month. Savings raise what you may pay your riders; at the turn of the year the owners take what is beyond half the budget.':
+      'Geld auf dem Konto. Es wächst mit Sponsoren- und Preisgeld und schrumpft mit Gehältern und laufenden Kosten, Monat für Monat. Ersparnisse erhöhen, was du deinen Fahrern zahlen darfst; zum Jahreswechsel nehmen die Eigentümer, was über dem halben Budget liegt.',
+  'How content the board is, 0 to 100. Every season goal met raises it, every one missed lowers it more; it decides what sponsors offer, and with the job market switched on a low value can cost you the job.':
+      'Wie zufrieden der Vorstand ist, 0 bis 100. Jedes erreichte Saisonziel hebt es, jedes verfehlte senkt es stärker; es entscheidet, was Sponsoren bieten, und mit eingeschaltetem Jobmarkt kann ein niedriger Wert dich den Job kosten.',
+  'The owners take {0} of the savings beyond half the budget':
+      'Die Eigentümer nehmen {0} der Ersparnisse über dem halben Budget',
+  'The save comes from a newer version of the game.':
+      'Der Spielstand stammt aus einer neueren Version des Spiels.',
+  'The saved game could not be opened ({0}). It is kept as {1}; a new career has begun.':
+      'Der Spielstand ließ sich nicht öffnen ({0}). Er bleibt als {1} erhalten; eine neue Karriere hat begonnen.',
+  'Saved game': 'Spielstand',
+  'Export lists as CSV': 'Listen als CSV exportieren',
+  'Riders, teams, calendar, results and staff of the career, each as a file in data/export.':
+      'Fahrer, Teams, Kalender, Ergebnisse und Personal der Karriere, je als Datei in data/export.',
+  '{0} stage': '{0} Etappe',
+  '{0} rider': '{0} Fahrer',
+  '{0} race': '{0} Rennen',
+  '{0} day': '{0} Tag',
+  'Being scouted until {0}.': 'Wird bis zum {0} beobachtet.',
+  'He is considering your offer of {0} € and answers by {1}.':
+      'Er prüft dein Angebot über {0} € und antwortet bis zum {1}.',
+  '{0}. Expected back on {1}.{2}':
+      '{0}. Voraussichtlich wieder einsatzbereit am {1}.{2}',
+  '{0} will answer by {1}.': '{0} antwortet bis zum {1}.',
+  'The world database is missing': 'Die Weltdatenbank fehlt',
+  'Radmanager needs the file world.sqlite, built from the WorldDB for Pro Cycling Manager with "worlddb import" (see README). Copy it here:':
+      'Radmanager braucht die Datei world.sqlite, gebaut aus der WorldDB für Pro Cycling Manager mit „worlddb import“ (siehe README). Kopiere sie hierher:',
+  'Check again': 'Erneut prüfen',
+  'Still not found.': 'Weiterhin nicht gefunden.',
+  'Place {0} in the team ranking with {1} points. The board assesses the goals at the turn of the year.':
+      'Platz {0} in der Teamwertung mit {1} Punkten. Der Vorstand bewertet die Ziele zum Jahreswechsel.',
+  '150 young riders of 18 and 19 are on the market.':
+      '150 junge Fahrer mit 18 und 19 Jahren sind auf dem Markt.',
+  'None booked yet.': 'Noch keines gebucht.',
+  'A camp ties up the riders for its duration, loads them hard and pays off one to four weeks later: the trained attributes rise (most for young riders), and form is higher.':
+      'Ein Lager bindet die Fahrer für seine Dauer, belastet sie stark und zahlt sich ein bis vier Wochen später aus: Die trainierten Werte steigen (am meisten bei jungen Fahrern), und die Form ist höher.',
+  'Upkeep {0} € a year': 'Unterhalt {0} € im Jahr',
+  'taken': 'vergeben',
+  'The mean of the best eight riders, each with his best main attribute.':
+      'Der Schnitt der besten acht Fahrer, jeder mit seinem besten Hauptwert.',
+  'WorldTeam from a strength of {0}, ProTeam from {1}: as strong as the weakest teams of these licences.':
+      'WorldTeam ab einer Stärke von {0}, ProTeam ab {1}: so stark wie die schwächsten Teams dieser Lizenzen.',
+  'A WorldTeam needs 27 to 30 riders, a ProTeam 20 to 30, a Continental team 16 to 30.':
+      'Ein WorldTeam braucht 27 bis 30 Fahrer, ein ProTeam 20 bis 30, ein Continental-Team 16 bis 30.',
+  'Staff costs {0} € a year': 'Personalkosten {0} € im Jahr',
+  'Coaches speed up development (one per ten riders, currently covered: {0} %), doctors shorten lay-offs, scouts make other teams\' riders assessable, mechanics change wheels faster and prevent defects (quality {1} %), physiotherapists help the riders recover in stage races (quality {2} %).':
+      'Trainer beschleunigen die Entwicklung (einer je zehn Fahrer, derzeit abgedeckt: {0} %), Ärzte verkürzen Ausfälle, Scouts machen Fahrer anderer Teams einschätzbar, Mechaniker wechseln Räder schneller und verhindern Defekte (Qualität {1} %), Physiotherapeuten helfen bei der Erholung in Rundfahrten (Qualität {2} %).',
+  '{0} young riders of 18 and 19 are on the market.':
+      '{0} junge Fahrer mit 18 und 19 Jahren sind auf dem Markt.',
+  'The facility is already being built.':
+      'Die Einrichtung wird bereits ausgebaut.',
+  'Two facilities are already being built.':
+      'Es werden bereits zwei Einrichtungen ausgebaut.',
 };

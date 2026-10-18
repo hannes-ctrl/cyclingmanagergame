@@ -36,6 +36,11 @@ class FoundingRules {
           ? minPro
           : minRiders;
 
+  /// @param division A WorldDB division string.
+  /// @returns The fewest and the most riders a founded team of that
+  ///   division may have.
+  static (int, int) rangeFor(String division) => (minFor(division), maxRiders);
+
   /// Strength of the weakest WorldTeam and of the weakest ProTeam.
   late final double worldTour, pro;
 
@@ -62,14 +67,14 @@ class FoundingRules {
   }
 
   /// @param squad A chosen squad.
-  /// @returns The WorldDB division a squad of that strength and size
-  ///   belongs in: a WorldTeam needs 27 riders, a ProTeam 20.
+  /// @returns The WorldDB division a squad of that strength belongs in:
+  ///   the strength of its eight best riders decides; the licence then sets
+  ///   how many riders the squad needs ([rangeFor]).
   String divisionFor(Iterable<SimRider> squad) {
     final s = strength(squad);
-    final n = squad.length;
-    return s >= worldTour && n >= minWorldTour
+    return s >= worldTour
         ? '[1] World Tour'
-        : s >= pro && n >= minPro
+        : s >= pro
             ? '[2] Pro Tour'
             : '[3] Continental Tour';
   }

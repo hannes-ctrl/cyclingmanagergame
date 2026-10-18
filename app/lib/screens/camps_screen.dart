@@ -6,8 +6,7 @@ import '../app_state.dart';
 import '../ui.dart';
 import '../widgets.dart';
 
-String _date(DateTime d) =>
-    '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.';
+String _date(DateTime d) => dayText(d);
 
 /// Book training camps and review the camps booked this season.
 class CampsScreen extends StatefulWidget {
@@ -143,7 +142,7 @@ class _CampsScreenState extends State<CampsScreen> {
                       SizedBox(width: 60, child: Text(tr('Duration'))),
                       chips(
                         const [7, 10, 14, 21],
-                        (d) => tr('{0} days', [d]),
+                        (d) => trn(d, '{0} day', '{0} days'),
                         _days,
                         (d) => _days = d,
                       ),
@@ -299,11 +298,19 @@ class _CampsScreenState extends State<CampsScreen> {
                   Label(tr('Camps {0}', [career.year])),
                   const SizedBox(height: 6),
                   if (career.camps.all.isEmpty)
-                    Text(
-                      tr(
-                        'None booked yet. A camp ties up the riders for its duration, loads them hard and pays off one to four weeks later: the trained attributes rise (most for young riders), and form is higher.',
-                      ),
-                      style: TextStyle(color: TeamColors.muted),
+                    Row(
+                      children: [
+                        Text(
+                          tr('None booked yet.'),
+                          style: const TextStyle(color: TeamColors.muted),
+                        ),
+                        const SizedBox(width: 6),
+                        InfoTip(
+                          tr(
+                            'A camp ties up the riders for its duration, loads them hard and pays off one to four weeks later: the trained attributes rise (most for young riders), and form is higher.',
+                          ),
+                        ),
+                      ],
                     ),
                   Expanded(
                     child: ListView(

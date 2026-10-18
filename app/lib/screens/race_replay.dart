@@ -22,7 +22,16 @@ class RaceReplay extends StatefulWidget {
     this.others = const {},
     this.autoplay = false,
     this.onFinished,
+    this.fromKm = 0,
+    this.untilKm,
   });
+
+  /// Kilometre the fast motion starts at.
+  final double fromKm;
+
+  /// Kilometre it stops at, the finish if null: a stage that is only
+  /// ridden that far, up to a question of the team car.
+  final double? untilKm;
 
   final StageResult result;
   final SimRoute route;
@@ -48,7 +57,10 @@ class _RaceReplayState extends State<RaceReplay>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
   Duration _last = Duration.zero;
-  var _km = 0.0;
+  late var _km = widget.fromKm;
+
+  /// Where the fast motion ends.
+  double get _end => widget.untilKm ?? widget.route.raceKm;
   var _playing = false;
   var _speed = 1.0;
   var _finished = false;
@@ -64,8 +76,8 @@ class _RaceReplayState extends State<RaceReplay>
       _last = elapsed;
       setState(() {
         _km += widget.route.raceKm / _seconds * _speed * dt;
-        if (_km >= widget.route.raceKm) {
-          _km = widget.route.raceKm;
+        if (_km >= _end) {
+          _km = _end;
           _stop();
           if (!_finished) {
             _finished = true;
@@ -78,7 +90,7 @@ class _RaceReplayState extends State<RaceReplay>
   }
 
   void _play() {
-    if (_km >= widget.route.raceKm) _km = 0;
+    if (_km >= _end) _km = widget.fromKm;
     _last = Duration.zero;
     _playing = true;
     _ticker.start();
@@ -204,7 +216,7 @@ class _RaceReplayState extends State<RaceReplay>
                       children: [
                         TextSpan(
                           text:
-                              '${label(g, i)} · ${g.size == 1 ? tr('1 rider') : tr('{0} riders', [g.size])}',
+                              '${label(g, i)} · ${g.size == 1 ? tr('1 rider') : trn(g.size, '{0} rider', '{0} riders')}',
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         if (g.favourites > 0)

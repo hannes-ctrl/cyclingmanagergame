@@ -118,12 +118,48 @@ class SaveInfo {
 /// act on. Screens listen to it and call its methods; it records every
 /// decision so that a save can be replayed.
 class AppState extends ChangeNotifier {
-  AppState(this.dataDir, {this.persist = true, this.saveName = 'savegame.json'})
+  AppState(this.dataDir, {this.persist = true, this.saveName = _defaultSave})
     : world = World('$dataDir/world.sqlite') {
     teams = world.teams();
     _worldRaces = world.races();
     final saved = _readSave();
-    _open(saved);
+    try {
+      _open(saved);
+    } on Object catch (e) {
+      // A save this version cannot open is kept, never overwritten.
+      _keepUnreadable(e);
+      _open(null);
+    }
+    if (startProblem case final problem?) {
+      career.inbox.add(
+        Message(career.today, tr('Board'), tr('Saved game'), problem),
+      );
+    }
+  }
+
+  /// What went wrong with the saved game at the start, or null.
+  String? startProblem;
+
+  /// Keeps a save file that cannot be opened beside it, so that the new
+  /// career does not overwrite it.
+  ///
+  /// @param error What went wrong.
+  void _keepUnreadable(Object error) {
+    if (!persist || !_saveFile.existsSync()) return;
+    final stamp = DateTime.now()
+        .toIso8601String()
+        .substring(0, 16)
+        .replaceAll(RegExp('[-:T]'), '');
+    final kept = '$saveName.unreadable-$stamp';
+    try {
+      _saveFile.copySync('$dataDir/$kept');
+    } on FileSystemException {
+      return;
+    }
+    startProblem = tr(
+      'The saved game could not be opened ({0}). It is kept as {1}; a new career has begun.',
+      [error is FormatException ? error.message : error.runtimeType, kept],
+    );
   }
 
   /// Starts the career of a save that was read (or a new one); the state
@@ -178,6 +214,9 @@ class AppState extends ChangeNotifier {
   /// Whether to write the save and load it at start (switched off in tests).
   final bool persist;
 
+  /// The save file of the running game.
+  static const _defaultSave = 'savegame.json';
+
   /// File name of the automatic save in the data folder.
   final String saveName;
   final World world;
@@ -206,7 +245,7 @@ class AppState extends ChangeNotifier {
 
   /// Open question of the sports director from one of today's races. While it
   /// is open, the days do not advance.
-  ({RaceProgress race, int stageIndex, RadioCall call})? radio;
+  RadioPrompt? radio;
 
   /// Race id the race screen should show next (jump from the inbox).
   int? focusRace;
@@ -242,6 +281,18 @@ class AppState extends ChangeNotifier {
   /// Page the shell should open next, as "page" or "page:view"; the shell
   /// clears it.
   String? jumpToPage;
+
+  /// Steps through the inbox asked for with the arrow keys; the inbox takes
+  /// them on its next build.
+  int inboxSteps = 0;
+
+  /// Moves the selection in the inbox.
+  ///
+  /// @param delta -1 for the message above, 1 for the one below.
+  void stepInbox(int delta) {
+    inboxSteps += delta;
+    notifyListeners();
+  }
 
   /// Riders ticked in the squad for a training camp; the camps page takes
   /// them as its selection.
@@ -776,12 +827,8 @@ class AppState extends ChangeNotifier {
   /// Saves the running state under a name with today's game date.
   ///
   /// @returns null on success, otherwise the reason.
-  String? quickSave() => saveAs(
-    tr('Quick save {0}', [
-      '${career.today.day.toString().padLeft(2, '0')}.'
-          '${career.today.month.toString().padLeft(2, '0')}.${career.year}',
-    ]),
-  );
+  String? quickSave() =>
+      saveAs(tr('Quick save {0}', [dayText(career.today, year: true)]));
 
   /// Writes everything that helps to find a bug into one ZIP file in
   /// `data/export`: the running save, the settings, the tuning values and a
@@ -867,8 +914,7 @@ class AppState extends ChangeNotifier {
     for (final m in career.inbox.skip(min(inboxFrom, career.inbox.length))) {
       byTopic[m.topic] = (byTopic[m.topic] ?? 0) + 1;
     }
-    String day(DateTime d) =>
-        '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.';
+    String day(DateTime d) => dayText(d);
     career.inbox.add(
       Message(
         career.today,
@@ -1162,7 +1208,8 @@ class AppState extends ChangeNotifier {
         state: null,
         races: const <Map<String, dynamic>>[],
       );
-    } on Object {
+    } on Object catch (e) {
+      if (named == null) _keepUnreadable(e);
       return null;
     }
   }
@@ -1287,7 +1334,7 @@ class AppState extends ChangeNotifier {
             ? null
             : races.length == 1
             ? races.first.info.name
-            : tr('{0} races', [races.length]);
+            : trn(races.length, '{0} race', '{0} races');
         notifyListeners();
       },
     );
@@ -1353,7 +1400,9 @@ class AppState extends ChangeNotifier {
   /// [autoSaves] files is overwritten, so the player can go back up to four
   /// weeks. Called after a day has been played.
   void _autoSave() {
-    if (!persist || loading != null) return;
+    // Only the running game keeps weekly saves; a state under another save
+    // name (a test, say) must not overwrite them.
+    if (!persist || loading != null || saveName != _defaultSave) return;
     if (career.today.weekday != DateTime.monday) return;
     final slot =
         career.today.difference(DateTime.utc(2000)).inDays ~/ 7 % autoSaves;
@@ -1367,9 +1416,7 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  static String _dayText(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}.'
-      '${d.month.toString().padLeft(2, '0')}.${d.year}';
+  static String _dayText(DateTime d) => dayText(d, year: true);
 
   /// Loads a named save. It becomes the running state; the previous one is
   /// lost unless it was saved under a name.
@@ -1378,10 +1425,18 @@ class AppState extends ChangeNotifier {
   /// @returns null on success, otherwise the reason.
   Future<String?> loadSave(SaveInfo info) async {
     if (busy) return tr('The days are running right now.');
-    _log.clear();
+    // The running game is on disk, in case the save cannot be opened.
+    flush();
     final saved = _readSave(File(info.path));
     if (saved == null) return tr('The file cannot be read.');
-    _open(saved);
+    _log.clear();
+    try {
+      _open(saved);
+    } on Object catch (e) {
+      _open(_readSave());
+      notifyListeners();
+      return e is FormatException ? e.message : tr('The file cannot be read.');
+    }
     notifyListeners();
     // Only a save in the old format still has to be replayed.
     await restore();

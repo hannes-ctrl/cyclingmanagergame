@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sim/sim.dart';
 
 /// Version shown in the start menu; keep in step with pubspec.yaml.
-const appVersion = '0.5.0 alpha';
+const appVersion = '0.6.0 alpha';
 
 /// How the interface adapts its colours for colour-blind players. The
 /// colours are shifted so that red and green, or blue and yellow, can be

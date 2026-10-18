@@ -1,6 +1,6 @@
 name: game
-description: Spielablauf des Radmanagers - Kalender, Saison, Ranglisten, Postfach.
-version: 0.5.0-alpha
+description: Game flow of Radmanager - calendar, season, rankings, inbox.
+version: 0.6.0-alpha
 publish_to: none
 
 environment:

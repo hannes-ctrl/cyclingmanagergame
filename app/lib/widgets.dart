@@ -853,3 +853,26 @@ class RiderPhoto extends StatelessWidget {
     );
   }
 }
+
+/// An explanation behind a small info symbol: shown when the pointer rests
+/// on it, so that the pages stay calm.
+class InfoTip extends StatelessWidget {
+  const InfoTip(this.text, {super.key});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.centerLeft,
+    child: Tooltip(
+      message: text,
+      waitDuration: const Duration(milliseconds: 250),
+      constraints: const BoxConstraints(maxWidth: 380),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      textStyle: const TextStyle(fontSize: 13, color: TeamColors.ground),
+      child: const Padding(
+        padding: EdgeInsets.symmetric(vertical: 2),
+        child: Icon(Icons.info_outline, size: 16, color: TeamColors.muted),
+      ),
+    ),
+  );
+}

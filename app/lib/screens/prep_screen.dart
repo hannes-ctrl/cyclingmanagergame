@@ -668,7 +668,7 @@ class _PrepScreenState extends State<PrepScreen> {
                         race.tier.label,
                         race.info.country,
                         race.isStageRace
-                            ? tr('{0} stages', [race.stages.length])
+                            ? trn(race.stages.length, '{0} stage', '{0} stages')
                             : tr('One-day race'),
                         _p.others.length + lineup.length,
                       ]),
@@ -935,7 +935,7 @@ class _PrepScreenState extends State<PrepScreen> {
                                         ),
                                       ],
                                     ),
-                                    Text(
+                                    InfoTip(
                                       _ownTactics
                                           ? tr(
                                               'What you change is pinned and applies to the whole race. Everything else the sports director plans anew for every stage. A click on the pin releases it again.',
@@ -943,10 +943,6 @@ class _PrepScreenState extends State<PrepScreen> {
                                           : tr(
                                               'The sports director plans every stage himself. This is his plan for the opener.',
                                             ),
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: TeamColors.muted,
-                                      ),
                                     ),
                                     if (_ownTactics) ...[
                                       const SizedBox(height: 6),
